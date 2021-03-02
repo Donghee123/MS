@@ -204,6 +204,7 @@ while is_continue:
         theta=new_theta
         pi = new_pi
 
+print("Test")
 print(pi)
 
 #pi_0_softmax = softmax_convert_into_pi_from_theta(theta_0)
