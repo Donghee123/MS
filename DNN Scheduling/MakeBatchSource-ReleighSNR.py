@@ -24,6 +24,8 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
     f = open(strTotalPath,'w', newline='')
     wr = csv.writer(f)
     
+    wr.writerow(["UE0","UE1","UE2","UE3","SelectedUE"])
+     
     for i in range(0,len(aryOfDatas)):
         wr.writerow(aryOfDatas[i])
     
@@ -88,19 +90,13 @@ for nBatchCount in range(0,nCreateBatchSize):
                 fMaxValue = AryOfUserEquipmentsSnr[i][j]
                 nMaxIndex = j
         
-        for j in range(0,nUECount):
-            if nMaxIndex == j:
-                AryOfSelectedUE.append(1)
-            else:
-                AryOfSelectedUE.append(0)
-            
-        AryOfMaxSNR.append(AryOfSelectedUE)
-        
+        AryOfUserEquipmentsSnr[i].append(nMaxIndex)
+              
+       
     strFolerPath = 'batch' + str(nBatchCount)   
     createFolder(strFolerPath)
    
-    MakeCSVFile(strFolerPath, "InputLayer.csv", AryOfUserEquipmentsSnr)
-    MakeCSVFile(strFolerPath, "OutputLayer.csv", AryOfMaxSNR)
+    MakeCSVFile(strFolerPath, "dataset.csv", AryOfUserEquipmentsSnr)
     
   
 
