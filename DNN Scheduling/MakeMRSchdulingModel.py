@@ -1,90 +1,40 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Mar 11 21:50:10 2021
-
-@author: Handonghee
+DNN based basestation scheduling model
+excute train
+excute test
+save model
+분류기(Classifier) 학습하기
 """
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.autograd import Variable 
+import torchvision.transforms as transforms
 import torch.utils.data as data_utils 
-
-from torchvision import transforms
-
 import numpy as np
 import pandas as pd
-
-"""
-def train(epoch):
-    model.train()
-    
-    for data, targets in loader_train:
-        optimizer.zero_grad()
-        outputs = model(data)
-        loss= loss_fn(outputs, targets)
-        loss.backward()
-        optimizer.step()
-    
-    print("epoch{}:완료\n".format(epoch))
-
-def test():
-    model.eval()
-    correct = 0
-    
-    with torch.no_grad():
+from matplotlib import pyplot as plt
+ 
+class Net(nn.Module):
+    def __init__(self):
+        super(Net,self).__init__()
+        self.l1 = nn.Linear(4,100)
+        self.l2 = nn.Linear(100,400)
+        self.l3 = nn.Linear(400,100)
+        self.l4 = nn.Linear(100,4)
         
-        for data, targets in loader_test:
-            outputs = model(data)
-            testdata,predicted = torch.max(outputs.data, 1)
-            targetdata,targetpredicted = torch.max(targets.data, 1)
-            
-            correct = 0
-            for i in range(len(predicted)):
-                if predicted[i] == targetpredicted[i]:
-                    correct += 1
-            
-            
-    data_num = len(loader_test.dataset)
-    print('\n테스트 데이터에서 예측 정확도' + str(correct) + '/' + str(data_num) + ' ' + str(100.*correct/data_num))
+    def forward(self, x):
+        
+        x = x.float()
+        h1 = F.relu(self.l1(x))
+        h2 = F.relu(self.l2(h1))
+        h3 = F.relu(self.l3(h2))
+        h4 = self.l4(h3)
+        return F.log_softmax(h4, dim=1)
     
-
-    
-inputLayerdata = np.loadtxt("dataset/train/batch0/inputLayer.csv", delimiter=",", dtype=np.float32)
-outputLayerdata = np.loadtxt("dataset/train/batch0/outputLayer.csv", delimiter=",", dtype=np.float32)
-X_train, X_test, y_train, y_test = train_test_split(inputLayerdata,outputLayerdata, test_size=1/7, random_state=0)
-
-X_train = torch.Tensor(X_train)
-X_test = torch.Tensor(X_test)
-y_train = torch.LongTensor(y_train)
-y_test = torch.LongTensor(y_test)
-
-ds_train = TensorDataset(X_train,y_train)
-ds_test = TensorDataset(X_test, y_test)
-
-loader_train = DataLoader(ds_train, batch_size=10000, shuffle=True)
-loader_test = DataLoader(ds_test, batch_size=10000, shuffle=False)
-
-#############신경망 구성##################
-model =nn.Sequential()
-model.add_module('fc1', nn.Linear(4,100))
-model.add_module('relu1', nn.ReLU())
-model.add_module('fc2', nn.Linear(100,50))
-model.add_module('relu2', nn.ReLU())
-model.add_module('fc3', nn.Linear(50,4))
-
-#############오차함수#####################
-loss_fn = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(),lr=0.01)
-
-#test()
-for epoch in range(3):
-    train(epoch)
-
-test()
-"""
-
-
 
 class Dataset(data_utils.Dataset):
    
@@ -97,125 +47,140 @@ class Dataset(data_utils.Dataset):
    
     def __len__(self):
         return len(self.X)
-    
-class MLPRegressor(nn.Module):
-    
-    def __init__(self,X_features):
-        super(MLPRegressor, self).__init__()
-        h1 = nn.Linear(len(X_features), 50)
-        h2 = nn.Linear(50, 35)
-        h3 = nn.Linear(35, 1)
-        self.hidden = nn.Sequential(
-            h1,
-            nn.Tanh(),
-            h2,
-            nn.Tanh(),
-            h3,
-        )
-        
-    def forward(self, x):
-        x = x.float()
-        o = self.hidden(x)
-        return o.view(-1)
-    
-batch_size = 64
 
-trninputdataset = pd.read_csv('./dataset/train/batch0/dataset.csv')
-vrninputdataset = pd.read_csv('./dataset/var/batch0/dataset.csv')
-testinputdataset = pd.read_csv('./dataset/test/batch0/dataset.csv')
-
+seed = 1
 
 X_features = ["UE0", "UE1", "UE2", "UE3"]
-y_feature = ["SelectedUE"]
+y_features = ["SelUE0", "SelUE1", "SelUE2", "SelUE3"]
 
-trn_X_pd, trn_y_pd = trninputdataset[X_features], trninputdataset[y_feature]
-val_X_pd, val_y_pd = vrninputdataset[X_features], vrninputdataset[y_feature]
-test_X_pd, test_y_pd = vrninputdataset[X_features], vrninputdataset[y_feature]
+batch_size = 1
+
+trndataset = pd.read_csv('./dataset/train/batch0/dataset.csv')
+
+trn_X_pd, trn_y_pd = trndataset[X_features], trndataset[y_features ]
 
 trn_X = torch.from_numpy(trn_X_pd.astype(float).to_numpy())
 trn_y = torch.from_numpy(trn_y_pd.astype(float).to_numpy())
 
-val_X = torch.from_numpy(val_X_pd.astype(float).to_numpy())
-val_y = torch.from_numpy(val_y_pd.astype(float).to_numpy())
-
-test_x = torch.from_numpy(test_X_pd.astype(float).to_numpy())
-test_y = torch.from_numpy(test_y_pd.astype(float).to_numpy())
-
 trn = data_utils.TensorDataset(trn_X, trn_y)
 trn_loader = data_utils.DataLoader(trn, batch_size=batch_size, shuffle=True)
 
-val = data_utils.TensorDataset(val_X, val_y)
-val_loader = data_utils.DataLoader(val, batch_size=batch_size, shuffle=False)
 
-test = data_utils.TensorDataset(test_x, test_y)
-test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=False)
+testdataset = pd.read_csv('./dataset/test/batch0/dataset.csv')
 
-trn = Dataset(trn_X, trn_y)
-trn_loader = data_utils.DataLoader(trn, batch_size=batch_size, shuffle=True)
+test_X_pd, test_y_pd = testdataset[X_features], trndataset[y_features ]
 
-val = Dataset(val_X, val_y)
-val_loader = data_utils.DataLoader(val, batch_size=batch_size, shuffle=False)
+test_X = torch.from_numpy(test_X_pd.astype(float).to_numpy())
+test_y = torch.from_numpy(test_y_pd.astype(float).to_numpy())
 
-test = Dataset(test_x, test_y)
-test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=False)
+test = data_utils.TensorDataset(test_X, test_y)
+test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=True)
 
-model = MLPRegressor(X_features)
-criterion = nn.MSELoss()
-learning_rate = 1e-3
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-num_epochs = 10
-num_batches = len(trn_loader)
+torch.manual_seed(seed)
+model = Net()
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(),lr=0.001,momentum=0.5)
+aryofLoss = []
 
-trn_loss_list = []
-val_loss_list = []
+def test(log_interval, model, test_loader):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            
+            output = model(data)
+            print(output)
+            print(target)
+            test_loss += criterion(output, torch.max(target, 1)[1], reduction='sum').item() 
+            #pred = output.argmax(dim=1, keepdim=True)
+            #correct += pred.eq(target.view_as(pred)).item()
 
-for epoch in range(num_epochs):
-    trn_loss_summary = 0.0
-    for i, trn in enumerate(trn_loader):
-        trn_X, trn_y = trn['X'], trn['y']
-        
-        optimizer.zero_grad()
-        trn_pred = model(trn_X.float())
-        trn_loss = criterion(trn_pred, trn_y.float())
-        trn_loss.backward()
-        optimizer.step()
-        
-        trn_loss_summary += trn_loss
-        
-        if (i+1) % 15 == 0:
-            with torch.no_grad():
-                val_loss_summary = 0.0
-                for j, val in enumerate(val_loader):
-                    val_X, val_y = val['X'], val['y']
-                   
-                    val_pred = model(val_X)
-                    val_loss = criterion(val_pred, val_y)
-                    val_loss_summary += val_loss
-                
-            print("epoch: {}/{} | step: {}/{} | trn_loss: {:.4f} | val_loss: {:.4f}".format(
-                epoch + 1, num_epochs, i+1, num_batches, (trn_loss_summary/15)**(1/2), (val_loss_summary/len(val_loader))**(1/2)
-            ))
-                
-            trn_loss_list.append((trn_loss_summary/15)**(1/2))
-            val_loss_list.append((val_loss_summary/len(val_loader))**(1/2))
-            trn_loss_summary = 0.0
-        
-print("finish Training")
+    test_loss /= len(test_loader.dataset)
 
-
-model.eval()
-correct = 0
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format
+          (test_loss, correct, len(test_loader.dataset),
+        100. * correct / len(test_loader.dataset)))
     
+def train(epochcount):
+    
+    #model을 train 모드로 변경
+    model.train()
+    
+    for epoch in range(epochcount): 
+        running_loss = 0.0
+        
+        #i : trn_loader index, data : set <inputs, labes> 
+        for i, data in enumerate(trn_loader,0):
+            inputs, labels = data  
+            
+            #초기화
+            optimizer.zero_grad()
+            
+            #model 유추 시작
+            output = model(inputs)
+           
+            #오차 output, labels 
+            loss = criterion(output,  torch.max(labels, 1)[1])
+            #오차 역전파
+            loss.backward()
+            optimizer.step()
+                           
+            #오차 값 표기
+            lossValue = loss.item()
+            running_loss += lossValue
+            print(lossValue)
+            if i % 2000 == 1999:    # print every 2000 mini-batches
+                print('[%d, %5d] loss: %.3f' %(epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
+            
+log_interval = 10
+           
+
+train(100)
+test(log_interval, model, test_loader)
+torch.save(model, './model.pt')    
+
+"""
+########################################################################
+# 결과가 괜찮아보이네요.
+#
+# 그럼 전체 데이터셋에 대해서는 어떻게 동작하는지 보겠습니다.
+
+correct = 0
+total = 0
 with torch.no_grad():
-        
-    for data, targets in test_loader:
-       
-        
-        print(targets.data)
-               
-                
-    data_num = len(test_loader.dataset)
-    print('\n테스트 데이터에서 예측 정확도' + str(correct) + '/' + str(data_num) + ' ' + str(100.*correct/data_num))
-        
+    for data in testloader:
+        images, labels = data
+        outputs = net(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print('Accuracy of the network on the 10000 test images: %d %%' % (
+    100 * correct / total))
+
+########################################################################
+# (10가지 분류 중에 하나를 무작위로) 찍었을 때의 정확도인 10% 보다는 나아보입니다.
+# 신경망이 뭔가 배우긴 한 것 같네요.
+#
+# 그럼 어떤 것들을 더 잘 분류하고, 어떤 것들을 더 못했는지 알아보겠습니다:
+
+class_correct = list(0. for i in range(10))
+class_total = list(0. for i in range(10))
+with torch.no_grad():
+    for data in testloader:
+        images, labels = data
+        outputs = net(images)
+        _, predicted = torch.max(outputs, 1)
+        c = (predicted == labels).squeeze()
+        for i in range(4):
+            label = labels[i]
+            class_correct[label] += c[i].item()
+            class_total[label] += 1
 
 
+for i in range(10):
+    print('Accuracy of %5s : %2d %%' % (
+        classes[i], 100 * class_correct[i] / class_total[i]))
+"""

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar  9 17:15:15 2021
+DNN based basestation scheduling model(1/2)
 
-@author: CNL-B3
+Chnnel model : Releigh fading
+Make Dataset
+[UE0, UE1, UE2, UE3, SelUE0, SelUE1, SelUE2, SelUE3]
+
 """
 import random
 import math
@@ -23,9 +26,7 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
     
     f = open(strTotalPath,'w', newline='')
     wr = csv.writer(f)
-    
-    wr.writerow(["UE0","UE1","UE2","UE3","SelectedUE"])
-     
+    wr.writerow(["UE0", "UE1", "UE2", "UE3", "SelUE0", "SelUE1", "SelUE2", "SelUE3"])
     for i in range(0,len(aryOfDatas)):
         wr.writerow(aryOfDatas[i])
     
@@ -49,13 +50,13 @@ class SNRCreater:
     
 
 #만들고자 하는 batch 사이즈
-nCreateBatchSize = 100
+nCreateBatchSize = 1
 
 #4개의 UE
 nUECount = 4
 
 #10000개의 데이터 수집
-nTestCount = 10000
+nTestCount = 100000
 
 #레일리페이딩 기반 랜덤 SNR 생성 Class 
 snrCreater = SNRCreater()
@@ -90,13 +91,18 @@ for nBatchCount in range(0,nCreateBatchSize):
                 fMaxValue = AryOfUserEquipmentsSnr[i][j]
                 nMaxIndex = j
         
-        AryOfUserEquipmentsSnr[i].append(nMaxIndex)
-              
-       
+        for j in range(0,nUECount):
+            if nMaxIndex == j:
+                AryOfUserEquipmentsSnr[i].append(1)
+            else:
+               AryOfUserEquipmentsSnr[i].append(0)
+            
+        AryOfMaxSNR.append(AryOfSelectedUE)
+        
     strFolerPath = 'batch' + str(nBatchCount)   
     createFolder(strFolerPath)
    
-    MakeCSVFile(strFolerPath, "dataset.csv", AryOfUserEquipmentsSnr)
+    MakeCSVFile(strFolerPath, "DataSet.csv", AryOfUserEquipmentsSnr)
     
   
 
