@@ -5,7 +5,6 @@ DNN based basestation scheduling model(1/2)
 Chnnel model : Releigh fading
 Make Dataset
 [UE0, UE1, UE2, UE3, SelUE0, SelUE1, SelUE2, SelUE3]
-
 """
 import random
 import math
@@ -48,6 +47,8 @@ class SNRCreater:
         value = random.random()  
         return self.real2dB(-self.dB2real(fAvgValue) * math.log(1.0 - value))
     
+    def GetRageRandom(self, fMaxValue, fMinValue):
+        return random.uniform(fMinValue,fMaxValue)
 
 #만들고자 하는 batch 사이즈
 nCreateBatchSize = 1
