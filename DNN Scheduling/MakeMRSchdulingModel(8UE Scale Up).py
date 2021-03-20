@@ -35,8 +35,9 @@ class Net(nn.Module):
         x = x.float()
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
-        h3 = F.relu(self.l3(h2))
-        return self.l4(h3)
+        h3 = F.relu(self.l3(h2))       
+        h4 = self.l4(h3)
+        return F.log_softmax(h4)   
 
 def createFolder(directory):
     try:
@@ -105,37 +106,38 @@ def train(epochcount):
     #model을 train 모드로 변경
     model.train()
     
-    for epoch in range(epochcount): 
-        running_loss = 0.0
-        
+   
+    running_loss = 0.0        
         #i : trn_loader index, data : set <inputs, labes> 
-        for i, data in enumerate(trn_loader,0):
-            inputs, labels = data  
+    for i, data in enumerate(trn_loader,0):
+        inputs, labels = data  
             
-            #초기화
-            optimizer.zero_grad()
+        #초기화
+        optimizer.zero_grad()
             
             #model 유추 시작
-            output = model(inputs)
-           
-            #오차 output, labels 
-            loss = criterion(output,  torch.max(labels, 1)[1])
-            
+        output = model(inputs)
+       
+        #오차 output, labels 
+        loss = criterion(output,  torch.max(labels, 1)[1])
+        
+        #loss = criterion(output, labels.float())
+        
             #오차 역전파
-            loss.backward()
-            optimizer.step()
+        loss.backward()
+        optimizer.step()
                            
             #오차 값 표기
-            lossValue = loss.item()
-            running_loss += lossValue
+        lossValue = loss.item()
+        running_loss += lossValue
             
             #2000번 순회시 loss 상태 보여주기
-            if i % 2000 == 1999:    # print every 2000 mini-batches
-                artoftempLoss = []
-                print('[%d, %5d] loss: %.3f' %(epoch + 1, i + 1, running_loss / 2000))
-                artoftempLoss.append(running_loss/2000)
-                aryofLoss.append(artoftempLoss)
-                running_loss = 0.0
+        if i % 2000 == 1999:    # print every 2000 mini-batches
+            artoftempLoss = []
+            print('[%d, %5d] loss: %.3f' %(epochcount + 1, i + 1, running_loss / 2000))
+            artoftempLoss.append(running_loss/2000)
+            aryofLoss.append(artoftempLoss)
+            running_loss = 0.0
             
     
 """
@@ -147,6 +149,11 @@ trndataset = pd.read_csv('./dataset/train/batch0/dataset.csv')
 End Pandas API를 이용한 엑셀 데이터 취득 구간
 """
 
+USE_CUDA = torch.cuda.is_available()
+print(USE_CUDA)
+
+device = torch.device('cuda:0' if USE_CUDA else 'cpu')
+
 
 """
 Start 훈련 및 테스트용 데이터 분할 구간
@@ -154,7 +161,7 @@ Start 훈련 및 테스트용 데이터 분할 구간
 seed = 1
 
 #epoch
-epoch = 6
+epoch = 25
 #해당 각 데이터 범주 정의
 X_features = ["UE0", "UE1", "UE2", "UE3","UE4", "UE5", "UE6", "UE7"]
 y_features = ["SelUE0", "SelUE1", "SelUE2", "SelUE3","SelUE4", "SelUE5", "SelUE6", "SelUE7"]
@@ -175,7 +182,8 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = len(trn) - trainsetSize
+valisetSize = int(30 * len(trn) / 100)
+#testsetSize = len(trn) - trainsetSize - valisetSize
 
 trn_set, val_set = torch.utils.data.random_split(trn, [trainsetSize, valisetSize])
 
@@ -193,10 +201,10 @@ start module 인스턴스 생성 후 학습 및 테스트 구간
 """
 torch.manual_seed(seed)
 model = Net()
-#손실 함수 계산 교차엔트로피
+#MES Loss
 criterion = nn.CrossEntropyLoss()
 #최적화 함수 SGD, 학습률 0.001, momentum 0.5
-optimizer = optim.SGD(model.parameters(),lr=0.001,momentum=0.5)
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.5)
 
 aryofLoss = []
 aryofModelInfo = []
@@ -205,7 +213,7 @@ log_interval = 1
            
 for i in range(0,epoch):
     #훈련
-    train(1)
+    train(i)
     #평가
     test(log_interval, model, val_loader)
 
