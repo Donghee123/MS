@@ -194,7 +194,7 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = int(20 * len(trn) / 100)
+valisetSize = int(10 * len(trn) / 100)
 testsetSize = len(trn) - (trainsetSize + valisetSize) 
 #testsetSize = len(trn) - trainsetSize - valisetSize
 
