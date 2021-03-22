@@ -37,7 +37,7 @@ class Net(nn.Module):
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))       
         h4 = self.l4(h3)
-        return F.log_softmax(h4)   
+        return F.log_softmax(h4, dim = 1)   
 
 def createFolder(directory):
     try:
@@ -101,44 +101,61 @@ def test(log_interval, model, test_loader):
    
 
 #학습 함수    
-def train(epochcount):
+def train(epochcount, train_loader, validation_loader):
     
-    #model을 train 모드로 변경
-    model.train()
-    
-   
+    #model을 train 모드로 변경   
     running_loss = 0.0        
-        #i : trn_loader index, data : set <inputs, labes> 
-    for i, data in enumerate(trn_loader,0):
+        #i : trn_loader index, data : set <inputs, labes>         
+        
+       
+    for i, data in enumerate(train_loader):
         inputs, labels = data  
-            
+        model.train(True)
+                                  
         #초기화
         optimizer.zero_grad()
-            
-            #model 유추 시작
+                    
+        #model 유추 시작
         output = model(inputs)
-       
+               
         #오차 output, labels 
         loss = criterion(output,  torch.max(labels, 1)[1])
-        
+                
         #loss = criterion(output, labels.float())
-        
-            #오차 역전파
+                
+        #오차 역전파
         loss.backward()
         optimizer.step()
-                           
-            #오차 값 표기
+                                   
+        #오차 값 표기
         lossValue = loss.item()
         running_loss += lossValue
-            
-            #2000번 순회시 loss 상태 보여주기
+                
+        #2000번 순회시 누적 train loss 상태 보여주기, validation loss 상태 보여주기
         if i % 2000 == 1999:    # print every 2000 mini-batches
             artoftempLoss = []
             print('[%d, %5d] loss: %.3f' %(epochcount + 1, i + 1, running_loss / 2000))
             artoftempLoss.append(running_loss/2000)
             aryofLoss.append(artoftempLoss)
             running_loss = 0.0
+            validationRunning_loss= 0.0
             
+            #2000 trainning당 한번 validation 체크
+            for valindex, valdata in enumerate(validation_loader):
+                validationinputs, validationlabels = valdata 
+                model.train(False)
+                validationoutput = model(validationinputs) 
+                validationloss = criterion(validationoutput,  torch.max(validationlabels, 1)[1])
+                validationlossValue = validationloss.item()
+                validationRunning_loss += validationlossValue
+            
+            validationTempLoss = []
+            validationSize = len(data_loaders['val'])
+            validationRunning_loss /= validationSize
+            validationTempLoss.append(validationRunning_loss)
+            aryofValidationLoss.append(validationTempLoss)
+            print('Validationloss: %.3f' %(validationRunning_loss))
+               
     
 """
 Start Pandas API를 이용한 엑셀 데이터 취득 구간
@@ -149,11 +166,6 @@ trndataset = pd.read_csv('./dataset/train/batch0/dataset.csv')
 End Pandas API를 이용한 엑셀 데이터 취득 구간
 """
 
-USE_CUDA = torch.cuda.is_available()
-print(USE_CUDA)
-
-device = torch.device('cuda:0' if USE_CUDA else 'cpu')
-
 
 """
 Start 훈련 및 테스트용 데이터 분할 구간
@@ -161,7 +173,7 @@ Start 훈련 및 테스트용 데이터 분할 구간
 seed = 1
 
 #epoch
-epoch = 25
+epoch = 50
 #해당 각 데이터 범주 정의
 X_features = ["UE0", "UE1", "UE2", "UE3","UE4", "UE5", "UE6", "UE7"]
 y_features = ["SelUE0", "SelUE1", "SelUE2", "SelUE3","SelUE4", "SelUE5", "SelUE6", "SelUE7"]
@@ -182,15 +194,21 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = int(30 * len(trn) / 100)
+valisetSize = int(20 * len(trn) / 100)
+testsetSize = len(trn) - (trainsetSize + valisetSize) 
 #testsetSize = len(trn) - trainsetSize - valisetSize
 
-trn_set, val_set = torch.utils.data.random_split(trn, [trainsetSize, valisetSize])
+trn_set, val_set, test_set = torch.utils.data.random_split(trn, [trainsetSize, valisetSize, testsetSize])
 
 #훈련용 데이터 로더
 trn_loader = data_utils.DataLoader(trn_set, batch_size=batch_size, shuffle=True)
 #검증용 데이터 로더
 val_loader = data_utils.DataLoader(val_set, batch_size=batch_size, shuffle=True)
+#테스트용 데이터 로더
+test_loader = data_utils.DataLoader(test_set, batch_size=batch_size, shuffle=True)
+
+#범주별 data_loader 핸들링
+data_loaders = {"train": trn_loader, "val": val_loader, "test":test_loader}
 """
 End 훈련 및 테스트용 데이터 분할 구간
 """
@@ -208,20 +226,21 @@ optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.5)
 
 aryofLoss = []
 aryofModelInfo = []
-
+aryofValidationLoss = []
 log_interval = 1
            
 for i in range(0,epoch):
     #훈련
-    train(i)
+    train(i, data_loaders['train'], data_loaders['val'])
     #평가
-    test(log_interval, model, val_loader)
+    test(log_interval, model, data_loaders['test'])
 
 #Save Model 
 
 modelPath = "./model"
 createFolder(modelPath)   
 MakeCSVFile(modelPath, "ModelLossInfo.csv", ["Loss"], aryofLoss)
+MakeCSVFile(modelPath, "ModelValidationLossInfo.csv", ["Validation Loss"], aryofValidationLoss)
 MakeCSVFile(modelPath, "ModelSpec.csv",["Average Loss","Correct","Accracy"],aryofModelInfo)
 torch.save(model, modelPath + '/model.pt')    
 
