@@ -58,7 +58,7 @@ nCreateBatchSize = 1
 nUECount = 8
 
 #10000개의 데이터 수집
-nTestCount = 100000
+nTestCount = 10000
 
 #레일리페이딩 기반 랜덤 SNR 생성 Class 
 snrCreater = SNRCreater()

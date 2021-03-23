@@ -36,8 +36,8 @@ class Net(nn.Module):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))       
-        h4 = self.l4(h3)
-        return F.log_softmax(h4, dim = 1)   
+        h4 = F.sigmoid(self.l4(h3)) 
+        return F.softmax(h4, dim = 1)   
 
 def createFolder(directory):
     try:
@@ -194,9 +194,8 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = int(10 * len(trn) / 100)
+valisetSize = int(5 * len(trn) / 100)
 testsetSize = len(trn) - (trainsetSize + valisetSize) 
-#testsetSize = len(trn) - trainsetSize - valisetSize
 
 trn_set, val_set, test_set = torch.utils.data.random_split(trn, [trainsetSize, valisetSize, testsetSize])
 
@@ -223,6 +222,7 @@ model = Net()
 criterion = nn.CrossEntropyLoss()
 #최적화 함수 SGD, 학습률 0.001, momentum 0.5
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.5)
+#optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 aryofLoss = []
 aryofModelInfo = []

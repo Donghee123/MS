@@ -27,11 +27,9 @@ class Net(nn.Module):
         super(Net,self).__init__()
         self.l1 = nn.Linear(8,16)
         self.l2 = nn.Linear(16,32)
-        self.l3 = nn.Linear(32,64)
-        self.l4 = nn.Linear(64,128)
-        self.l5 = nn.Linear(128,64)
-        self.l6 = nn.Linear(64,32)
-        self.l7 = nn.Linear(32,16)
+        self.l3 = nn.Linear(32,64)    
+        self.l4 = nn.Linear(64,32)
+        self.l5 = nn.Linear(32,16)
         
     def forward(self, x):
         
@@ -40,12 +38,10 @@ class Net(nn.Module):
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))   
         h4 = F.relu(self.l4(h3))   
-        h5 = F.relu(self.l5(h4))   
-        h6 = F.relu(self.l6(h5))   
-        h7 = self.l7(h6)
-        
-        return F.log_softmax(h7, dim = 1)   
-
+        h5 = F.sigmoid(self.l5(h4))    
+       
+        return h5
+    
 def createFolder(directory):
     try:
         if not os.path.exists(directory):
@@ -84,28 +80,18 @@ def test(log_interval, model, test_loader):
             #추론 시작
             output = model(data)
            
-            #추론 결과 Loss 취득
-            Tempoutput1 = output.clone()
-            Tempoutput2 = output.clone()
-        
-            Tempoutput1[0][8:16] = 0
-            Tempoutput2[0][0:8] = 0
-        
-            Temptarget1 = target.clone()
-            Temptarget2 = target.clone()
-        
-            Temptarget1[0][8:16] = 0
-            Temptarget2[0][0:8] = 0
-        
+              
             #오차 output, labels 
-            test_loss = criterion(Tempoutput1, torch.max(Temptarget1, 1)[1])
-            test_loss += criterion(Tempoutput2, torch.max(Temptarget2, 1)[1])    
+            test_loss += criterion(output, target.float())
+                       
+            target1 = target[0][0:8]
+            target2 = target[0][8:16]
             
-            CompareOutput1 = Tempoutput1[0][0:8]
-            CompareOutput2 = Tempoutput2[0][8:16]
+            output1 = output[0][0:8]
+            output2 = output[0][8:16]
             
             #추론 결과 직접 비교
-            if torch.tensor([torch.max(CompareOutput1,0)[1]]) == torch.max(Temptarget1,1)[1] and torch.tensor([torch.max(CompareOutput2,0)[1]]) == (torch.max(Temptarget2,1)[1] - 8):
+            if torch.max(target1,0)[1] == torch.max(output1,0)[1] and torch.max(target2,0)[1] == torch.max(output2,0)[1]:
                 correct += 1
 
     
@@ -144,22 +130,10 @@ def train(epochcount, train_loader, validation_loader, nShowInterval):
         
         #추론 결과 Loss 취득
         
-        Tempoutput1 = output.clone()
-        Tempoutput2 = output.clone()
-        
-        Tempoutput1[0][8:16] = 0
-        Tempoutput2[0][0:8] = 0
-        
-        TempLabel1 = labels.clone()
-        TempLabel2 = labels.clone()
-        
-        TempLabel1[0][8:16] = 0
-        TempLabel2[0][0:8] = 0
         
         #오차 output, labels 
-        test_loss = criterion(Tempoutput1, torch.max(TempLabel1, 1)[1])
-        test_loss += criterion(Tempoutput2, torch.max(TempLabel2, 1)[1])    
-               
+        test_loss = criterion(output, labels.float())
+              
         #loss = criterion(output, labels.float())
                 
         #오차 역전파
@@ -186,27 +160,15 @@ def train(epochcount, train_loader, validation_loader, nShowInterval):
                 
                 validationoutput = model(validationinputs) 
                 
-                valTempoutput1 = validationoutput.clone()
-                valTempoutput2 = validationoutput.clone()
-        
-                valTempoutput1[0][8:16] = 0
-                valTempoutput2[0][0:8] = 0
-        
-                valTempLabel1 = validationlabels.clone()
-                valTempLabel2 = validationlabels.clone()
-        
-                valTempLabel1[0][8:16] = 0
-                valTempLabel2[0][0:8] = 0
-        
+               
                 #오차 output, labels 
-                validationloss = criterion(valTempoutput1, torch.max(valTempLabel1, 1)[1])
-                validationloss += criterion(valTempoutput2, torch.max(valTempLabel2, 1)[1])    
-                           
+                validationloss = criterion(validationoutput, validationlabels)
+                          
                 validationlossValue = validationloss.item()
                 validationRunning_loss += validationlossValue
             
             validationTempLoss = []
-            validationSize = len(data_loaders['val'])
+            validationSize = len(validation_loader)
             validationRunning_loss /= validationSize
             validationTempLoss.append(validationRunning_loss)
             aryofValidationLoss.append(validationTempLoss)
@@ -229,7 +191,7 @@ Start 훈련 및 테스트용 데이터 분할 구간
 seed = 1
 
 #epochin
-epoch = 50
+epoch = 100
 #해당 각 데이터 범주 정의
 X_features = ["UE0", "UE1", "UE2", "UE3","UE4", "UE5", "UE6", "UE7"]
 y_features = ["1_SelUE0", "1_SelUE1", "1_SelUE2", "1_SelUE3", "1_SelUE4", "1_SelUE5", "1_SelUE6", "1_SelUE7", 
@@ -251,7 +213,7 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = int(10 * len(trn) / 100)
+valisetSize = int(5 * len(trn) / 100)
 testsetSize = len(trn) - (trainsetSize + valisetSize) 
 #testsetSize = len(trn) - trainsetSize - valisetSize
 
@@ -277,7 +239,8 @@ start module 인스턴스 생성 후 학습 및 테스트 구간
 torch.manual_seed(seed)
 model = Net()
 #MES Loss
-criterion = nn.CrossEntropyLoss()
+#criterion = nn.CrossEntropyLoss()
+criterion = nn.MSELoss()
 #최적화 함수 SGD, 학습률 0.001, momentum 0.5
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.5)
 
@@ -288,7 +251,7 @@ log_interval = 1
            
 for i in range(0,epoch):
     #훈련
-    train(i, data_loaders['train'], data_loaders['val'],2000)
+    train(i, data_loaders['train'], data_loaders['val'],200)
     #평가
     test(log_interval, model, data_loaders['test'])
 
