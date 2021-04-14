@@ -36,7 +36,7 @@ class Net(nn.Module):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))       
-        h4 = F.sigmoid(self.l4(h3)) 
+        h4 = self.l4(h3)
         return F.softmax(h4, dim = 1)   
 
 def createFolder(directory):
@@ -101,7 +101,7 @@ def test(log_interval, model, test_loader):
    
 
 #학습 함수    
-def train(epochcount, train_loader, validation_loader):
+def train(epochcount, train_loader, validation_loader, nShowInterval):
     
     #model을 train 모드로 변경   
     running_loss = 0.0        
@@ -131,11 +131,11 @@ def train(epochcount, train_loader, validation_loader):
         lossValue = loss.item()
         running_loss += lossValue
                 
-        #2000번 순회시 누적 train loss 상태 보여주기, validation loss 상태 보여주기
-        if i % 2000 == 1999:    # print every 2000 mini-batches
+        #nShowInterval 순회시 누적 train loss 상태 보여주기, validation loss 상태 보여주기
+        if i % nShowInterval == (nShowInterval - 1):    # print every nShowInterval1 mini-batches
             artoftempLoss = []
-            print('[%d, %5d] loss: %.3f' %(epochcount + 1, i + 1, running_loss / 2000))
-            artoftempLoss.append(running_loss/2000)
+            print('[%d, %5d] loss: %.3f' %(epochcount + 1, i + 1, running_loss / nShowInterval))
+            artoftempLoss.append(running_loss/nShowInterval)
             aryofLoss.append(artoftempLoss)
             running_loss = 0.0
             validationRunning_loss= 0.0
@@ -173,7 +173,7 @@ Start 훈련 및 테스트용 데이터 분할 구간
 seed = 1
 
 #epoch
-epoch = 50
+epoch = 500
 #해당 각 데이터 범주 정의
 X_features = ["UE0", "UE1", "UE2", "UE3","UE4", "UE5", "UE6", "UE7"]
 y_features = ["SelUE0", "SelUE1", "SelUE2", "SelUE3","SelUE4", "SelUE5", "SelUE6", "SelUE7"]
@@ -194,7 +194,7 @@ trn = data_utils.TensorDataset(trn_X, trn_y)
 
 #데이터셋 중 훈련 : 70%, 검증 : 30% 사용
 trainsetSize = int(70 * len(trn) / 100)
-valisetSize = int(5 * len(trn) / 100)
+valisetSize = int(20 * len(trn) / 100)
 testsetSize = len(trn) - (trainsetSize + valisetSize) 
 
 trn_set, val_set, test_set = torch.utils.data.random_split(trn, [trainsetSize, valisetSize, testsetSize])
@@ -221,7 +221,7 @@ model = Net()
 #MES Loss
 criterion = nn.CrossEntropyLoss()
 #최적화 함수 SGD, 학습률 0.001, momentum 0.5
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.5)
+optimizer = optim.SGD(model.parameters(), lr=0.001)
 #optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 aryofLoss = []
@@ -231,7 +231,7 @@ log_interval = 1
            
 for i in range(0,epoch):
     #훈련
-    train(i, data_loaders['train'], data_loaders['val'])
+    train(i, data_loaders['train'], data_loaders['val'],trainsetSize)
     #평가
     test(log_interval, model, data_loaders['test'])
 

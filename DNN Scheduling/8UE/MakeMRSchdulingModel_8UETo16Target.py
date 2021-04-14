@@ -41,14 +41,16 @@ class Net(nn.Module):
         h5 = F.sigmoid(self.l5(h4))    
        
         return h5
-    
+
+#폴더 생성 유틸 함수    
 def createFolder(directory):
     try:
         if not os.path.exists(directory):
             os.makedirs(directory)
     except OSError:
         print ('Error: Creating directory. ' +  directory)
-     
+
+#테스트 결과 저장 유틸 함수
 def MakeCSVFile(strFolderPath, strFilePath, aryofHeader, aryOfDatas):
     strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
     
