@@ -58,12 +58,15 @@ def newtonmethd_getNextvector(q,b,x):
 
 def newton_method(q,b,x): 
       
+    #다음 X값 계산 x - f(-1) @ g
     nextX = newtonmethd_getNextvector(q, b, x)
+    
     preX = nextX.copy()
     print('newton : iteration count : 0')
     print(preX)
     
-    for i in range(100):       
+    for i in range(100):     
+        #다음 X값 계산 x - f(-1) @ g
         nextX = newtonmethd_getNextvector(q, b, preX)   
                
         if (abs(nextX-preX) < 0.000001).all():
@@ -127,22 +130,32 @@ def conjugate_method(q,b,x):
     print(nextX)
     
 #======================================================= 
+#===============quasinewton_method====================== 
 def quasinewton_method(q,b,x,dimension):
+    #단위 행렬지정
     H = np.eye(dimension)
+    #처음 direction 설정
     direction = -firstderivative(q, b, x)
+    #alphar값 계산
     alpha = conjugate_getRate(q,b,x,direction)
     
+    #다음 X 계산
     nextX = x + (alpha * direction)
+    #X값 변화량 저장
     diffx = nextX - x
+    #미분 값 변화량 저장
     diffg = firstderivative(q, b, nextX) - firstderivative(q, b, x)
+    #BFGS를 이용한 H값 재갱신
     nextH = H + (1 + (  (np.transpose(diffg) @ H @ diffg)  /  (np.transpose(diffg) @ diffx)  ) ) * ( (diffx @ np.transpose(diffx)) /  ( np.transpose(diffx) @ diffg )) - ( ((diffx @ np.transpose(diffg) @ H) + (H @ diffg @ np.transpose(diffx))) / (np.transpose(diffg) @ diffx) ) 
-    
+    #다음 direction 설정
     nextdierection = -nextH@firstderivative(q, b, nextX)
+    
     preX = nextX.copy()
     
     print('quasinewton : iteration count : 0')
     print(nextX)
     
+    #iteration 수행
     for i in range(100):
         alpha = conjugate_getRate(q,b,nextX,nextdierection)
         nextX = nextX + (alpha * nextdierection)
@@ -161,7 +174,7 @@ def quasinewton_method(q,b,x,dimension):
     
     print('quasinewton : iteration count : ' + str(i + 1) + ', optimal X is')    
     print(nextX)
-    
+ #=======================================================    
     
 def homework3(method_name, demension, q, b, x):    
     if method_name is "steepest":
@@ -175,9 +188,7 @@ def homework3(method_name, demension, q, b, x):
     
 inputQ = np.array([[3,0,1],[0,4,2],[1,2,3]])
 inputB = np.array([[3],[0],[1]])
-inputX = np.array([[-10],[10],[1]])
-#inputQ = np.array([[5,-3],[-3,2]])
-#inputB = np.array([[0],[1]])
-#inputX = np.array([[0],[0]])
+inputX = np.array([[0],[0],[0]])
 
-homework3('steepest', 3, inputQ, inputB, inputX)
+
+homework3('newton', 3, inputQ, inputB, inputX)
