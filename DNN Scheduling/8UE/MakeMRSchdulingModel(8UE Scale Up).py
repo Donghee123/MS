@@ -36,7 +36,7 @@ class Net(nn.Module):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
         h3 = F.relu(self.l3(h2))       
-        h4 = self.l4(h3)
+        h4 = F.sigmoid(self.l4(h3)) 
         return F.softmax(h4, dim = 1)   
 
 def createFolder(directory):
@@ -221,7 +221,7 @@ model = Net()
 #MES Loss
 criterion = nn.CrossEntropyLoss()
 #최적화 함수 SGD, 학습률 0.001, momentum 0.5
-optimizer = optim.SGD(model.parameters(), lr=0.001)
+optimizer = optim.SGD(model.parameters(), lr=0.0005)
 #optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 aryofLoss = []
