@@ -186,9 +186,20 @@ def homework3(method_name, demension, q, b, x):
     elif method_name is "quasinewton":
         quasinewton_method(q,b,x,demension)
     
+<<<<<<< HEAD
 inputQ = np.array([[3,0,1],[0,4,2],[1,2,3]])
 inputB = np.array([[3],[0],[1]])
 inputX = np.array([[0],[0],[0]])
 
 
 homework3('newton', 3, inputQ, inputB, inputX)
+=======
+#inputQ = np.array([[3,0,1],[0,4,2],[1,2,3]])
+#inputB = np.array([[3],[0],[1]])
+#inputX = np.array([[-10],[10],[1]])
+inputQ = np.array([[4,2],[2,2]])
+inputB = np.array([[-1],[1]])
+inputX = np.array([[0],[0]])
+
+homework3('conjugate', 2, inputQ, inputB, inputX)
+>>>>>>> 02960e2dbac6cc1fbe4ad931680afa40a0919423
