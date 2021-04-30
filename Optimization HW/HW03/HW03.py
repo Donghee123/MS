@@ -173,11 +173,11 @@ def homework3(method_name, demension, q, b, x):
     elif method_name is "quasinewton":
         quasinewton_method(q,b,x,demension)
     
-inputQ = np.array([[3,0,1],[0,4,2],[1,2,3]])
-inputB = np.array([[3],[0],[1]])
-inputX = np.array([[-10],[10],[1]])
-#inputQ = np.array([[5,-3],[-3,2]])
-#inputB = np.array([[0],[1]])
-#inputX = np.array([[0],[0]])
+#inputQ = np.array([[3,0,1],[0,4,2],[1,2,3]])
+#inputB = np.array([[3],[0],[1]])
+#inputX = np.array([[-10],[10],[1]])
+inputQ = np.array([[4,2],[2,2]])
+inputB = np.array([[-1],[1]])
+inputX = np.array([[0],[0]])
 
-homework3('steepest', 3, inputQ, inputB, inputX)
+homework3('conjugate', 2, inputQ, inputB, inputX)
