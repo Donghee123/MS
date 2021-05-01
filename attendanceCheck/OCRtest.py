@@ -25,18 +25,35 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
  # 32비트인 경우 => r'C:\Program Files (x86)\Tesseract-OCR\tesseract' 
  
  # 이미지 불러오기, Gray 프로세싱
-path = "C:\\Users\\CNL-B3\\Desktop\\test.jpg"
+path = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4.jpg"
+savepath = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4test.bmp"
+
 image = cv2.imread(path) 
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
+gray = cv2.resize(gray, dsize=(0, 0), fx=2.0, fy=2.0, interpolation=cv2.INTER_LINEAR)
 
 # write the grayscale image to disk as a temporary file so we can 
 # 글자 프로세싱을 위해 Gray 이미지 임시파일 형태로 저장. 
-filename = '{}.png'.format(os.getpid()) 
+#filename = '{}.bmp'.format(os.getpid()) 
+filename = savepath
 cv2.imwrite(filename, gray) 
 
 # Simple image to string 
 text = pytesseract.image_to_string(Image.open(filename), lang='kor')
 print(text)
-os.remove(filename)
+
+save = text.split('\n')
+
+#1차 필터링 : 글자수
+firstfilter = []
+
+for i in save:
+    if len(i) >= 6:
+        firstfilter.append(i)
+        
+    
+#os.remove(filename)
+
+print(firstfilter)
 #cv2.imshow('Image', image) 
 #cv2.waitKey(0)
