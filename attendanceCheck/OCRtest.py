@@ -19,41 +19,126 @@ try:
 except ImportError: 
      import Image 
 import pytesseract
+import numpy as np
+import pandas as pd
 
- # 설치한 tesseract 프로그램 경로 (64비트)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract' 
  # 32비트인 경우 => r'C:\Program Files (x86)\Tesseract-OCR\tesseract' 
  
  # 이미지 불러오기, Gray 프로세싱
 path = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4.jpg"
 savepath = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4test.bmp"
 
-image = cv2.imread(path) 
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
-gray = cv2.resize(gray, dsize=(0, 0), fx=2.0, fy=2.0, interpolation=cv2.INTER_LINEAR)
+def getFileList(folderPath):
+    fileList = os.listdir(folderPath)
+    answerFileList = []
+    for fileName in fileList:
+        answerFileList.append(folderPath + '\\' + fileName)
+        
+    return answerFileList
 
-# write the grayscale image to disk as a temporary file so we can 
-# 글자 프로세싱을 위해 Gray 이미지 임시파일 형태로 저장. 
-#filename = '{}.bmp'.format(os.getpid()) 
-filename = savepath
-cv2.imwrite(filename, gray) 
+def GetNameList(loadImagePath, savePath):   
+    
+    # 설치한 tesseract 프로그램 경로 (64비트)
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract' 
 
-# Simple image to string 
-text = pytesseract.image_to_string(Image.open(filename), lang='kor')
-print(text)
+    image = cv2.imread(loadImagePath) 
+    
+    #bgr to gray
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) 
+    
+    #이미지 크기 조절
+    gray = cv2.resize(gray, dsize=(0, 0), fx=1.5, fy=1.5, interpolation=cv2.INTER_LINEAR)
+        
+    #컨볼루션
+    sharpening = np.array([[-1, -1, -1, -1, -1],
+                         [-1, 2, 2, 2, -1],
+                         [-1, 2, 9, 2, -1],
+                         [-1, 2, 2, 2, -1],
+                         [-1, -1, -1, -1, -1]]) / 9.0
+    
+    gray = cv2.filter2D(gray, -1, sharpening)
+    
+    
+    
+    # write the grayscale image to disk as a temporary file so we can 
+    # 글자 프로세싱을 위해 Gray 이미지 임시파일 형태로 저장. 
+    #filename = '{}.bmp'.format(os.getpid()) 
+    filename = savePath
+    cv2.imwrite(filename, gray) 
+    
+    # Simple image to string 
+    text = pytesseract.image_to_string(Image.open(filename), lang='kor')
+    
+    
+    #1차 필터링 : 줄 단위
+    save = text.split('\n')
+    
+    #2차 필터링 : 글자수 6개 이상
+    #3차 필터링 : 글자에 숫자가 7개이상
+    
+    firstfilter = []
 
-save = text.split('\n')
+    for name in save:
+        if len(name) >= 6 and len(name) <= 15:
+            digitCount = 0
+            
+            for checkDigit in name:
+                if checkDigit.isdigit():
+                    digitCount += 1
+            
+            if digitCount >= 7:
+                firstfilter.append(name)
+    
+                      
+    return firstfilter
 
-#1차 필터링 : 글자수
-firstfilter = []
-
-for i in save:
-    if len(i) >= 6:
-        firstfilter.append(i)
+def GetResult(excelPath, nameList):
+    
+    df = pd.read_excel(excelPath)   
+    result = []
+    
+    for index in range(len(df['number'])):
+        
+        for checkAttendance in nameList:
+            if checkAttendance.find(str(df['number'][index])) >= 0 or checkAttendance.find(str(df['name'][index])) >= 0:
+                result.append(str(df['number'][index]) + ', ' + str(df['name'][index]) + ', o')
+                break
+        else:
+            result.append(str(df['number'][index]) + ', ' +str(df['name'][index]) + ', x')
+    
+    return result
+                
+        
+def GetAllNameList(folderPath):
+    
+    fileList = getFileList(folderPath)
+    AllNameList = []
+    
+    for filePath in fileList:       
+        file_name, file_ext = os.path.splitext(filePath)
+        savefilelist = list(file_name)
+        
+        
+            
+        savefilelist.insert((len(savefilelist)), '_.bmp')
+        saveAfterProcessImagePath = ''.join(savefilelist)
+        temp = GetNameList(filePath, saveAfterProcessImagePath)
+        
+        for name in temp:
+            AllNameList.append(name)
+    
+    #모든 이름 내림차순 정렬
+    
+    AllNameList.sort()
+    
+    return AllNameList
         
     
-#os.remove(filename)
+#C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
 
-print(firstfilter)
-#cv2.imshow('Image', image) 
-#cv2.waitKey(0)
+result = []
+
+#총 4번 다시 체크 이미지 사이즈 조절 하면서 체크 많이 할수록 정확도가 올라감
+for i in range(4):
+    arr = GetAllNameList('C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages')
+    result = GetResult("C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx", arr)
