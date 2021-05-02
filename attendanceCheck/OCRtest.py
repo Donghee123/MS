@@ -92,6 +92,31 @@ def GetNameList(loadImagePath, savePath):
                       
     return firstfilter
 
+
+                
+        
+def GetAllNameList(folderPath):
+    
+    fileList = getFileList(folderPath)
+    AllNameList = []
+    
+    for filePath in fileList:       
+        file_name, file_ext = os.path.splitext(filePath)
+        savefilelist = list(file_name)
+                           
+        savefilelist.insert((len(savefilelist)), '_.bmp')
+        saveAfterProcessImagePath = ''.join(savefilelist)
+        temp = GetNameList(filePath, saveAfterProcessImagePath)
+        
+        for name in temp:
+            AllNameList.append(name)
+    
+    #모든 이름 내림차순 정렬
+    
+    AllNameList.sort()
+    
+    return AllNameList
+        
 def GetResult(excelPath, nameList):
     
     df = pd.read_excel(excelPath)   
@@ -107,33 +132,7 @@ def GetResult(excelPath, nameList):
             result.append(str(df['number'][index]) + ', ' +str(df['name'][index]) + ', x')
     
     return result
-                
-        
-def GetAllNameList(folderPath):
-    
-    fileList = getFileList(folderPath)
-    AllNameList = []
-    
-    for filePath in fileList:       
-        file_name, file_ext = os.path.splitext(filePath)
-        savefilelist = list(file_name)
-        
-        
-            
-        savefilelist.insert((len(savefilelist)), '_.bmp')
-        saveAfterProcessImagePath = ''.join(savefilelist)
-        temp = GetNameList(filePath, saveAfterProcessImagePath)
-        
-        for name in temp:
-            AllNameList.append(name)
-    
-    #모든 이름 내림차순 정렬
-    
-    AllNameList.sort()
-    
-    return AllNameList
-        
-    
+   
 #C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
 
 result = []
