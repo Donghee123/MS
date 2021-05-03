@@ -24,9 +24,6 @@ import pandas as pd
 
  # 32비트인 경우 => r'C:\Program Files (x86)\Tesseract-OCR\tesseract' 
  
- # 이미지 불러오기, Gray 프로세싱
-path = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4.jpg"
-savepath = "C:\\Users\\Hyewon Lee\\Desktop\\Donghee\\testimage\\test1\\4test.bmp"
 
 def getFileList(folderPath):
     fileList = os.listdir(folderPath)
@@ -116,28 +113,45 @@ def GetAllNameList(folderPath):
     AllNameList.sort()
     
     return AllNameList
+
+def UpdateCheckList(excelPath):
+    df = pd.read_excel(excelPath)
+    
+    result = []
+    
+    for index in range(len(df['number'])):
         
-def GetResult(excelPath, nameList):
+        temp = []
+        temp.append(str(df['number'][index]))
+        temp.append(df['name'][index])
+        temp.append(False)
+        result.append(temp)
+                    
+    return result
+  
+def GetResult(excelPath, nameList, result):
     
     df = pd.read_excel(excelPath)   
-    result = []
     
     for index in range(len(df['number'])):
         
         for checkAttendance in nameList:
             if checkAttendance.find(str(df['number'][index])) >= 0 or checkAttendance.find(str(df['name'][index])) >= 0:
-                result.append(str(df['number'][index]) + ', ' + str(df['name'][index]) + ', o')
+                result[index][2] |= True
                 break
         else:
-            result.append(str(df['number'][index]) + ', ' +str(df['name'][index]) + ', x')
+            result[index][2] |= False
     
     return result
    
 #C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
 
-result = []
+exelPath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = 'C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages'
+
+result = UpdateCheckList(exelPath)
 
 #총 4번 다시 체크 이미지 사이즈 조절 하면서 체크 많이 할수록 정확도가 올라감
 for i in range(4):
-    arr = GetAllNameList('C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages')
-    result = GetResult("C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx", arr)
+    arr = GetAllNameList(imagePath)
+    result = GetResult(exelPath, arr, result)
