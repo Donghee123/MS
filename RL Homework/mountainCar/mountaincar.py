@@ -85,13 +85,20 @@ def tiles(iht_or_size, num_tilings, floats, ints=None, read_only=False):
 ACTION_REVERSE = -1
 ACTION_ZERO = 0
 ACTION_FORWARD = 1
-# order is important
+# 선택할 수 있는 action을 왼쪽, 정지, 오른쪽
 ACTIONS = [ACTION_REVERSE, ACTION_ZERO, ACTION_FORWARD]
 
 # bound for position and velocity
+
+#맵에서 왼쪽 끝
 POSITION_MIN = -1.2
+#맵에서 오른쪽 끝 
 POSITION_MAX = 0.5
+
+#왼쪽으로 낼 수있는 최대 속력
 VELOCITY_MIN = -0.07
+
+#오른쪽으로 낼 수있는 최대 속력
 VELOCITY_MAX = 0.07
 
 # use optimistic initial value, so it's ok to set epsilon to 0
@@ -117,37 +124,51 @@ class ValueFunction:
     # View the following webpage for more information
     # http://incompleteideas.net/sutton/tiles/tiles3.html
     # @max_size: the maximum # of indices
+    
+    
+   
     def __init__(self, step_size, num_of_tilings=8, max_size=2048):
+        
+        #state을 구분하는 최대 갯수, 최대 2048개의 갯수
         self.max_size = max_size
+        
+        #실제로 state를 구분한 갯수, 8개 -> 8개를 function appoximation을 통해 continouse 한 것과 비슷하게 만들 것
         self.num_of_tilings = num_of_tilings
 
-        # divide step size equally to each tiling
+        # divide step size equally to each tiling ? 
         self.step_size = step_size / num_of_tilings
 
+        # 해쉬 테이블을 이용해 Value function값을 저장할 것. key : 자동차의 현재 위치, value : 현재 위치의 value function 값 저장
         self.hash_table = IHT(max_size)
 
-        # weight for each tile
+        # 가중치 변수 w를 2048개 0으로 생성
         self.weights = np.zeros(max_size)
 
-        # position and velocity needs scaling to satisfy the tile software
+        # 1step 포지션의 scale = 크게 구분한 갯수 / 맵의 실 거리 범위
         self.position_scale = self.num_of_tilings / (POSITION_MAX - POSITION_MIN)
+        
+        # 1step 변화하는 속력의 scale  = 크게 구분한 갯수 / 허용 가능한 속력 범위 
         self.velocity_scale = self.num_of_tilings / (VELOCITY_MAX - VELOCITY_MIN)
 
     # get indices of active tiles for given state and action
     def get_active_tiles(self, position, velocity, action):
         # I think positionScale * (position - position_min) would be a good normalization.
         # However positionScale * position_min is a constant, so it's ok to ignore it.
-        active_tiles = tiles(self.hash_table, self.num_of_tilings,
-                            [self.position_scale * position, self.velocity_scale * velocity],
-                            [action])
+        active_tiles = tiles(self.hash_table, self.num_of_tilings,[self.position_scale * position, self.velocity_scale * velocity], [action])
         return active_tiles
 
-    # estimate the value of given state and action
+    # 현재 위치, 속력, 왼쪽 또는 오른쪽 액션을 매개 변수로 받아
+    # value function 획득
     def value(self, position, velocity, action):
+        #position이 오른쪽 끝이면 return 0
         if position == POSITION_MAX:
             return 0.0
+        
         active_tiles = self.get_active_tiles(position, velocity, action)
-        return np.sum(self.weights[active_tiles])
+        
+        #2024개의 weight들의 summation 꼴
+        outputNode = np.sum(self.weights[active_tiles]) 
+        return outputNode 
 
     # learn with given state, action and target
     def learn(self, position, velocity, action, target):
@@ -166,22 +187,31 @@ class ValueFunction:
 
 # get action at @position and @velocity based on epsilon greedy policy and @valueFunction
 def get_action(position, velocity, value_function):
+    
+    #액션은 Epsilon greedy 확률로 Random or greedy
     if np.random.binomial(1, EPSILON) == 1:
-        return np.random.choice(ACTIONS)
+        return np.random.choice(ACTIONS) #ACTIONS = [-1,0,1]
+    
     values = []
+    
+    #action은 -0.7 ~ 0.7 사이의 속력
     for action in ACTIONS:
         values.append(value_function.value(position, velocity, action))
+        
     return np.random.choice([action_ for action_, value_ in enumerate(values) if value_ == np.max(values)]) - 1
 
 # semi-gradient n-step Sarsa
 # @valueFunction: state value function to learn
 # @n: # of steps
 def semi_gradient_n_step_sarsa(value_function, n=1):
-    # start at a random position around the bottom of the valley
+    
+    # 초기 시작 위치 : -0.6 ~ -0.4 사이의 랜덤 값
     current_position = np.random.uniform(-0.6, -0.4)
-    # initial velocity is 0
+    
+    # 초기 시작 속력 : 0 
     current_velocity = 0.0
-    # get initial action
+    
+    # 현재 상태의 위치, 속력을 value_function과 비교하여 다음 action 획득
     current_action = get_action(current_position, current_velocity, value_function)
 
     # track previous position, velocity, action and reward
