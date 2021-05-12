@@ -146,8 +146,8 @@ def GetResult(excelPath, nameList, result):
    
 #C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
 
-exelPath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-imagePath = 'C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages'
+exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = 'C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages'
 
 result = UpdateCheckList(exelPath)
 
