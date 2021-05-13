@@ -88,13 +88,10 @@ ACTIONS = [ACTION_LEFT, ACTION_NONE, ACTION_RIGHT]
 
 #맵에서 왼쪽 끝
 MAP_LEFT = -1.2
-
 #맵에서 오른쪽 끝 
 MAP_RIGHT = 0.5
-
 #왼쪽으로 낼 수있는 최대 속력
 VELOCITY_LEFT = -0.07
-
 #오른쪽으로 낼 수있는 최대 속력
 VELOCITY_RIGHT = 0.07
 
@@ -136,17 +133,9 @@ def step(position, velocity, action):
     #새로 구한 위치, 속력, 보상  리턴
     return new_position, new_velocity, reward
 
-# wrapper class for state action value function
+
 class ValueFunction:
-    # In this example I use the tiling software instead of implementing standard tiling by myself
-    # One important thing is that tiling is only a map from (state, action) to a series of indices
-    # It doesn't matter whether the indices have meaning, only if this map satisfy some property
-    # View the following webpage for more information
-    # http://incompleteideas.net/sutton/tiles/tiles3.html
-    # @max_size: the maximum # of indices
     
-    
-   
     def __init__(self, step_size, num_of_tilings=8, max_size=2048):
         
         #state을 구분하는 최대 갯수, 최대 2048개의 갯수
