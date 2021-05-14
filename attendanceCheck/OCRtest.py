@@ -152,6 +152,6 @@ imagePath = 'C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\c
 result = UpdateCheckList(exelPath)
 
 #총 4번 다시 체크 이미지 사이즈 조절 하면서 체크 많이 할수록 정확도가 올라감
-for i in range(4):
+for i in range(5):
     arr = GetAllNameList(imagePath)
     result = GetResult(exelPath, arr, result)
