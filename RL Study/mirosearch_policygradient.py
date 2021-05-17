@@ -3,15 +3,14 @@
 Created on Sun Feb 28 12:08:31 2021
 
 @author: Handonghee
+@subject : miro greedy search based on "poilcy gradient" 
+
+
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-
-
-
-
 
 fig = plt.figure(figsize=(5,5))
 ax = plt.gca()
@@ -146,9 +145,7 @@ def goal_maze_ret_s_a(pi):
         [action, next_s] = get_action_and_next_s(pi, s)
         s_a_history[-1][1] = action
         s_a_history .append([next_s,np.nan])
-        
-       
-        
+                     
         if next_s == 8:
             break
         else:
@@ -157,25 +154,35 @@ def goal_maze_ret_s_a(pi):
     return s_a_history
 #end 테스트 시뮬레이션 및 반복 함수
 
-#theta를 수정하는 함수
+#polcy gradient를 이용한 policy의 theta update
 def update_theta(theta,pi,s_a_history):
     eta = 0.1 #학습률
     T = len(s_a_history) - 1 #목표 지점에 이르기까지 걸린 단계 수
     
     [m,n] = theta.shape
+    
+    #기존 theta값 복사
     delta_theta = theta.copy()
     
     for i in range(0,m):
         for j in range(0,n):
             if not(np.isnan(theta[i,j])):
+                
+                #상태 상태 매트릭스중 i 상태 인 경우를 모음               
                 SA_i = [SA for SA in s_a_history if SA[0] == i]
+                
+                #상태 상태 매트릭스중 i 상태 인 경우에 j 행동을 수행한 경우를 모음  
                 SA_ij = [SA for SA in s_a_history if SA == [i,j]]
                 
+                #상태 i를 방문한 횟수
                 N_i = len(SA_i)
+                #상태 i에서 행동 j를 한 횟수
                 N_ij = len(SA_ij)
                 
+                #(상태 i에서 행동 j를 한 횟수 - 현재 상태 i에서 행동 j를 한 policy * 상태 i에 방문한 횟수) / 총 스탭 횟수
                 delta_theta[i,j] = (N_ij - pi[i,j] * N_i)/T
-                
+    
+    #기존 theta + eta * 그레디언트 theta -> 경사 하강 법
     new_theta = theta + eta*delta_theta
     
     return new_theta
@@ -184,8 +191,13 @@ def update_theta(theta,pi,s_a_history):
 
 stop_epsilon = 10**-4
 
+#theta의 값을 softmax 형식으로 변환하여 저장하는 policy
 pi_0_softmax = softmax_convert_into_pi_from_theta(theta_0)
+
+#초기 theta값 저장
 theta = theta_0
+
+#초기 policy값 저장
 pi = pi_0_softmax
 is_continue = True
 cout = 1
