@@ -3,7 +3,7 @@
 Created on Sun Feb 28 12:08:31 2021
 
 @author: Handonghee
-@subject : miro epsilon greedy search based on "SARSA" 
+@subject : miro epsilon greedy search based on "Q-Learning" 
            1. epsilon greedy
            2. Sarsa
              - eta : stepsize
@@ -11,8 +11,8 @@ Created on Sun Feb 28 12:08:31 2021
              - Q[s,a] : action value function
              - gamma : discount facetor
              - s, a : current sate, action
-             - s_next,a_next : next sate, action
-             - Q[s,a] = Q[s,a] + eta * (r + gamma * Q[s_next,a_next] - Q[s,a])
+             - s_next: next sate,
+             - Q[s,a] = Q[s,a] + eta * (r + gamma * np.nanmax(Q[s_next,:]) - Q[s,a])
              
 """
 
@@ -177,7 +177,7 @@ def goal_maze_ret_s_a_Q(Q, epsilon, eta, gamma, pi):
             a_next = get_action(s_next,Q,epsilon,pi)
 
         #Sarsa 업데이트
-        Q = Sarsa(s,a,reward,s_next,a_next,Q,eta,gamma)
+        Q = Q_learning(s,a,reward,s_next,Q,eta,gamma)
         
         if s_next == 8:
             break
@@ -188,13 +188,13 @@ def goal_maze_ret_s_a_Q(Q, epsilon, eta, gamma, pi):
 
 #end 테스트 시뮬레이션 및 반복 함수
 
-def Sarsa(s, a, r, s_next, a_next, Q, eta,gamma):
+def Q_learning(s, a, r, s_next, Q, eta, gamma):
     
     #다음 상태가 terminal state라면
     if s_next == 8:
-        Q[s,a] = Q[s,a] + eta * (r-Q[s,a])
+        Q[s,a] = Q[s,a] + eta * (r - Q[s,a])
     else:#다음 상태가 termianl state가 아니면 다음 상태에서 선정한 액션으로 업데이트
-        Q[s,a] = Q[s,a] + eta * (r + gamma * Q[s_next,a_next] - Q[s,a])
+        Q[s,a] = Q[s,a] + eta * (r + gamma * np.nanmax(Q[s_next,:]) - Q[s,a])
     return Q
 
 
@@ -234,10 +234,10 @@ while is_continue:
     episode = episode + 1
     
     #100번 반복시 탈출
-    if episode > 100:
+    if episode > 10000:
         break
     
     #입실론값 낮춤
-    epsilon = epsilon / 2
+    epsilon = epsilon - 0.00001
     
 #초기 policy값 저장

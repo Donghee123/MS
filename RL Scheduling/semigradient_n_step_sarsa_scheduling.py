@@ -227,8 +227,8 @@ def semi_gradient_n_step_sarsa(value_function, n=1):
     # track the time
     time = 0
 
-    # the length of this episode
-    T = float('inf')
+    # the length of this step
+    T = 5000000
     while True:
         # go to next time step
         time += 1
