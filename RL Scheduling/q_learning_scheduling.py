@@ -44,17 +44,23 @@ Q값을 저장 하고 정책에 따라 action을 수행
 """
 class Q_LearningModel:
     
-    def __init__(self, usercount, useEpsilon = True,  initepsilon = 0.5, alpha = 0.1, gamma = 0.1):
-        """
-        Init
-        QValueStore
-        epsilon
-        useEpsilon
-        alpha
-        gamma
+    def __init__(self, usercount, useEpsilon = True,  initepsilon = 0.5, alpha = 0.1, gamma = 0.1, updateEpsilon = 1.01):
+        """        
+        Parameters
+        ----------
+                     
+            
+        Returns
+        -------
+        none
+        
+        기능
+        -------        
+        모든 상태 변수 초기화
         """
         self.usercount = usercount
         self.QValueStore = {} 
+        self.ThrouhputStore = {} 
         self.QSpaceSize = 0
         self.selectPair = []
         
@@ -70,62 +76,174 @@ class Q_LearningModel:
         self.useEpsilon = useEpsilon
         self.alpha = alpha
         self.gamma = gamma
+        self.updateEpsilon = updateEpsilon
         
-        self.preThroughput = 0
+        
         self.throughputs = 0
         
-        self.preFairness = 0
+        
         self.fairness = 0
     
     #db값을 실수로
     def dB2real(self,fDBValue):
+        """        
+        Parameters
+        ----------
+        fDBValue : float                   
+            
+        Returns
+        -------
+        float  
+        
+        기능
+        -------        
+        db 값은 real 값으로 반환
+        """
         return pow(10.0, fDBValue/10.0);
 
     def GetThroughput(self, inputSNR):
+        """        
+        Parameters
+        ----------
+        inputSNR : float                   
+            
+        Returns
+        -------
+        float  
+        
+        기능
+        -------        
+        SNR에 따른 처리율 반환
+        """
+        
         return math.log2(1.0 + self.dB2real(inputSNR));
     
     def GetFairness(self):
+        """        
+        Parameters
+        ----------
+        None                   
+            
+        Returns
+        -------
+        None  
+        
+        기능
+        -------        
+        현재 fairness 반환
+        """
         return self.fairness
     
     def ResetEpsilon(self):
+        """        
+        Parameters
+        ----------
+        None                   
+            
+        Returns
+        -------
+        None  
+        
+        기능
+        -------        
+        입실론 값  초기화
+        """
         self.epsilon = self.initepsilon
     
     def GetSelectUserPair(self,action):
-        return self.selectPair[action][0], self.selectPair[action][1]
-    
-    def SetQValue(self,state, qValue):
-        """
-        
-
+        """        
         Parameters
         ----------
-        state : list
-            DESCRIPTION.
-        qValue : List
-            DESCRIPTION.
+        action : int                       
+            
         Returns
         -------
-        None.
-
+        pair
+        
+        기능
+        -------        
+        해당 action에서 선택하는 user 인덱스 반환
+        """
+        
+        return self.selectPair[action][0], self.selectPair[action][1]
+          
+    def GetThrouputValue(self, state):
+        """        
+        Parameters
+        ----------
+        state : list                        
+            
+        Returns
+        -------
+        None
+        
+        기능
+        -------        
+        해당 state에서 throuhput값 불러오기
+        """
+        convertState = self.ConvertListToStringValue(state)
+            
+        if convertState in self.ThrouhputStore:
+            return self.ThrouhputStore[convertState]
+        else:
+            return 0
+        
+    
+    def SetThrouputValue(self, state, throuhput):
+        """        
+        Parameters
+        ----------
+        state : list            
+        qValue : float
+             
+            
+        Returns
+        -------
+        None
+        
+        기능
+        -------        
+        해당 state에서 throuhput값 저장
+        """
+        
+        convertState = self.ConvertListToStringValue(state)
+        self.ThrouhputStore[convertState] = throuhput
+        
+    def SetQValue(self,state, qValue):
+        """        
+        Parameters
+        ----------
+        state : list            
+        qValue : List
+                      
+        Returns
+        -------
+        None
+        
+        기능
+        -------        
+        Q값 저장
+        List 통째로 저장 하므로 비효율적임
         """
         
         convertState = self.ConvertListToStringValue(state)
         self.QValueStore[convertState] = qValue
         
     def GetQValue(self,state): 
-        '''
-        
-
+        '''       
         Parameters
         ----------
         state : list
-            DESCRIPTION.
+            
 
         Returns
         -------
-        TYPE
-            DESCRIPTION.
-
+        TYPE : np.array
+            
+        기능
+        -------        
+        Q값 불러오기
+        List 통째로 반환 비효율적임 
         '''
         convertState = self.ConvertListToStringValue(state)
             
@@ -143,7 +261,11 @@ class Q_LearningModel:
         
         Returns
         -------
-        convertState : string        
+        convertState : string   
+        
+        기능
+        -------        
+        List로 들어온 데이터 문자열로 반환 "값,값,값,값," 형식
         """
         convertState = ""
         
@@ -153,53 +275,74 @@ class Q_LearningModel:
         return convertState
     
     def ConvertStringToListValue(self,value):
-        """        
+        """
         Parameters
         ----------
         state : string
-
+        
         Returns
         -------
-        list
-
+        list  
+        
+        기능
+        -------        
+        들어온 문자열을 ',' 기준으로 구분 후 list 반환
         """
         return value.split[',']
         
-    def GetReward(self,preThrouhput, afterThrouhput, preFairness, afterFairness):
+    def GetReward(self, afterThrouhput, preThrouhput, afterFairness, preFairness):
+        """
+        Parameters
+        ----------
+        preThrouhput : float
+        afterThrouhput : float
+        preFairness : float
+        afterFairness : float
+        
+        Returns
+        -------
+        float  
+        
+        기능
+        -------        
+        reward 계산
+        """
         return (afterThrouhput - preThrouhput) + (afterFairness - preFairness)
     
     def CalThrouhput(self,SelSNR1, SelSNR2):
         """
-       
         Parameters
         ----------
         SelSNR1 : float
-            선택한 단말1의 SNR
         SelSNR2 : float
-            선택한 단말2의 SNR
-
+        
         Returns
         -------
-        list
-            DESCRIPTION.
-
-        """
+        pair  
         
+        기능
+        -------        
+        입력 SNR에 따른 Throughput 계산후 pair로 반환
+        """
         return [self.GetThroughput(SelSNR1),self.GetThroughput(SelSNR2)]
         
     def SelectAction(self,state):
         """
-        epsilon-greedy 확률로 greedy or random
-
         Parameters
         ----------
         state : list
-            
+        
         Returns
         -------
-        selectiveIndex : int
-            
+        choice : int  
+        
+        기능
+        -------        
+        입력 state를 보고 action을 결정
+        epsilon 확률로 greedy
+        1-epsilon 확률로 random
         """
+        
         choice = 0
         
         if random.random() < self.epsilon:
@@ -207,11 +350,27 @@ class Q_LearningModel:
         else:
             choice = random.randrange(len(self.GetQValue(state)))
         
-        self.epsilon *= 1.00001
+        self.epsilon *= self.updateEpsilon
         
         return choice
         
     def UpdateQValue(self, state, action, nextstate):
+        """
+        Parameters
+        ----------
+        state : string
+        action : int
+        nextstate : string
+        
+        Returns
+        -------
+        None
+        
+        기능
+        -------        
+        state, action, nextstate를 이용해 Reward 계산 후 
+        q값 update
+        """
         
         qValue = self.GetQValue(state)
         nextqValue = self.GetQValue(nextstate)
@@ -222,10 +381,15 @@ class Q_LearningModel:
         throughput1, throughput2 = self.CalThrouhput(state[selFirstSNR],state[selSecondSNR])    
         
         self.throughputs =  throughput1 + throughput2
-        reward = self.GetReward(self.preThroughput,self.throughputs,0,0)
         
-        #이전 bps, fairness 저장
-        self.preThroughput = self.throughputs
+        #현재 상태에서 저장하고 있는 최대 처리율 값 - 현재 상태에서 계산한 처리율값
+        reward = self.GetReward(self.throughputs,self.GetThrouputValue(state),0,0)
+        
+       
+        #새로 나온 throuput을값이 더 높다면 해당 상태의 throuput 저장
+        if self.GetThrouputValue(state) < self.throughputs:
+            self.SetThrouputValue(state, self.throughputs)   
+            
         self.preFairness = self.fairness
         
         #Q-learning
@@ -237,8 +401,10 @@ class Q_LearningModel:
         
 #simulation
 ueCount = 4
-
-q_model = Q_LearningModel(usercount=ueCount)
+updateEpsilon=1.00001
+alpha = 0.4
+gamma = 0.1
+q_model = Q_LearningModel(usercount=ueCount, updateEpsilon=updateEpsilon, alpha=alpha, gamma=gamma)
 snrCreater = SNRCreater()
 
 
@@ -252,13 +418,14 @@ for j in range(0,ueCount):
 q_model.ResetEpsilon()
 throuput = []
 
-episode = 10000
-step = 1000000
+episode = 1000
+step = 100000
 
-#100번의 에피소드
+#episode
 for i in range(episode):
     totalthroughputs = 0
-    #10000번의 스탭
+    
+    #step
     for j in range(step):
         
         ueOfSNRs = CreateSNR(snrCreater, ueAVGSNRS)
