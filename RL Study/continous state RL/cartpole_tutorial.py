@@ -3,6 +3,10 @@
 Created on Tue May 18 10:04:15 2021
 
 @author: Handonghee
+@Discription : 
+    subject  : Cartpole tutorial
+    method   : random
+                 
 """
 import gym
 import numpy as np

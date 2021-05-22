@@ -18,6 +18,7 @@ try:
      from PIL import Image
 except ImportError: 
      import Image 
+     
 import pytesseract
 import numpy as np
 import pandas as pd
@@ -143,11 +144,15 @@ def GetResult(excelPath, nameList, result):
             result[index][2] |= False
     
     return result
-   
-#C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
 
-exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-imagePath = 'C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages'
+#집 전용 경로
+#C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
+#헤니집 전용 경로
+
+#랩실 전용 경로
+
+exelPath = "C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = 'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
 
 result = UpdateCheckList(exelPath)
 
@@ -155,3 +160,5 @@ result = UpdateCheckList(exelPath)
 for i in range(5):
     arr = GetAllNameList(imagePath)
     result = GetResult(exelPath, arr, result)
+    
+print(result)
