@@ -147,17 +147,19 @@ def GetResult(excelPath, nameList, result):
 
 #집 전용 경로
 #C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
-#헤니집 전용 경로
+
+#노트북 전용 경로
+#"C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+#'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
 
 #랩실 전용 경로
-
-exelPath = "C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-imagePath = 'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
+exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
 
 result = UpdateCheckList(exelPath)
 
 #총 4번 다시 체크 이미지 사이즈 조절 하면서 체크 많이 할수록 정확도가 올라감
-for i in range(5):
+for i in range(8):
     arr = GetAllNameList(imagePath)
     result = GetResult(exelPath, arr, result)
     
