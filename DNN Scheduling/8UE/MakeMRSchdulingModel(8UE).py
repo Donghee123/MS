@@ -20,6 +20,7 @@ import math
 import numpy
 import csv
 import os
+import fileutill
 
 #Neual Netrok nn.Module 상속 
 class Net(nn.Module):
@@ -38,25 +39,7 @@ class Net(nn.Module):
         h3 = F.relu(self.l3(h2))
         return self.l4(h3)
 
-def createFolder(directory):
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-    except OSError:
-        print ('Error: Creating directory. ' +  directory)
-     
-def MakeCSVFile(strFolderPath, strFilePath, artofHeader, aryOfDatas):
-    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
-    
-    f = open(strTotalPath,'w', newline='')
-    wr = csv.writer(f)
-    
-    wr.writerow(artofHeader)
-    
-    for i in range(0,len(aryOfDatas)):
-        wr.writerow(aryOfDatas[i])
-    
-    f.close()
+
     
 #테스트 함수    
 def test(log_interval, model, test_loader):
@@ -212,8 +195,9 @@ for i in range(0,epoch):
 #Save Model 
 
 modelPath = "./model"
-createFolder(modelPath)   
-MakeCSVFile(modelPath, "ModelLossInfo.csv", ["Loss"], aryofLoss)
-MakeCSVFile(modelPath, "ModelSpec.csv",["Average Loss","Correct","Accracy"],aryofModelInfo)
+
+fileutill.createFolder(modelPath)   
+fileutill.MakeCSVFile(modelPath, "ModelLossInfo.csv", ["Loss"], aryofLoss)
+fileutill.MakeCSVFile(modelPath, "ModelSpec.csv",["Average Loss","Correct","Accracy"],aryofModelInfo)
 torch.save(model, modelPath + '/model.pt')    
 

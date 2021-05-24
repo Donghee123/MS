@@ -8,6 +8,7 @@ import numpy as np
 import random
 import math 
 import matplotlib.pyplot as plt
+import fileutill
 
 #SNRCreater 생성 Class     
 class SNRCreater:
@@ -446,7 +447,7 @@ class Q_LearningModel:
         
 #simulation
 ueCount = 4
-updateEpsilon=1.00001
+updateEpsilon = 1.0001
 alpha = 0.4
 gamma = 0.1
 q_model = Q_LearningModel(usercount=ueCount, updateEpsilon=updateEpsilon, alpha=alpha, gamma=gamma)
@@ -455,9 +456,13 @@ snrCreater = SNRCreater()
 
 userEquipmentList = []
 userThrouputs = []
-systemThrouput = []
+systemThrouputs = []
+
+userSaveThrouputs = []
+systemSaveThrouput = []
 
 analysisSystem = AnalysisSystem()
+
 #UE의 댓수 만큼 반복
 for j in range(0,ueCount):
     #UE의 평균 snr 0~10 선정
@@ -469,14 +474,17 @@ q_model.ResetEpsilon()
 
 
 
-episode = 6000
-step = 5500
+episode = 3000
+step = 10000
 
 #episode
 for i in range(episode):
     
     #init data
+    #init total data
     analysisSystem.totalMeanThrouhput = 0
+    
+    #init user data
     for index in range(len(userEquipmentList)):
         userEquipmentList[index].capacity = 0
         
@@ -487,22 +495,39 @@ for i in range(episode):
         action = q_model.SelectAction(ueOfSNRs)
         nextUEOfSNRs = CreateSNRdbList(userEquipmentList)
         q_model.UpdateQValue(ueOfSNRs, action, nextUEOfSNRs)
+        
         firstUserIndex, secondUserIndex = q_model.GetSelectUserPair(action)
         
         userEquipmentList[firstUserIndex].capacity +=  NetworkData(ueOfSNRs[firstUserIndex]).GetThoughput()
         userEquipmentList[secondUserIndex].capacity += NetworkData(ueOfSNRs[secondUserIndex]).GetThoughput()        
         analysisSystem.totalMeanThrouhput += q_model.throughputs
     
+    tempuserData = []
+    
     for index in range(len(userEquipmentList)):
+        #누적 user throuput 평균
         userEquipmentList[index].capacity /= step
+        #plot 전용 데이터 저장
         userThrouputs[index].append(userEquipmentList[index].capacity)
+        #csv 저장용 user throuput데이터 
+        tempuserData.append(userEquipmentList[index].capacity)
+    
+    #csv 저장용 user throuput데이터 
+    userSaveThrouputs.append(tempuserData)
         
-    analysisSystem.totalMeanThrouhput /= step   
-    systemThrouput.append(analysisSystem.totalMeanThrouhput)
+    #누적 throuput 평균
+    analysisSystem.totalMeanThrouhput /= step
+    
+    #csv 저장용 system throuput데이터 
+    systemSaveThrouput.append([analysisSystem.totalMeanThrouhput])
+    
+    #plot 전용 데이터 저장
+    systemThrouputs.append(analysisSystem.totalMeanThrouhput)
+    
 
 #totalThrouput 
 plt.subplot(211)  
-plt.plot(systemThrouput) 
+plt.plot(systemThrouputs) 
 
 #userThrouputs 
 xstep = np.arange(0, len(userThrouputs[0]), 1)
@@ -513,9 +538,15 @@ plt.plot(xstep, userThrouputs[2],label="user2 : " + str(int(userEquipmentList[2]
 plt.plot(xstep, userThrouputs[3],label="user3 : " + str(int(userEquipmentList[3].avgSNR.GetSNRdb())))
 plt.legend(loc='best')
 plt.show()
-    
-        
-        
+  
+  
+simulationPath = "./simulation"
+userlegendname = ['user' + str(i) for i in range(len(userThrouputs))]
+
+fileutill.createFolder(simulationPath)   
+fileutill.MakeCSVFile(simulationPath, "systemThrouput.csv", ["systemThrouput"], systemSaveThrouput)
+fileutill.MakeCSVFile(simulationPath, "userThrouput.csv",userlegendname, userSaveThrouputs)
+      
         
         
         
