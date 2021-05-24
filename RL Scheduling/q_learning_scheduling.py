@@ -29,13 +29,58 @@ class SNRCreater:
     
     def GetThroughput(self, inputSNR):
         return math.log2(1.0 + self.dB2real(inputSNR));
- 
+
+#Data class
+class NetworkData:
+    def __init__(self, data, isDecibel = True):
+        self.isDecibel = isDecibel
+        self.storeValue = data
     
-def CreateSNR(snrCreater,ueAVGSNRS):
+    #db값을 실수로
+    def dB2real(self,fDBValue):
+        return pow(10.0, fDBValue/10.0);
+
+    #실수를 db값으로
+    def	real2dB(self,fRealValue):
+        return 10.0 * math.log10(fRealValue)
+    
+    #저장한 데이터 기반 Thoughput 반환
+    def GetThoughput(self):
+        if self.isDecibel == True:
+            return math.log2(1.0 + self.dB2real(self.storeValue))
+        else:
+            return self.storeValue
+        
+    #저장한 데이터 기반 SNR db 반환
+    def GetSNRdb(self):
+        if self.isDecibel  == True:
+            return self.storeValue 
+        else:
+            return self.real2dB(self.storeValue)
+        
+    
+#User class
+class UserEquipment:
+    def __init__(self, avgSNR):
+        self.avgSNR = NetworkData(avgSNR)       
+        self.capacity = 0
+        self.metrix = 0
+        self.snrCreater = SNRCreater()
+        
+    def GetSNR(self):
+        return self.snrCreater.GetReleighSNR(self.avgSNR.GetSNRdb())
+    
+#system class
+class AnalysisSystem:
+    def __init__(self):
+        self.totalMeanThrouhput = 0
+        self.Fairness = 0
+   
+def CreateSNRdbList(userEquipments):
     answerSNRs = []
     
-    for AvgSNR in ueAVGSNRS:
-        answerSNRs.append(snrCreater.GetReleighSNR(AvgSNR))
+    for userEquipment in userEquipments:
+        answerSNRs.append(userEquipment.GetSNR())
         
     return answerSNRs
     
@@ -383,7 +428,7 @@ class Q_LearningModel:
         self.throughputs =  throughput1 + throughput2
         
         #현재 상태에서 저장하고 있는 최대 처리율 값 - 현재 상태에서 계산한 처리율값
-        reward = self.GetReward(self.throughputs,self.GetThrouputValue(state),0,0)
+        reward = self.GetReward(self.throughputs, self.GetThrouputValue(state),0,0)
         
        
         #새로 나온 throuput을값이 더 높다면 해당 상태의 throuput 저장
@@ -408,36 +453,65 @@ q_model = Q_LearningModel(usercount=ueCount, updateEpsilon=updateEpsilon, alpha=
 snrCreater = SNRCreater()
 
 
-ueAVGSNRS = []
+userEquipmentList = []
+userThrouputs = []
+systemThrouput = []
 
+analysisSystem = AnalysisSystem()
 #UE의 댓수 만큼 반복
 for j in range(0,ueCount):
-    #UE의 평균 snr 10~30 선정
-    ueAVGSNRS.append(random.randrange(10,30))
+    #UE의 평균 snr 0~10 선정
+    randomAvgSNR = random.randrange(0,10)
+    userEquipmentList.append(UserEquipment(randomAvgSNR))
+    userThrouputs.append([])
         
 q_model.ResetEpsilon()
-throuput = []
 
-episode = 1000
-step = 100000
+
+
+episode = 6000
+step = 5500
 
 #episode
 for i in range(episode):
-    totalthroughputs = 0
     
+    #init data
+    analysisSystem.totalMeanThrouhput = 0
+    for index in range(len(userEquipmentList)):
+        userEquipmentList[index].capacity = 0
+        
     #step
     for j in range(step):
         
-        ueOfSNRs = CreateSNR(snrCreater, ueAVGSNRS)
+        ueOfSNRs = CreateSNRdbList(userEquipmentList)
         action = q_model.SelectAction(ueOfSNRs)
-        nextUEOfSNRs = CreateSNR(snrCreater, ueAVGSNRS)
+        nextUEOfSNRs = CreateSNRdbList(userEquipmentList)
         q_model.UpdateQValue(ueOfSNRs, action, nextUEOfSNRs)
-        totalthroughputs += q_model.throughputs
-    
-    totalthroughputs /= step
-    throuput.append(totalthroughputs)
+        firstUserIndex, secondUserIndex = q_model.GetSelectUserPair(action)
         
-plt.plot(throuput) 
+        userEquipmentList[firstUserIndex].capacity +=  NetworkData(ueOfSNRs[firstUserIndex]).GetThoughput()
+        userEquipmentList[secondUserIndex].capacity += NetworkData(ueOfSNRs[secondUserIndex]).GetThoughput()        
+        analysisSystem.totalMeanThrouhput += q_model.throughputs
+    
+    for index in range(len(userEquipmentList)):
+        userEquipmentList[index].capacity /= step
+        userThrouputs[index].append(userEquipmentList[index].capacity)
+        
+    analysisSystem.totalMeanThrouhput /= step   
+    systemThrouput.append(analysisSystem.totalMeanThrouhput)
+
+#totalThrouput 
+plt.subplot(211)  
+plt.plot(systemThrouput) 
+
+#userThrouputs 
+xstep = np.arange(0, len(userThrouputs[0]), 1)
+plt.subplot(212)
+plt.plot(xstep, userThrouputs[0],label="user0 : " + str(int(userEquipmentList[0].avgSNR.GetSNRdb())))
+plt.plot(xstep, userThrouputs[1],label="user1 : " + str(int(userEquipmentList[1].avgSNR.GetSNRdb())))
+plt.plot(xstep, userThrouputs[2],label="user2 : " + str(int(userEquipmentList[2].avgSNR.GetSNRdb())))
+plt.plot(xstep, userThrouputs[3],label="user3 : " + str(int(userEquipmentList[3].avgSNR.GetSNRdb())))
+plt.legend(loc='best')
 plt.show()
     
         
