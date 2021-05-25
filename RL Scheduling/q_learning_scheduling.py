@@ -2,7 +2,10 @@
 """
 Created on Thu May 20 16:58:50 2021
 
-@author: CNL-B3
+@author: Handonghee
+@Discription : 
+    subject  : Q-learning based Scheduling
+    method   : discrete state, Q-learning, Releigh channel model
 """
 import numpy as np
 import random
@@ -451,8 +454,6 @@ updateEpsilon = 1.0001
 alpha = 0.4
 gamma = 0.1
 q_model = Q_LearningModel(usercount=ueCount, updateEpsilon=updateEpsilon, alpha=alpha, gamma=gamma)
-snrCreater = SNRCreater()
-
 
 userEquipmentList = []
 userThrouputs = []
@@ -462,20 +463,31 @@ userSaveThrouputs = []
 systemSaveThrouput = []
 
 analysisSystem = AnalysisSystem()
+indicateAVGSNR = [2.0,4.0,6.0,8.0]
+
 
 #UE의 댓수 만큼 반복
+"""
+# set snr random
 for j in range(0,ueCount):
     #UE의 평균 snr 0~10 선정
     randomAvgSNR = random.randrange(0,10)
     userEquipmentList.append(UserEquipment(randomAvgSNR))
     userThrouputs.append([])
-        
+"""
+  
+
+# set snr indicate
+for avgSNR in indicateAVGSNR:
+    #UE의 평균 snr 0~10 선정    
+    userEquipmentList.append(UserEquipment(avgSNR))
+    userThrouputs.append([])
+      
 q_model.ResetEpsilon()
 
 
-
 episode = 3000
-step = 10000
+step = 50000
 
 #episode
 for i in range(episode):
@@ -544,8 +556,8 @@ simulationPath = "./simulation"
 userlegendname = ['user' + str(i) for i in range(len(userThrouputs))]
 
 fileutill.createFolder(simulationPath)   
-fileutill.MakeCSVFile(simulationPath, "systemThrouput.csv", ["systemThrouput"], systemSaveThrouput)
-fileutill.MakeCSVFile(simulationPath, "userThrouput.csv",userlegendname, userSaveThrouputs)
+fileutill.MakeCSVFile(simulationPath, "q_learning_systemThrouput.csv", ["systemThrouput"], systemSaveThrouput)
+fileutill.MakeCSVFile(simulationPath, "q_learning_userThrouput.csv",userlegendname, userSaveThrouputs)
       
         
         
