@@ -6,6 +6,7 @@ Created on Thu May 20 16:58:50 2021
 @Discription : 
     subject  : Q-learning based Scheduling
     method   : discrete state, Q-learning, Releigh channel model
+               Reward = current Throughput - current state Max Throughput
 """
 import numpy as np
 import random
@@ -452,7 +453,7 @@ class Q_LearningModel:
 ueCount = 4
 updateEpsilon = 1.0001
 alpha = 0.4
-gamma = 0.1
+gamma = 0.05
 q_model = Q_LearningModel(usercount=ueCount, updateEpsilon=updateEpsilon, alpha=alpha, gamma=gamma)
 
 userEquipmentList = []
