@@ -6,7 +6,7 @@ Created on Thu May 20 16:58:50 2021
 @Discription : 
     subject  : Q-learning based Scheduling
     method   : discrete state, Q-learning, Releigh channel model
-               Reward = current Throughput - current state Max Throughput
+               Reward = current sumSNR - current state Max current sumSNR 
 """
 import numpy as np
 import random
@@ -110,7 +110,7 @@ class Q_LearningModel:
         """
         self.usercount = usercount
         self.QValueStore = {} 
-        self.ThrouhputStore = {} 
+        self.sumSNRStore = {} 
         self.QSpaceSize = 0
         self.selectPair = []
         
@@ -217,7 +217,7 @@ class Q_LearningModel:
         
         return self.selectPair[action][0], self.selectPair[action][1]
           
-    def GetThrouputValue(self, state):
+    def GetsumSNRValue(self, state):
         """        
         Parameters
         ----------
@@ -229,17 +229,17 @@ class Q_LearningModel:
         
         기능
         -------        
-        해당 state에서 throuhput값 불러오기
+        해당 state에서 sumSNR값 불러오기
         """
         convertState = self.ConvertListToStringValue(state)
             
-        if convertState in self.ThrouhputStore:
-            return self.ThrouhputStore[convertState]
+        if convertState in self.sumSNRStore:
+            return self.sumSNRStore[convertState]
         else:
             return 0
         
     
-    def SetThrouputValue(self, state, throuhput):
+    def SetsumSNRValue(self, state, sumSNR):
         """        
         Parameters
         ----------
@@ -253,11 +253,11 @@ class Q_LearningModel:
         
         기능
         -------        
-        해당 state에서 throuhput값 저장
+        해당 state에서 sumSNR값 저장
         """
         
         convertState = self.ConvertListToStringValue(state)
-        self.ThrouhputStore[convertState] = throuhput
+        self.sumSNRStore[convertState] = sumSNR
         
     def SetQValue(self,state, qValue):
         """        
@@ -340,7 +340,7 @@ class Q_LearningModel:
         """
         return value.split[',']
         
-    def GetReward(self, afterThrouhput, preThrouhput, afterFairness, preFairness):
+    def GetReward(self, aftersumSNR, preSumSNR):
         """
         Parameters
         ----------
@@ -357,7 +357,7 @@ class Q_LearningModel:
         -------        
         reward 계산
         """
-        return (afterThrouhput - preThrouhput) + (afterFairness - preFairness)
+        return (aftersumSNR - preSumSNR)
     
     def CalThrouhput(self,SelSNR1, SelSNR2):
         """
@@ -427,18 +427,21 @@ class Q_LearningModel:
         
         selFirstSNR, selSecondSNR = self.GetSelectUserPair(action)
         
+        firstSNR = state[selFirstSNR]
+        secondSNR = state[selSecondSNR]
+        sumSNR = firstSNR + secondSNR
         #Reward 계산
         throughput1, throughput2 = self.CalThrouhput(state[selFirstSNR],state[selSecondSNR])    
         
         self.throughputs =  throughput1 + throughput2
         
-        #현재 상태에서 계산한 처리율값 - 현재 상태에서 저장하고 있는 최대 처리율 값 
-        reward = self.GetReward(self.throughputs, self.GetThrouputValue(state),0,0)
+        #현재 상태에서 계산한 SNR 값 - 현재 상태에서 저장하고 있는 최대 SNR 값
+        reward = self.GetReward(sumSNR, self.GetsumSNRValue(state))
         
        
         #새로 나온 throuput을값이 더 높다면 해당 상태의 throuput 저장
-        if self.GetThrouputValue(state) < self.throughputs:
-            self.SetThrouputValue(state, self.throughputs)   
+        if self.GetsumSNRValue(state) < sumSNR:
+            self.SetsumSNRValue(state, sumSNR)   
             
         self.preFairness = self.fairness
         
