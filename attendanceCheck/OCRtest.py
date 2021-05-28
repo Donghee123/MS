@@ -163,4 +163,6 @@ for i in range(6):
     arr = GetAllNameList(imagePath)
     result = GetResult(exelPath, arr, result)
     
-print(result)
+for re in result:
+    if re[2] == False:
+        print(re)
