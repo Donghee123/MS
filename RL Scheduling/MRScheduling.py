@@ -144,7 +144,7 @@ for avgSNR in indicateAVGSNR:
     userEquipmentList.append(UserEquipment(avgSNR))
     userThrouputs.append([])
         
-episode = 3000
+episode = 300
 step = 10000
 
   

@@ -6,13 +6,18 @@ Created on Thu May 20 16:58:50 2021
 @Discription : 
     subject  : An Online context-Aware Machine Learning Algorithm for 5G mmWave Vehicular Commnunication
     method   : MAB
+               Optimistic in the Face of Uncertainty -> 지정한 갯수 만큼 반복해서 기대값(expected value)를 가짐
+               초기 Action에 따른 reward는 random값으로 추정하지만 수행 횟수반를 반할복 수록 특정 기대값으로 수렴함
+               그 때 greedy 방식으로 수행.
+               
 """
 import numpy as np
 import matplotlib.pylab as plt
 import random
 import math
 from enum import Enum
-
+from math import atan2, degrees
+     
 #방향 설정 enum class -> 추후 전문성이 고려될때 사용
 class DIRECTION(Enum):
     UP = 0
@@ -23,9 +28,9 @@ class DIRECTION(Enum):
 #contextData 종류 enum
 class CONTEXTDATA_NAME(Enum):
     POSITIONY = 0
-    POSITIONX = 0
-    VELOCITY = 1
-    DIRECTION = 2
+    POSITIONX = 1
+    VELOCITY = 2
+    DIRECTION = 3
 
 #Vehicle 클래스, 좌표, 속력, 방향 데이터를 가지고 있음. 
 class Vehicle:
@@ -35,7 +40,7 @@ class Vehicle:
         self.position = position 
         
         #실제 위치를 context Data로 변환
-        self.contextposition = (position[0] / map_height, position[1] / map_width,)
+        self.contextposition = (position[0] / map_height, position[1] / map_width)
     
 #Context data의 PartitialData 종류를 가지고 있음
 class contextPartitialData:
@@ -64,9 +69,26 @@ class mmBaseStation:
     def __init__(self, MAP ,position, beamWidth, beamCount, contextDataList, selectMax, expolitationControl):
         self.MAP = MAP
         self.position = position
+        
+        self.contextDataList = contextDataList
+        
+        self.contextPosition = []
+        contextTemp = []
+        
+        #실제 위치를 context Data로 변환
+        BScontextposition = (self.position[0] / len(MAP), self.position[1] / len(MAP[0]))
+        
+        for context in self.contextDataList:
+            if context.dataName == CONTEXTDATA_NAME.POSITIONY:
+                contextTemp.append(context.GetContextPartitalData(context.dataName, BScontextposition[0]))
+            elif context.dataName == CONTEXTDATA_NAME.POSITIONX:
+                contextTemp.append(context.GetContextPartitalData(context.dataName, BScontextposition[1]))
+            
+        self.contextPosition.append(contextTemp)
+            
         self.beamWidth = beamWidth
         self.beamCount = beamCount
-        self.contextDataList = contextDataList
+        
         self.selectMax = selectMax
         self.expolitationControl = expolitationControl
         
@@ -75,7 +97,13 @@ class mmBaseStation:
         
         #Key : context info, Item : Selected Counts list
         self.BanditsCount = {}
+        
+        #totalReceive
+        self.totalReward = 0
     
+    def resetTotalReward(self):
+        self.totalReward = 0
+        
     #맵에서 보이는 차량들의 정보를 읽어오고 내부적으로 처리할 수 있도록 하기
     def ConvertVehiclesContext(self, vehicles):
         contextDatas = []
@@ -105,10 +133,53 @@ class mmBaseStation:
         return convertState
     
     #차량과의 거리 계산
-    def GetVehicleDistance(self, vehicle):
-        diff_y = abs(self.position[0] - vehicle.position[0]) 
-        diff_x = abs(self.position[1] - vehicle.position[1])       
-        return math.sqrt(pow(diff_y,diff_y) + pow(diff_x, diff_x))
+    def GetVehicleDistance(self, vehicle):       
+        return self.GetDistance(self.position, vehicle.position)
+    
+    def GetDistance(self, position1, position2):
+        diff_y = abs(position1[0] - position2[0]) 
+        diff_x = abs(position1[1] - position2[1])       
+        return math.sqrt(pow(diff_y,2) + pow(diff_x, 2))
+    
+    def angle_between(self,p1, p2, p3):
+        y1, x1 = p1
+        y2, x2 = p2
+        y3, x3 = p3
+        deg1 = (360 + degrees(atan2(x1 - x2, y1 - y2))) % 360
+        deg2 = (360 + degrees(atan2(x3 - x2, y3 - y2))) % 360
+        return deg2 - deg1 if deg1 <= deg2 else 360 - (deg1 - deg2)
+    
+    def GetVehicleTommBaseStationAngle(self, vehicle):
+        positionBaseStation = self.position
+        positionStartAngle = (0, self.position[1])
+        positionVehicle = vehicle.position
+        return self.angle_between(positionVehicle, positionBaseStation, positionStartAngle, )
+     
+    def GetCorrectVehicleBeamindex(self, vehicle):
+        beamIncreasedegree = 0
+        vehicleToAngle = self.GetVehicleTommBaseStationAngle(vehicle)
+        
+        for beamindex in range(self.beamCount):
+            beamIncreasedegree += self.beamWidth            
+            if beamIncreasedegree >= vehicleToAngle:
+                return beamindex
+            
+    def GetCorrectVehiclesBeamindexList(self, vehicles):
+        
+        correctIndexs = []
+        
+        for vehicle in vehicles:
+            contextTemp = []
+            
+            for context in self.contextDataList:
+                if context.dataName == CONTEXTDATA_NAME.POSITIONY:
+                    contextTemp.append(context.GetContextPartitalData(context.dataName, vehicle.contextposition[0]))
+                elif context.dataName == CONTEXTDATA_NAME.POSITIONX:
+                    contextTemp.append(context.GetContextPartitalData(context.dataName, vehicle.contextposition[1]))            
+        
+            correctIndexs.append((contextTemp,self.GetCorrectVehicleBeamindex(vehicle)))
+          
+        return correctIndexs
     
     def SelectGreedyBeams(self,contextKey_indexList_exploitation_Dict, selectCount):
                
@@ -119,12 +190,22 @@ class mmBaseStation:
             if len(ServiceContext_beam) == selectCount:
                 break
                 
-                greedyKey = ''
-                greedyBeamIndex = -1
-                greedyExpectedValue = -1
+            greedyKey = ''
+            greedyBeamIndex = -1
+            greedyExpectedValue = -1
                 
-                #해당 컨텍스트에서 최대 값 찾기
-                for key, items in contextKey_indexList_exploitation_Dict.items():
+            #해당 컨텍스트에서 최대 값 찾기
+            for key, items in contextKey_indexList_exploitation_Dict.items():
+                isAppend = False
+                
+                for service in ServiceContext_beam:
+                    if service[0] == key:
+                        isAppend = True
+                        break
+                        
+                if isAppend == True:
+                    continue
+                else:
                     for beamIndex in items:
                         beamExpectedValue = self.BanditsExpected[key][beamIndex]
                         if beamExpectedValue > greedyExpectedValue:
@@ -132,7 +213,7 @@ class mmBaseStation:
                             greedyKey = key
                             greedyBeamIndex = beamIndex
                             
-                ServiceContext_beam.append((greedyKey, greedyBeamIndex))
+            ServiceContext_beam.append((greedyKey, greedyBeamIndex))
                 
                 
         return ServiceContext_beam
@@ -140,12 +221,15 @@ class mmBaseStation:
     #빔 포밍할 차량 선택 bandit의 상태에 따라 exploration, exploitation중 선택됨.
     def Action(self,Vehicles):
         
+        
+            
         #차량별로 contextData를 가져옴
         VehiclesContextDatas = self.ConvertVehiclesContext(Vehicles)
         
         #context별 방문 상태 체크
         context_beamindex_exploration_Pairs = []
         context_beamindex_exploition_Pairs = []
+        
         for vehiclesContext in VehiclesContextDatas:
             
             banditskey = self.ConvertListtoString(vehiclesContext)
@@ -224,10 +308,10 @@ class mmBaseStation:
                             
                         #위에서 이미 랜덤 선택 한 경우 패스   
                         if isAppened == True:
-                            break
+                            continue
                         else:
                             for i in items:
-                                if(maxValue > self.BanditsExpected[key][i]):
+                                if(maxValue < self.BanditsExpected[key][i]):
                                     maxValue = self.BanditsExpected[key][i]
                                     maxKey = key
                                     maxValueindex = i
@@ -244,26 +328,65 @@ class mmBaseStation:
                     if len(ServiceContext_beam) == self.selectMax:
                         break
             
-            #모든 선택을 마친 결과 데이터, List(contextkey, beamIndex)
-            self.ExcuteServiceAndUpdate(ServiceContext_beam, Vehicles)
+        #모든 선택을 마친 결과 데이터, List(contextkey, beamIndex)
+        self.ExcuteServiceAndUpdate(ServiceContext_beam, Vehicles)
             
-                    
+        return ServiceContext_beam
+            
+        
     def ExcuteServiceAndUpdate(self,ServiceContext_beam, Vehicles):
         
-        VehiclesContextDatas = self.ConvertVehiclesContext(Vehicles)
+        #각 차량의 컨텍스트 데이터 별 일치하는 빔
+        VehiclescPositionAndCorrectBeam = []
+        
+        for vehicle in Vehicles:
+            contextTemp = []
+            
+            for context in self.contextDataList:
+                if context.dataName == CONTEXTDATA_NAME.POSITIONY:
+                    contextTemp.append(context.GetContextPartitalData(context.dataName, vehicle.contextposition[0]))
+                elif context.dataName == CONTEXTDATA_NAME.POSITIONX:
+                    contextTemp.append(context.GetContextPartitalData(context.dataName, vehicle.contextposition[1]))
+            
+            VehiclescPositionAndCorrectBeam.append([(contextTemp,self.GetCorrectVehicleBeamindex(vehicle)), vehicle.position])
+        """                          
         VehiclesContextKeyList = []
        
-        #차량의 context 데이터를 key값으로 변경 하기
-        for vehiclesContext in VehiclesContextDatas:            
-            VehiclesContextKeyList.append(self.ConvertListtoString(vehiclesContext))
-            
+        #차량의 context 데이터를 key값으로 변경 추가 및 실제 좌표 저장
+        for vehiclesContextAndCorrectBeam in VehiclescPositionAndCorrectBeam:            
+            VehiclesContextKeyList.append([self.ConvertListtoString(vehiclesContextAndCorrectBeam[0][0]), vehiclesContextAndCorrectBeam[1]])
+            #VehiclescPositionAndBeamCorrect
+        """
+        
         for serviceData in ServiceContext_beam:
+            
             service_contextKey = serviceData[0]
+            
             service_beamIndex  = serviceData[1]
             
-            #선택한 인덱스의 빔을 쐈을때 선택한 컨텍스트 데이터를 가진 차량이 빔의 영역에 있는지 검사 필요, 임시 데이터로 1 저장
-            receivedData = 1
+            isCorrect = False
             
+            #선택함 빔과 차량의 위치가 일치한다면 correct
+            correctData = []
+            
+            for correctData in VehiclescPositionAndCorrectBeam:
+                if self.ConvertListtoString(correctData[0][0]) == service_contextKey:
+                    if correctData[0][1] == service_beamIndex:
+                        isCorrect = True
+                        correctData.append(correctData)
+            
+            receivedData = 0
+            
+            #1타일 당 10m 정의
+            distanceMeter = self.GetDistance(self.position, correctData[1]) * 10
+            
+                       
+            #선택한 인덱스의 빔을 쐈을때 선택한 컨텍스트 데이터를 가진 차량이 빔의 영역에 있는지 검사 필요, 임시 데이터로 1 
+            if isCorrect == True:
+                receivedData = 500 - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))
+                
+            #28*pow(10,9) - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))  
+            #GetPathloss(mu,sigma,distanceperMeter, carrierFrequency)
             #Expected Value 계산 
             banditExpectedDict = self.GetBanditExpectedValues(service_contextKey)
             banditCountDict = self.GetBanditCountValues(service_contextKey)
@@ -275,6 +398,8 @@ class mmBaseStation:
             self.BanditsExpected[service_contextKey][service_beamIndex] = numerator / denominator
             self.BanditsCount[service_contextKey][service_beamIndex] = self.BanditsCount[service_contextKey][service_beamIndex] + 1
             
+            #SumTotalReward
+            self.totalReward += receivedData
                        
     def GetBanditExpectedValues(self, banditskey):
         
@@ -364,6 +489,12 @@ def CreateMAP(width, height, roads, basestationposition):
     MAP[int(basestationposition[0])][int(basestationposition[1])] = 1
     return np.array(MAP)
 
+def GetNormaldistributiondB(mu, sigma):   
+    return np.random.normal(mu, sigma, 1)
+
+def GetPathloss(mu,sigma,distanceperMeter, carrierFrequency):
+    return 32.4 + 17.3 * math.log10(distanceperMeter) + 20 * math.log10(carrierFrequency) + GetNormaldistributiondB(mu,sigma)
+    
 def ClearVehiclefromMAP(MAP):
     for row in range(len(MAP)):
         for col in range(len(MAP[row])):
@@ -378,10 +509,10 @@ MAP_WIDTH = 50
 MAP_HEIGHT = 50
 
 #현재 Map에 차량이 있을 수 
-VEHICLE_MAX = 5
+VEHICLE_MAX = 10
 
 #BaseStation Position
-MM_BASESTATION_POSITION = [25,25]
+MM_BASESTATION_POSITION = [int(MAP_HEIGHT/2),int(MAP_WIDTH/2)]
 
 #Beam의 방사각
 MM_BASESTATION_BEAM_WDITH = 30
@@ -390,11 +521,11 @@ MM_BASESTATION_BEAM_WDITH = 30
 MM_BASESTATION_BEAM = int(360 / MM_BASESTATION_BEAM_WDITH)
 
 #한번에 선택가능한 최대 beam의 갯수 m
-SELECT_MAX = 3
+SELECT_MAX = 5
 
 #도로 설정 가로축 길 1개, 세로축 길 1개
-TRAFFIC_ROADS = [[(0,35),(MAP_HEIGHT, 35)], [(35,0),(35, MAP_WIDTH)], 
-                 [(15,0),(15, MAP_WIDTH)], [(0,10),(MAP_HEIGHT, 10)]]
+TRAFFIC_ROADS = [[(0,30),(MAP_HEIGHT, 30)], [(30,0),(30, MAP_WIDTH)], 
+                 [(10,0),(10, MAP_WIDTH)], [(0,10),(MAP_HEIGHT, 10)]]
 
 EXPOLITATION_CONTOL = 10
 MAP = CreateMAP(width=MAP_WIDTH, height=MAP_HEIGHT,basestationposition=MM_BASESTATION_POSITION,roads=TRAFFIC_ROADS)
@@ -415,11 +546,13 @@ mmBS = mmBaseStation(MAP=MAP,
 pixelPerHeight = 1 / MAP_HEIGHT
 pixelPerWidth = 1 / MAP_WIDTH
 
-Episode = 10
-step = 10
+Episode = 100
+step = 100
 
+rewards = []
 for epi in range(Episode):
-    
+    mmBS.resetTotalReward()
+    totalCorrects = 0
     for ste in range(step):
         
         #지도에서 차량 지우기
@@ -429,17 +562,41 @@ for epi in range(Episode):
         Vehicles = CreateRandomVehicle(MAP, VEHICLE_MAX)   
         
         mmBS.MAP = MAP
+        CorrectBeam = mmBS.GetCorrectVehiclesBeamindexList(Vehicles)
+        mmBSServiceContext_beam = mmBS.Action(Vehicles)
         
-        mmBS.Action(Vehicles)
+        """
+        print('correct')
+        print(CorrectBeam)       
+        print('mmBS')
+        print(mmBSServiceContext_beam)
+        """
         
+        bIsCorrect = True
+        
+        for correct in CorrectBeam:
+            for select in mmBSServiceContext_beam:       
+                cvtCorrect = mmBS.ConvertListtoString(correct[0])
+                context = select[0]
+                value = select[1]
+                
+                if context == cvtCorrect:
+                    if value != correct[1]:
+                        bIsCorrect = False
+                        
+        if bIsCorrect == True:
+            totalCorrects += 1    
+            
         #랜덤 차량 위치 표시
         for vehicle in Vehicles:
             MAP[vehicle.position[0],vehicle.position[1]]= 2
-        
-        plt.imshow(MAP, interpolation='nearest', cmap=plt.cm.bone_r)
+            
+    print(mmBS.totalReward)
+    print(totalCorrects)
+    rewards.append(mmBS.totalReward)
 
-
-
-
-
+plt.subplot(121)
+plt.imshow(MAP, interpolation='nearest', cmap=plt.cm.bone_r)
+plt.subplot(122)
+plt.plot(rewards)
 
