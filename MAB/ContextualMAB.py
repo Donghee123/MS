@@ -383,7 +383,7 @@ class mmBaseStation:
                        
             #선택한 인덱스의 빔을 쐈을때 선택한 컨텍스트 데이터를 가진 차량이 빔의 영역에 있는지 검사 필요, 임시 데이터로 1 
             if isCorrect == True:
-                receivedData = 500 - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))
+                receivedData = 28*pow(10,9) - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))
                 
             #28*pow(10,9) - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))  
             #GetPathloss(mu,sigma,distanceperMeter, carrierFrequency)
@@ -509,6 +509,7 @@ MAP_WIDTH = 50
 MAP_HEIGHT = 50
 
 #현재 Map에 차량이 있을 수 
+VEHICLE_MIN = 2
 VEHICLE_MAX = 10
 
 #BaseStation Position
@@ -521,7 +522,7 @@ MM_BASESTATION_BEAM_WDITH = 30
 MM_BASESTATION_BEAM = int(360 / MM_BASESTATION_BEAM_WDITH)
 
 #한번에 선택가능한 최대 beam의 갯수 m
-SELECT_MAX = 5
+SELECT_MAX = 4
 
 #도로 설정 가로축 길 1개, 세로축 길 1개
 TRAFFIC_ROADS = [[(0,30),(MAP_HEIGHT, 30)], [(30,0),(30, MAP_WIDTH)], 
@@ -558,8 +559,11 @@ for epi in range(Episode):
         #지도에서 차량 지우기
         MAP = ClearVehiclefromMAP(MAP)
         
+        #랜덤 차량 갯수 
+        vehiclesCount = random.randint(2, VEHICLE_MAX)
+        
         #차량 랜덤 생성
-        Vehicles = CreateRandomVehicle(MAP, VEHICLE_MAX)   
+        Vehicles = CreateRandomVehicle(MAP, vehiclesCount)   
         
         mmBS.MAP = MAP
         CorrectBeam = mmBS.GetCorrectVehiclesBeamindexList(Vehicles)
