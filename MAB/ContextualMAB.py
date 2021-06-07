@@ -155,6 +155,7 @@ class mmBaseStation:
         positionVehicle = vehicle.position
         return self.angle_between(positionVehicle, positionBaseStation, positionStartAngle, )
      
+    #차량과 일치하는 위치의 빔 인덱스 리턴(degree 기반)    
     def GetCorrectVehicleBeamindex(self, vehicle):
         beamIncreasedegree = 0
         vehicleToAngle = self.GetVehicleTommBaseStationAngle(vehicle)
@@ -509,7 +510,9 @@ MAP_WIDTH = 50
 MAP_HEIGHT = 50
 
 #현재 Map에 차량이 있을 수 
-VEHICLE_MIN = 2
+VEHICLE_MIN = 1
+VEHICLE_MEAN = 6
+VEHICLE_SIGMA = 2
 VEHICLE_MAX = 10
 
 #BaseStation Position
@@ -559,13 +562,15 @@ for epi in range(Episode):
         #지도에서 차량 지우기
         MAP = ClearVehiclefromMAP(MAP)
         
-        #랜덤 차량 갯수 
-        vehiclesCount = random.randint(2, VEHICLE_MAX)
+        #랜덤 차량 갯수 -> Gaussian Distribution 평균 : VEHICLE_MEAN 표준편 : VEHICLE_SIGMA ,(VEHICLE_MIN ~ VEHICLE_MAX)사이의  
+        vehiclesCount = min(max(int(GetNormaldistributiondB(VEHICLE_MEAN,VEHICLE_SIGMA)), VEHICLE_MIN),VEHICLE_MAX)
         
         #차량 랜덤 생성
         Vehicles = CreateRandomVehicle(MAP, vehiclesCount)   
         
         mmBS.MAP = MAP
+        
+        #Optimize select (position, distance)
         CorrectBeam = mmBS.GetCorrectVehiclesBeamindexList(Vehicles)
         mmBSServiceContext_beam = mmBS.Action(Vehicles)
         
@@ -581,6 +586,7 @@ for epi in range(Episode):
         for correct in CorrectBeam:
             for select in mmBSServiceContext_beam:       
                 cvtCorrect = mmBS.ConvertListtoString(correct[0])
+                
                 context = select[0]
                 value = select[1]
                 
