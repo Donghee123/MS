@@ -17,6 +17,7 @@ import random
 import math
 from enum import Enum
 from math import atan2, degrees
+import fileutill
      
 #방향 설정 enum class -> 추후 전문성이 고려될때 사용
 class DIRECTION(Enum):
@@ -330,9 +331,9 @@ class mmBaseStation:
                         break
             
         #모든 선택을 마친 결과 데이터, List(contextkey, beamIndex)
-        self.ExcuteServiceAndUpdate(ServiceContext_beam, Vehicles)
+        aggregateData = self.ExcuteServiceAndUpdate(ServiceContext_beam, Vehicles)
             
-        return ServiceContext_beam
+        return ServiceContext_beam, aggregateData
             
         
     def ExcuteServiceAndUpdate(self,ServiceContext_beam, Vehicles):
@@ -358,6 +359,7 @@ class mmBaseStation:
             VehiclesContextKeyList.append([self.ConvertListtoString(vehiclesContextAndCorrectBeam[0][0]), vehiclesContextAndCorrectBeam[1]])
             #VehiclescPositionAndBeamCorrect
         """
+        receivedAggregateData = 0
         
         for serviceData in ServiceContext_beam:
             
@@ -384,7 +386,8 @@ class mmBaseStation:
                        
             #선택한 인덱스의 빔을 쐈을때 선택한 컨텍스트 데이터를 가진 차량이 빔의 영역에 있는지 검사 필요, 임시 데이터로 1 
             if isCorrect == True:
-                receivedData = 28*pow(10,9) - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))
+                receivedData = 28*pow(10,9) - GetPathloss(0,dB2real(1.1),distanceMeter, 28*pow(10,9))
+                receivedAggregateData += receivedData
                 
             #28*pow(10,9) - GetPathloss(0,1.1,distanceMeter, 28*pow(10,9))  
             #GetPathloss(mu,sigma,distanceperMeter, carrierFrequency)
@@ -401,6 +404,8 @@ class mmBaseStation:
             
             #SumTotalReward
             self.totalReward += receivedData
+            
+        return receivedAggregateData
                        
     def GetBanditExpectedValues(self, banditskey):
         
@@ -502,7 +507,57 @@ def ClearVehiclefromMAP(MAP):
             if MAP[row][col] == 2:
                 MAP[row][col] = 0
     return MAP
+
+def dB2real(fDBValue):
+     return pow(10.0, fDBValue/10.0);
+    
+    #inputData  [((y position,x position), beam index),...]의 자료 구조, select_max : 한번에 선택가능한 최대 차량
+def GetNearPositionIndex(mmBSPosition ,inputDatas, select_max):
+    bestNears = []
+    
+    selectSize = select_max
+    
+    if len(inputDatas) < selectSize:
+        selectSize = len(inputDatas)
+        
+    while(True):
+        
+        if len(bestNears) == selectSize:
+            break
+        else:
+            distanceMinValue = 500000000
+            distanceMinIndex = 500000000
             
+            for inputDataIndex in range(len(inputDatas)):
+                
+                isAppend = False
+                    
+                for value in bestNears:
+                    if value == inputDataIndex:
+                        isAppend = True
+                        break
+                
+                if isAppend == True:
+                    continue
+                
+                distance = GetDistance(inputDatas[inputDataIndex][0], mmBSPosition) * 10
+                
+                if distance < distanceMinValue:                                     
+                    distanceMinIndex = inputDataIndex
+                    distanceMinValue = distance
+                    
+                
+            bestNears.append(distanceMinIndex)
+             
+    return bestNears
+                
+    
+def GetDistance(position1, position2):
+    diff_y = abs(position1[0] - position2[0]) 
+    diff_x = abs(position1[1] - position2[1])       
+    return math.sqrt(pow(diff_y,2) + pow(diff_x, 2))
+    
+           
 #시물레이션 맵 가로
 MAP_WIDTH = 50
 #시뮬레이션 맵 세로 크기
@@ -511,9 +566,9 @@ MAP_HEIGHT = 50
 
 #현재 Map에 차량이 있을 수 
 VEHICLE_MIN = 1
-VEHICLE_MEAN = 6
-VEHICLE_SIGMA = 2
-VEHICLE_MAX = 10
+VEHICLE_MEAN = 10
+VEHICLE_SIGMA = 4
+VEHICLE_MAX = 20
 
 #BaseStation Position
 MM_BASESTATION_POSITION = [int(MAP_HEIGHT/2),int(MAP_WIDTH/2)]
@@ -532,6 +587,7 @@ TRAFFIC_ROADS = [[(0,30),(MAP_HEIGHT, 30)], [(30,0),(30, MAP_WIDTH)],
                  [(10,0),(10, MAP_WIDTH)], [(0,10),(MAP_HEIGHT, 10)]]
 
 EXPOLITATION_CONTOL = 10
+
 MAP = CreateMAP(width=MAP_WIDTH, height=MAP_HEIGHT,basestationposition=MM_BASESTATION_POSITION,roads=TRAFFIC_ROADS)
 
    
@@ -550,13 +606,27 @@ mmBS = mmBaseStation(MAP=MAP,
 pixelPerHeight = 1 / MAP_HEIGHT
 pixelPerWidth = 1 / MAP_WIDTH
 
-Episode = 100
-step = 100
+Episode = 1
+step = 1
 
+#MAB 기반 reward
+meanrewards = []
 rewards = []
+#Optimize 기반 reward
+meanoptimizeRewards = []
+optimizeRewards = []
+
+cumulativeRegrets = []
+cumulativeRegret = 0
 for epi in range(Episode):
     mmBS.resetTotalReward()
     totalCorrects = 0
+    optimizeReceivedTotalData = 0
+    
+    #주기적으로 바뀌는 평균값
+    VEHICLE_MEAN = random.randint(2,10)
+    
+    #랜덤으로 정해진 차량으로 1000번 반복 후 평균
     for ste in range(step):
         
         #지도에서 차량 지우기
@@ -564,26 +634,42 @@ for epi in range(Episode):
         
         #랜덤 차량 갯수 -> Gaussian Distribution 평균 : VEHICLE_MEAN 표준편 : VEHICLE_SIGMA ,(VEHICLE_MIN ~ VEHICLE_MAX)사이의  
         vehiclesCount = min(max(int(GetNormaldistributiondB(VEHICLE_MEAN,VEHICLE_SIGMA)), VEHICLE_MIN),VEHICLE_MAX)
-        
+    
         #차량 랜덤 생성
         Vehicles = CreateRandomVehicle(MAP, vehiclesCount)   
         
         mmBS.MAP = MAP
         
-        #Optimize select (position, distance)
-        CorrectBeam = mmBS.GetCorrectVehiclesBeamindexList(Vehicles)
-        mmBSServiceContext_beam = mmBS.Action(Vehicles)
+        #===========Optimize select (position, distance)=====
+        CorrectBeam = mmBS.GetCorrectVehiclesBeamindexList(Vehicles)   
+        Correct_Near_Beam = GetNearPositionIndex(mmBS.position, CorrectBeam, SELECT_MAX)
+        
+        aggregateMABReceived = 0
+        
+        for index in Correct_Near_Beam:
+            distance = GetDistance(Vehicles[index].position, mmBS.position)* 10
+            curOptimizeReceivedData = 28*pow(10,9) - GetPathloss(0, dB2real(1.1), distance, 28*pow(10,9))
+            optimizeReceivedTotalData += curOptimizeReceivedData
+            aggregateMABReceived += curOptimizeReceivedData
+            
+        optimizeRewards.append([float(aggregateMABReceived)])   
+        #====================================================
+        
+        #===========MAB select===============================
+        mmBSServiceContext_beam, receivedData = mmBS.Action(Vehicles)
+        #====================================================
         
         """
         print('correct')
         print(CorrectBeam)       
         print('mmBS')
         print(mmBSServiceContext_beam)
-        """
+        
         
         bIsCorrect = True
         
         for correct in CorrectBeam:
+            
             for select in mmBSServiceContext_beam:       
                 cvtCorrect = mmBS.ConvertListtoString(correct[0])
                 
@@ -596,17 +682,54 @@ for epi in range(Episode):
                         
         if bIsCorrect == True:
             totalCorrects += 1    
-            
+        """
+        
         #랜덤 차량 위치 표시
         for vehicle in Vehicles:
             MAP[vehicle.position[0],vehicle.position[1]]= 2
-            
-    print(mmBS.totalReward)
-    print(totalCorrects)
-    rewards.append(mmBS.totalReward)
+          
+        
+       
+        #print(float(receivedData))
+        rewards.append([float(receivedData)])
+        
+        
+    #print(mmBS.totalReward)
+    #print(optimizeReceivedTotalData)
+    
+    cumulativeRegret += (float(optimizeReceivedTotalData / step) - float(mmBS.totalReward / step))
+    cumulativeRegrets.append([cumulativeRegret])
+    
+    meanrewards.append([float(mmBS.totalReward / step)])
+    meanoptimizeRewards.append([float(optimizeReceivedTotalData / step)])
 
-plt.subplot(121)
+x = []
+
+for i in range(len(meanrewards)):
+    x.append(i) 
+    
+singlex = []  
+
+for i in range(len(rewards)):
+    singlex.append(i) 
+    
+plt.subplot(221)
 plt.imshow(MAP, interpolation='nearest', cmap=plt.cm.bone_r)
-plt.subplot(122)
-plt.plot(rewards)
+"""
+plt.subplot(222)
+plt.plot(x, meanrewards, x, meanoptimizeRewards)
 
+plt.subplot(223)
+plt.plot(singlex, rewards, singlex, optimizeRewards)
+
+simulationPath = "./simulation"
+userlegendname = ['receivedData']
+
+fileutill.createFolder(simulationPath)   
+
+fileutill.MakeCSVFile(simulationPath, "MeanMABAggregateReceived.csv", ["AggregateReceived"], meanrewards)
+fileutill.MakeCSVFile(simulationPath, "MeanOptimizemeanAggregateReceived.csv", ["AggregateReceived"], meanoptimizeRewards)
+fileutill.MakeCSVFile(simulationPath, "MABAggregateReceived.csv", ["AggregateReceived"], rewards)
+fileutill.MakeCSVFile(simulationPath, "OptimizemeanAggregateReceived.csv", ["AggregateReceived"], optimizeRewards)
+fileutill.MakeCSVFile(simulationPath, "Regret.csv", ["Regret"], cumulativeRegrets)
+"""
