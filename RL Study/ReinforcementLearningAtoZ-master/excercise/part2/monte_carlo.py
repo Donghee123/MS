@@ -166,13 +166,15 @@ class MCAgent(ExactMCAgent):
         iter = zip(states, actions, rewards)
         cum_r = 0.0
         
+        for s, a, r in iter:
+            
             cum_r *= self.gamma
             cum_r += r
 
             # Implement learning rate version of MC policy evaluation
             # Refer to the lecture note <Part02 Chapter03 L01 MC evaluation> page 14           
             self.v[s] = self.v[s] + self.lr * (cum_r - self.v[s])
-            self.q[s, a] = self.q[s, a] + self.lr*(cum_r - self.q[s,a])
+            self.q[s, a] = self.q[s, a] + self.lr * (cum_r - self.q[s,a])
 
 
 

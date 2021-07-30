@@ -124,7 +124,7 @@ fig, ax = plt.subplots(1,2, figsize=(12,6))
 visualize_value_function(ax[0], mc_agent.v, nx, ny)
 _ = ax[0].set_title("Monte-carlo Policy evalutation")
 
-#increamental MC 버전 
+#incremental MC 버전 
 incre_mc_agent = MCAgent(gamma=1.0, lr=1e-3, num_states = nx * ny, num_actions=4,epsilon=1.0)
 incre_mc_agent.reset_statistics()
 
@@ -137,4 +137,4 @@ for _ in range(5000):
 print(incre_mc_agent.v)
 
 visualize_value_function(ax[1], incre_mc_agent.v, nx, ny)
-_ = ax[1].set_title("Increamental Monte-carlo Policy evalutation")
+_ = ax[1].set_title("Incremental Monte-carlo Policy evalutation")
