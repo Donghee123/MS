@@ -117,7 +117,7 @@ def GetAllNameList(folderPath):
 
 def UpdateCheckList(excelPath):
     df = pd.read_excel(excelPath)
-    
+   
     result = []
     
     for index in range(len(df['number'])):
@@ -146,15 +146,17 @@ def GetResult(excelPath, nameList, result):
     return result
 
 #집 전용 경로
-#C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\testfolder\\sheet\\CheckList.xlsx
+
+exelPath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
 
 #노트북 전용 경로
-#"C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-#'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
+#exelPath = "C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+#imagePath = 'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
 
 #랩실 전용 경로
-exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-imagePath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
+#exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+#imagePath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
 
 result = UpdateCheckList(exelPath)
 
