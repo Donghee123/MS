@@ -7,7 +7,7 @@ Created on Thu May 20 16:58:50 2021
     subject  : An Online context-Aware Machine Learning Algorithm for 5G mmWave Vehicular Commnunication
     method   : MAB
                Optimistic in the Face of Uncertainty -> 지정한 갯수 만큼 반복해서 기대값(expected value)를 가짐
-               초기 Action에 따른 reward는 random값으로 추정하지만 수행 횟수반를 반할복 수록 특정 기대값으로 수렴함
+               초기 Action에 따른 reward는 random값으로 추정하지만 수행 횟수반를 반복 할 수록 특정 기대값으로 수렴함
                그 때 greedy 방식으로 수행.
                
 """

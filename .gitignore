@@ -1,6 +1,9 @@
 # ignore wandb
 wandb/
 
+# ignore .pdf papers
+*.pdf
+
 # ignore pycharm cashe
 .idea/
 
