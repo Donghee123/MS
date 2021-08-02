@@ -51,22 +51,40 @@ class TDAgent:
         rewards += [0] * (self.n_step + 1)  # append dummy rewards
         dones = [0] * ep_len + [1] * (self.n_step + 1)
 
+        """
+        kernel 역할
+        사이즈가 5인 np.array
+        g값을 더할때 discount factor 역할을함
+        ex)
+        kernel[0] = 0.9 ^ 1
+        kernel[1] = 0.9 ^ 2
+        kernel[2] = 0.9 ^ 3
+        kernel[3] = 0.9 ^ 4
+        kernel[4] = 0.9 ^ 5       
+        """
         kernel = np.array([self.gamma ** i for i in range(self.n_step)])
+        
         for i in range(ep_len):
             s = states[i]
             ns = states[i + self.n_step]
             done = dones[i]
-
-            # compute n-step TD target
-            # Refer to the lecture note <Part02 Chapter03 L03 TD evaluation> page 11
-            g = "Fill this line"
+            
+            #reward 배열과 kernel의 값을 한번에 곱하고 모두 더함 -> 코드가 쉬워짐
+            #G9 = R10 + rR11 + r^2V(S11)에서 
+            #R10 + rR11 부분
+            g = np.sum(rewards[i: i + self.n_step] * kernel)    
+                
+            #r^2V(S11) 을 추가로 더한 부분
+            #Terminal state면 done값을 1로 지정 후 0으로 처리함
+            g += (self.gamma ** self.n_step) * self.v[ns] * (1-done)
+            
+            #state value function 업데이트
             self.v[s] += self.lr * (g - self.v[s])
 
     def sample_update(self, state, action, reward, next_state, done):
-        # Implement sample update version of 1-step TD target
-        # Refer to the lecture note <Part02 Chapter03 L03 TD evaluation> page 5
-        # Don't forget to utilize 'done' to ignore the last state values.
-        td_target = "Fill this line"
+        # done은 터미널일때만 1로 나오고 이때 (1 - done)은 0이 됨 -> 다음 상태의 state value function이 0이됨
+        # 터미널 state의 state value function은 0임을 의미.
+        td_target = reward + self.gamma * self.v[next_state] * (1 - done)
         self.v[state] += self.lr * (td_target - self.v[state])
 
     def decaying_epsilon(self, factor):

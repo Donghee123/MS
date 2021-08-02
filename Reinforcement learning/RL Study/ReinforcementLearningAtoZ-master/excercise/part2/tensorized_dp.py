@@ -33,33 +33,17 @@ class TensorDP:
 
     def reset_policy(self):
         self.policy = np.ones([self.ns, self.na]) / self.na
-
+        
     def set_policy(self, policy):
         assert self.policy.shape == policy.shape
         self.policy = policy
 
     def get_r_pi(self, policy):
-        """
-        Compute R_pi. The expected output shape is [num. states x 1]
-        Refer to the lecture note <Part02 Chapter 01 L02 MDP> page 6
-        """
-        
-        r_pi = []
-        
-        #elementwise multiple
-        multipleMatrix = self.R * policy
-        for QValueArray in multipleMatrix:
-            #sum
-            r_pi.append(QValueArray.sum())
-
-        return np.array(r_pi)
+        r_pi = (policy * self.R).sum(axis=-1)  # [num. states x 1]
+        return r_pi
 
     def get_p_pi(self, policy):
-        """
-        Compute P_pi. The expected output shape is [num. states x num. states]
-        Refer to the lecture note <Part02 Chapter 01 L02 MDP> page 6
-        """
-        p_pi = "Fill this line!"
+        p_pi = np.einsum("na,anm->nm", policy, self.P)  # [num. states x num. states]
         return p_pi
 
     def policy_evaluation(self, policy=None, v_init=None):
@@ -84,8 +68,7 @@ class TensorDP:
 
         while True:
             # perform bellman expectation back
-            # Refer to the lecture note <Part02 Chapter 02 L02 DP> page 8
-            v_new = "Fill this line!"
+            v_new = r_pi + self.gamma * np.matmul(p_pi, v_old)
 
             # check convergence
             bellman_error = np.linalg.norm(v_new - v_old)
@@ -104,13 +87,12 @@ class TensorDP:
             v_pi = self.policy_evaluation(policy)
 
         # Compute Q_pi(s,a) from V_pi(s)
-        # Refer to the lecture note <Part02 Chapter 02 L02 DP> page 9
-        q_pi = "Fill this line!"  # q_pi = [num.action x num states]
+        r_pi = self.get_r_pi(policy)
+        q_pi = r_pi + self.P.dot(v_pi)  # q_pi = [num.action x num states]
 
         # Greedy improvement
-        # Refer to the lecture note <Part02 Chapter 02 L02 DP> page 9
         policy_improved = np.zeros_like(policy)
-        """you need to greedily improve the given policy on here!"""
+        policy_improved[np.arange(q_pi.shape[1]), q_pi.argmax(axis=0)] = 1
         return policy_improved
 
     def policy_iteration(self, policy=None):
@@ -167,9 +149,7 @@ class TensorDP:
 
         while True:
             # Bellman optimality backup
-            # Refer to the lecture note <Part02 Chapter 02 L02 DP> page 9
-            #T는 전치행렬을 의미,  
-            v_improved = (self.R.T + self.P.dot(v_old)).max(axis=0)
+            v_improved = (self.R.T + self.gamma * self.P.dot(v_old)).max(axis=0)
             info['v'].append(v_improved)
 
             if compute_pi:
