@@ -39,6 +39,11 @@ class ExactMCAgent:
         self.reset_policy()
 
     def reset_statistics(self):
+        """
+        각 state value function
+        각 action value function
+        의 방문 횟수 리셋
+        """
         self.n_v = np.zeros(shape=self.num_states)
         self.s_v = np.zeros(shape=self.num_states)
 
@@ -46,6 +51,11 @@ class ExactMCAgent:
         self.s_q = np.zeros(shape=(self.num_states, self.num_actions))
 
     def reset_values(self):
+        """
+        각 state value function
+        각 action value function
+        의 값 리셋
+        """
         self.v = np.zeros(shape=self.num_states)
         self.q = np.zeros(shape=(self.num_states, self.num_actions))
 
@@ -111,7 +121,8 @@ class ExactMCAgent:
 
     def improve_policy(self):
         self._policy_q = self.q.copy()
-        # self.reset_statistics()
+        #self.reset_values()
+        #self.reset_statistics()
 
     def decaying_epsilon(self, factor):
         self.epsilon *= factor
