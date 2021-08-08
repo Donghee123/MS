@@ -120,8 +120,8 @@ class SARSA(TDAgent):
 
         # SARSA target
         # Refer to the lecture note <Part02 Chapter04 L04 TD control:SARSA> page 4
-        td_target = "Fill this line"
-        self.q[s, a] += self.lr * (td_target - self.q[s, a])
+        td_target = r + self.gamma * self.q[ns,na] * (1 - done) #tdtarget : 다음 상태의 행동까지 구한 것
+        self.q[s, a] += self.lr * (td_target - self.q[s, a]) #  현재 상태, 액션의 q값 += 학습률*(tdtarget - 현재 상태, 액션의 q값)
 
 
 class QLearner(TDAgent):
