@@ -155,7 +155,7 @@ class QLearner(TDAgent):
         s, a, r, ns = state, action, reward, next_state
         # Q-Learning target
         # Refer to the lecture note <Part02 Chapter05 L02 Off-policy TD control and Q-Learning> page 7
-        td_target = "Fill this line"
+        td_target = r + self.gamma * self.q[ns, :].max() * (1 - done)
         self.q[s, a] += self.lr * (td_target - self.q[s, a])
 
 
