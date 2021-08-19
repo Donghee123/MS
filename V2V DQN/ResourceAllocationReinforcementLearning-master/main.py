@@ -59,9 +59,14 @@ def main(_):
   with tf.Session(config=config) as sess:
     config = []
     agent = Agent(config, Env, sess)
-    #agent.play()
-    agent.train()
-
+    
+    #학습 전
+    agent.play()
+    
+    #학습
+    #agent.train()
+    
+    #학습 후
     #agent.play()
 
 if __name__ == '__main__':

@@ -311,7 +311,7 @@ class Agent(BaseModel):
                         state_old = self.get_state([i, j])
                         time_left_list.append(state_old[-1])
                         action = self.predict(state_old, 0, True)
-                        '''
+                        
                         if state_old[-1] <=0:
                             continue
                         power_selection = int(np.floor(action/self.RB_number))
@@ -322,14 +322,15 @@ class Agent(BaseModel):
                             power_select_list_1.append(state_old[-1])
                         if power_selection == 2:
                             power_select_list_2.append(state_old[-1])
-                        '''
+                        
                         self.merge_action([i, j], action)
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
                         reward, percent = self.env.act_asyn(action_temp)  # self.action_all)
                         Rate_list.append(np.sum(reward))
                 # print("actions", self.action_all_with_power)
-            '''
+            
+            
             number_0, bin_edges = np.histogram(power_select_list_0, bins = 10)
 
             number_1, bin_edges = np.histogram(power_select_list_1, bins = 10)
@@ -350,7 +351,7 @@ class Agent(BaseModel):
             plt.legend()
             plt.grid()
             plt.show()
-            '''
+            
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             Fail_percent_list[game_idx] = percent
 
