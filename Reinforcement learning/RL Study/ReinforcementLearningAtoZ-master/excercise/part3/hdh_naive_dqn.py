@@ -52,7 +52,7 @@ qnet = MLP(input_dim=s_dim, output_dim= a_dim, num_neurons=[128],hidden_act="ReL
 #Agnet 생성
 agent = NaiveDQN(state_dim=s_dim, action_dim=a_dim, qnet=qnet, lr=1e-4,gamma=1.0,epsilon=1.0)
 
-agent.to('cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 n_eps = 10000
 print_every = 500
@@ -64,7 +64,7 @@ for ep in range(n_eps):
     cum_r = 0 # cumulative reward 누적 보상값
     while True:
         s = env.state
-        s = torch.tensor(s).float().view(1, 4)  # convert to torch.tensor 배치사이즈 : 1, 상태 사이즈 : 4
+        s = torch.tensor(s).float().view(1, 4) # convert to torch.tensor 배치사이즈 : 1, 상태 사이즈 : 4
         a = agent.get_action(s)
         ns, r, done, info = env.step(a)
 

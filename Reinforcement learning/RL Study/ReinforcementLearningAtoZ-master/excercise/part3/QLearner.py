@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
+#register_buffer 기능을 쓰려고 nn.Module 상속 받음
 class NaiveDQN(nn.Module):
 
     def __init__(self,
@@ -15,7 +15,7 @@ class NaiveDQN(nn.Module):
         super(NaiveDQN, self).__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.qnet = qnet
+        self.qnet = qnet #파라미터 weight를 저장하고있는 네트워
         self.lr = lr
         self.gamma = gamma
         self.opt = torch.optim.Adam(params=self.qnet.parameters(), lr=lr)
@@ -56,7 +56,8 @@ class NaiveDQN(nn.Module):
         # detach는 Gradient를 트래킹하지 않기 위해서 함. DQN할때 무조건 필요!
         # Don't forget to detach `td_target` from the computational graph
         q_target = q_target.detach()
-
+        q_target = q_target.to('cuda')
+        q_selected = self.qnet(s)[0, a].to('cuda')
         # Or you can follow a better practice as follows:
         """
         detach와 비슷한 기능을 함.  Gradient를 트래킹하지 않는 방법
@@ -70,7 +71,7 @@ class NaiveDQN(nn.Module):
         q_target 계산한 q_target값임 
         loss함수의 파라미터는 항상 앞에가 prediction 데이터 두번째는 target 데이터임
         """
-        loss = self.criteria(self.qnet(s)[0, a], q_target) 
+        loss = self.criteria(q_selected, q_target) 
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()

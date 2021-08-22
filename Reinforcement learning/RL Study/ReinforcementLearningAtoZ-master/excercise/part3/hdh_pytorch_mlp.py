@@ -90,6 +90,10 @@ def run_minibatch_fullbatch(num_reps : int, n_sample : int, batch_size : int, ep
     
     return sgd_losses, gd_losses
 
+import time
+start = time.time()  # 시작 시간 저장
+ 
+ 
 
 mm = MyModel()
 
@@ -132,6 +136,7 @@ mlp2 = MLP(input_dim=1, output_dim=1, num_neurons=[64,32],hidden_act='ReLU', out
 
 #mlp2 인스턴스에 mlp1의 파라미터 값들 복사 시키기 개꿀!!
 mlp2.load_state_dict(mlp.state_dict())
+
 print('\n')  
 
 w = 1.0
@@ -174,6 +179,7 @@ _ = ax.set_xlabel('epoch')
 _ = ax.set_ylabel('loss')
 _ = ax.set_title('SGD vs GD')
 
+print("time :", time.time() - start)  # 현재시각 - 시작시간 = 실행 시간
 
 """ 
 fig, ax = plt.subplots(1,1, figsize=(10,5))
