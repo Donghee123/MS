@@ -124,7 +124,7 @@ print('\n')
 print('==============MLP 만들기===============') 
 #mlp 인스턴스 생성
 mlp = MLP(input_dim=1, output_dim=1, num_neurons=[64,32],hidden_act='ReLU', out_act='Identity')
-
+#mlp.to('cuda')
 #MLP 뉴런 구조 보기
 print(mlp) 
 
@@ -133,7 +133,7 @@ print(mlp.state_dict())
 
 #mlp2 인스턴스 생성
 mlp2 = MLP(input_dim=1, output_dim=1, num_neurons=[64,32],hidden_act='ReLU', out_act='Identity')
-
+#mlp.to('cuda')
 #mlp2 인스턴스에 mlp1의 파라미터 값들 복사 시키기 개꿀!!
 mlp2.load_state_dict(mlp.state_dict())
 
