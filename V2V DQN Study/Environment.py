@@ -1,12 +1,14 @@
 from __future__ import division
+from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import time
 import random
 import math
+import matplotlib.pylab as plt
 # This file is revised for more precise and concise expression.
 """
 분석 순서
-1. 차량의 Dropping model 찾기.
+1. 차량의 Dropping model 찾기. 찾았음!
 2. 5G Channel 모델 찾기
 """
 class V2Vchannels:              
@@ -729,13 +731,74 @@ class Environ:
         self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
 
-if __name__ == "__main__":
+#도로 생성 함수 (진입 못하는 도로 : -1, 도로 : 0,  BasetStation : 1, 차량 : 2)
+def CreateMAP(width, height, roads):
+    MAP = []
     
-    up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
-    down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
-    left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
-    right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,1299-3.5/2]
-    width = 750
-    height = 1299
-    Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
-    Env.test_channel()    
+    #지도 생성
+    for i in range(height):
+        temp = []
+        for j in range(width):
+            temp.append(0)
+        
+        MAP.append(temp)
+    
+    #도로 생성
+    for road in roads: 
+             
+        roadStartPositionX = int(road[0][0])
+        roadStartPositionY = int(road[0][1])
+        
+        roadEndPositionX = int(road[1][0])
+        roadEndPositionY = int(road[1][1])
+        
+        for posY in range(roadStartPositionY, roadEndPositionY + 1):
+            for posX in range(roadStartPositionX, roadEndPositionX + 1):
+                MAP[posY - 1][posX - 1] = 2 #1은 도로를 의
+                    
+    return np.array(MAP)
+ 
+up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
+down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
+left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
+right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,1299-3.5/2]
+
+width = 750
+height = 1299
+
+TRAFFIC_ROADS = []
+
+plt.title("Green : Up, Red : Down, Blue : Left, Violet : Right")     
+
+#차도 설정
+for index in range(len(up_lanes)):
+    TRAFFIC_ROADS.append([(up_lanes[index],0), (up_lanes[index],height)])
+    TRAFFIC_ROADS.append([(down_lanes[index],0), (down_lanes[index],height)])
+    plt.vlines(up_lanes[index],0,height,colors='g')
+    plt.vlines(down_lanes[index],0,height,colors='r')
+    TRAFFIC_ROADS.append([(0, left_lanes[index]), (width, left_lanes[index])])
+    TRAFFIC_ROADS.append([(0, right_lanes[index]), (width, right_lanes[index])])
+    plt.hlines(left_lanes[index],0,width,colors='b')
+    plt.hlines(right_lanes[index],0,width,colors='violet')
+
+
+MAP = CreateMAP(width=width, height=height, roads=TRAFFIC_ROADS)
+
+graph3DX = [] 
+graph3DY = [] 
+graph3DZ = [] 
+
+for posY in range(len(MAP)):
+    for posX in range(len(MAP[posY])):
+        if MAP[posY][posX] > 0:
+            graph3DX.append(posX)
+            graph3DY.append(posY)
+            graph3DZ.append(MAP[posY][posX])
+            
+ 
+plt.show()
+
+#plt.imshow(MAP, interpolation='nearest', cmap=plt.cm.bone_r)
+
+#Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
+#Env.test_channel()    
