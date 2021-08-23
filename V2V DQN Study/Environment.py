@@ -8,8 +8,28 @@ import matplotlib.pylab as plt
 # This file is revised for more precise and concise expression.
 """
 분석 순서
-1. 차량의 Dropping model 찾기. 찾았음!
-2. 5G Channel 모델 찾기
+
+1. 도로 환경 설정 찾기. (완료, 그래프로 뛰움)   - add_new_vehicles_by_number 함수
+2. 차량의 Dropping model 찾기. (완료, 그래프 표시중) - add_new_vehicles_by_number 함
+3. V2V, V2I Shadowing model 찾기. (완료) - add_new_vehicles_by_number 함수
+4. 차량의 위치와 방향 update 찾기.(완료) - renew_positions 함수
+
+5. Large fading update 찾기. (완료) - update_large_fading 함수
+   - V2VChannels class의 update_positions 함수
+   - V2IChannels class의 update_positions 함수
+   
+   - V2VChannels class의 update_pathloss 함수
+   - V2IChannels class의 update_pathloss 함수
+   
+   - V2VChannels class의 update_shadow 함수
+   - V2IChannels class의 update_shadow 함수
+   
+6. Small fading update 찾기. (완료) - update_Small_fading 함수
+   - V2VChannels class의 update_fast_fading 함수
+   - V2IChannels class의 update_fast_fading 함수
+   
+   
+5. 5G Channel 모델 찾기
 """
 class V2Vchannels:              
     # Simulator of the V2V Channels
@@ -23,13 +43,16 @@ class V2Vchannels:
         self.n_Veh = n_Veh
         self.n_RB = n_RB
         self.update_shadow([])
+        
     def update_positions(self, positions):
         self.positions = positions
+        
     def update_pathloss(self):
         self.PathLoss = np.zeros(shape=(len(self.positions),len(self.positions)))
         for i in range(len(self.positions)):
             for j in range(len(self.positions)):
                 self.PathLoss[i][j] = self.get_path_loss(self.positions[i], self.positions[j])
+                
     def update_shadow(self, delta_distance_list):
         delta_distance = np.zeros((len(delta_distance_list), len(delta_distance_list)))
         for i in range(len(delta_distance)):
@@ -40,14 +63,17 @@ class V2Vchannels:
         else:
             self.Shadow = np.exp(-1*(delta_distance/self.decorrelation_distance)) * self.Shadow +\
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
+                         
     def update_fast_fading(self):
         h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) ) + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h))
+        
     def get_path_loss(self, position_A, position_B):
         d1 = abs(position_A[0] - position_B[0])
         d2 = abs(position_A[1] - position_B[1])
         d = math.hypot(d1,d2)+0.001
-        d_bp = 4 * (self.h_bs - 1) * (self.h_ms - 1) * self.fc * (10**9)/(3*10**8)     
+        d_bp = 4 * (self.h_bs - 1) * (self.h_ms - 1) * self.fc * (10**9)/(3*10**8)
+        
         def PL_Los(d):
             if d <= 3:
                 return 22.7 * np.log10(3) + 41 + 20*np.log10(self.fc/5)
@@ -101,12 +127,6 @@ class V2Ichannels:
         h = 1/np.sqrt(2) * (np.random.normal(size = (self.n_Veh, self.n_RB)) + 1j* np.random.normal(size = (self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h))
 
-"""
-차량 
-- 위치 선정 공식:  
-- 방향 선정 공식:
-- 속력 선정 공식:
-"""
 class Vehicle:
     # Vehicle simulator: include all the information for a vehicle
     def __init__(self, start_position, start_direction, velocity):
@@ -188,7 +208,12 @@ class Environ:
             ind : 정수형 (0 ~ down lane 사이즈)사이의 랜덤 값 추출 
             width = 750 : 지도의 가로 사이즈가 750
             height = 1299 : 지도의 세로 사이즈가 1299
-            
+            1. 차량의 속력 : random.randint(10,15) 10이상 15이하 정수 랜덤값 생성    
+            2. 차량의 방향 : 하, 상, 왼, 오 순으로 생성
+            3. 차량의 위치 : 각 방향별로 6개의 도로가 있으며, 6개중 1개 랜덤(1~6)선택 후 선택된 도로의 좌표 안에서 랜덤(수평 방향 도로인 경우 width 0~749, 수직 방향 도로인 경우 height 0~1298) 선택
+            4. V2V Shadowing : np.random.normal(0,3) 평균 0, 표준 편차 3인 랜덤값 생성
+            5. V2I Shadowing : np.random.normal(0,8) 평균 0, 표준 편차 3인 랜덤값 생성
+            6. delta_distance : 등록된 차량의 순서대로 velocity 저장
             """
             
             ind = np.random.randint(0,len(self.down_lanes))
@@ -207,12 +232,24 @@ class Environ:
             start_position = [random.randint(0,self.width), self.right_lanes[ind]]
             start_direction = 'r'
             self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            
+        
+        #평균 0, 표준 편차 3 인 V2V Link 생성 차량의 갯수가 N개 일때 NxN 매트릭스가 생성됨 ex 차량 수 5 -> 5x5
         self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
+        
+        #평균 0, 표준 편차 8 인 V2I Link 생성 차량의 갯수가 N개 일때 NxN 매트릭스가 생성됨 ex 차량 수 5 -> 5x5
         self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
-        self.delta_distance = np.asarray([c.velocity for c in self.vehicles])
+        
+        #각 차량의 속력 저장
+        self.delta_distance = ([c.velocity for c in self.vehicles])
+        
+        
         #self.renew_channel()
+        """
+        차량의 방향과 위치를 변화시키는 함수
+        """
     def renew_positions(self):
+        
+        
         # ========================================================
         # This function update the position of each vehicle
         # ===========================================================
@@ -223,13 +260,19 @@ class Environ:
             #print(self.position, len(self.position), self.direction)
             delta_distance = self.vehicles[i].velocity * self.timestep
             change_direction = False
+            
+            """
+            up 방향으로 가는차량
+            0.4 확률로 왼쪽으로 회전
+            0.4 확률로 오른쪽으로 회전
+            """
             if self.vehicles[i].direction == 'u':
                 #print ('len of position', len(self.position), i)
                 for j in range(len(self.left_lanes)):
                     
                     if (self.vehicles[i].position[1] <=self.left_lanes[j]) and ((self.vehicles[i].position[1] + delta_distance) >= self.left_lanes[j]):   # came to an cross
                         if (random.uniform(0,1) < 0.4):
-                            self.vehicles[i].position = [self.vehicles[i].position[0] - (delta_distance - (self.left_lanes[j] - self.vehicles[i].position[1])),self.left_lanes[j] ] 
+                            self.vehicles[i].position = [self.vehicles[i].position[0] - (delta_distance - (self.left_lanes[j] - self.vehicles[i].position[1])), self.left_lanes[j] ] 
                             self.vehicles[i].direction = 'l'
                             change_direction = True
                             break
@@ -243,6 +286,7 @@ class Environ:
                                 break
                 if change_direction == False:
                     self.vehicles[i].position[1] += delta_distance
+                    
             if (self.vehicles[i].direction == 'd') and (change_direction == False):
                 #print ('len of position', len(self.position), i)
                 for j in range(len(self.left_lanes)):
@@ -327,18 +371,23 @@ class Environ:
         # ===================================
         #   test the V2I and the V2V channel 
         # ===================================
-        self.n_step = 0
-        self.vehicles = []
-        n_Veh = 20
-        self.n_Veh = n_Veh
-        self.add_new_vehicles_by_number(int(self.n_Veh/4))
-        step = 1000
-        time_step = 0.1  # every 0.1s update
+        
+        self.n_step = 0 #시뮬레이션 스탭
+        self.vehicles = [] #차량 등록 list
+        n_Veh = 20 #테스트 차량의수 20대
+        self.n_Veh = n_Veh  
+        self.add_new_vehicles_by_number(int(self.n_Veh/4)) #4를 나누는 이유 add_new_vehicles_by_number함수에서 1번 루프당 4대의 차를 생성하기 때문
+       
+        step = 1000 #시뮬레이션 스탭 총 1000스탭
+        time_step = 0.1  # every 0.1s update, 100ms마다 한번씩 업데이트 예정
+        
         for i in range(step):
-            self.renew_positions() 
+            self.renew_positions()  #위치 재갱신
             positions = [c.position for c in self.vehicles]
-            self.update_large_fading(positions, time_step)
+            
+            self.update_large_fading(positions, time_step) #차량의 위치를 보고 large fading을 재갱신함
             self.update_small_fading()
+            
             print("Time step: ", i)
             print(" ============== V2I ===========")
             print("Path Loss: ", self.V2Ichannels.PathLoss)
@@ -350,17 +399,38 @@ class Environ:
             print("Fast Fading: ", self.V2Vchannels.FastFading[0:3])
 
     def update_large_fading(self, positions, time_step):
+        
+        """
+        기존에 저장되어있는 V2I, V2V Channels 의 position 업데이트 
+        position만 재갱신
+        """
         self.V2Ichannels.update_positions(positions)
         self.V2Vchannels.update_positions(positions)
+        
+        """
+        기존에 저장되어있는 V2I, V2V Channels 의 pathloss 업데이트
+        position 변화에 따른 pathloss 계산
+        """
         self.V2Ichannels.update_pathloss()
         self.V2Vchannels.update_pathloss()
+        
+        """
+        기존에 저장되어있는 V2I, V2V Channels 의 shadow 업데이트, 속력도 필요함
+        """
         delta_distance = time_step * np.asarray([c.velocity for c in self.vehicles])
         self.V2Ichannels.update_shadow(delta_distance)
         self.V2Vchannels.update_shadow(delta_distance)
+        
     def update_small_fading(self):
         self.V2Ichannels.update_fast_fading()
         self.V2Vchannels.update_fast_fading()
-        
+   
+    #아래 주석 사이의 함수들은 DQN적용을 위해 사용함, Interference 계산도 있음!
+    """
+    
+    
+    
+    
     def renew_neighbor(self):   
         # ==========================================
         # update the neighbors of each vehicle.
@@ -664,6 +734,7 @@ class Environ:
         # generate a new demand of a V2V
         self.demand = self.demand_amount*np.ones((self.n_RB,3))
         self.time_limit = 10
+        
     def act_for_training(self, actions, idx):
         # =============================================
         # This function gives rewards for training
@@ -730,7 +801,7 @@ class Environ:
         self.update_time_test = 0.002 # 2ms update time for testing
         self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
-
+    """
 #도로 생성 함수 (진입 못하는 도로 : -1, 도로 : 0,  BasetStation : 1, 차량 : 2)
 def CreateMAP(width, height, roads):
     MAP = []
