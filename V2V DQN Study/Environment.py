@@ -1,10 +1,21 @@
 from __future__ import division
-from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import time
 import random
 import math
 import matplotlib.pylab as plt
+import matplotlib.patches as patches
+
+
+up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
+down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
+left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
+right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,1299-3.5/2]
+
+width = 750
+height = 1299
+
+
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -15,18 +26,18 @@ import matplotlib.pylab as plt
 4. 차량의 위치와 방향 update 찾기.(완료) - renew_positions 함수
 
 5. Large fading update 찾기. (완료) - update_large_fading 함수
-   - V2VChannels class의 update_positions 함수
-   - V2IChannels class의 update_positions 함수
+   - V2VChannels class의 update_positions 함수 (분석 완료)
+   - V2IChannels class의 update_positions 함수 (분석 완료)
    
-   - V2VChannels class의 update_pathloss 함수
-   - V2IChannels class의 update_pathloss 함수
+   - V2VChannels class의 update_pathloss 함수 (분석 완료)
+   - V2IChannels class의 update_pathloss 함수 (분석 완료)
    
-   - V2VChannels class의 update_shadow 함수
-   - V2IChannels class의 update_shadow 함수
+   - V2VChannels class의 update_shadow 함수 (분석 완료)
+   - V2IChannels class의 update_shadow 함수 (분석 완료)
    
 6. Small fading update 찾기. (완료) - update_Small_fading 함수
-   - V2VChannels class의 update_fast_fading 함수
-   - V2IChannels class의 update_fast_fading 함수
+   - V2VChannels class의 update_fast_fading 함수(거이 랜덤값임)
+   - V2IChannels class의 update_fast_fading 함수(거이 랜덤값임)
    
    
 5. 5G Channel 모델 찾기
@@ -35,13 +46,13 @@ class V2Vchannels:
     # Simulator of the V2V Channels
     def __init__(self, n_Veh, n_RB):
         self.t = 0
-        self.h_bs = 1.5
-        self.h_ms = 1.5
-        self.fc = 2
-        self.decorrelation_distance = 10
-        self.shadow_std = 3
-        self.n_Veh = n_Veh
-        self.n_RB = n_RB
+        self.h_bs = 1.5 #기지국의 안테나 높이 m
+        self.h_ms = 1.5 #차량의 안테나 높이 m
+        self.fc = 2 #캐리어 주파수 2GHz
+        self.decorrelation_distance = 10 #decorrelation_distance 10m
+        self.shadow_std = 3 #shadowing 표준편차 3, 평균은 0임
+        self.n_Veh = n_Veh # 차량의 갯수
+        self.n_RB = n_RB # resource 블록 -> 차량들이 점유할 수 있는 주파수블럭의 수
         self.update_shadow([])
         
     def update_positions(self, positions):
@@ -54,13 +65,29 @@ class V2Vchannels:
                 self.PathLoss[i][j] = self.get_path_loss(self.positions[i], self.positions[j])
                 
     def update_shadow(self, delta_distance_list):
+        """
+        
+
+        Parameters
+        ----------
+        delta_distance_list : TYPE
+        
+
+        Returns
+        -------
+        None.
+
+        """
         delta_distance = np.zeros((len(delta_distance_list), len(delta_distance_list)))
+        
         for i in range(len(delta_distance)):
             for j in range(len(delta_distance)):
                 delta_distance[i][j] = delta_distance_list[i] + delta_distance_list[j]
+        
+        #처음에는 가우시안 분포로 초기화
         if len(delta_distance_list) == 0: 
             self.Shadow = np.random.normal(0,self.shadow_std, size=(self.n_Veh, self.n_Veh))
-        else:
+        else:#이후 업데이트는 다음 공식따름
             self.Shadow = np.exp(-1*(delta_distance/self.decorrelation_distance)) * self.Shadow +\
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
                          
@@ -69,10 +96,27 @@ class V2Vchannels:
         self.FastFading = 20 * np.log10(np.abs(h))
         
     def get_path_loss(self, position_A, position_B):
+        #상호 차량간의 거리 계산 d1 : x 좌표, d2 : y 좌
+        """
+        WINNDER 2 채널모델의 4.3 pathloss, B1 시나리오를 따름.
+        fc : 캐리어 주파수
+        h_bs : bastaion의 안테나 높이
+        h_ms : vehicle의 안테나 높이
+        d1 : 두차량의 x축 거리
+        d2 : 두차량의 y축 거리
+        h : d1 과 d2의 대각거리
+        d_bp : 충돌지점 거리
+        """
         d1 = abs(position_A[0] - position_B[0])
         d2 = abs(position_A[1] - position_B[1])
+        
+        #대각 거리 계산
         d = math.hypot(d1,d2)+0.001
+        
+        
         d_bp = 4 * (self.h_bs - 1) * (self.h_ms - 1) * self.fc * (10**9)/(3*10**8)
+        
+        #WINNER2 채널모델 기반 pathloss 계산함.
         
         def PL_Los(d):
             if d <= 3:
@@ -85,11 +129,11 @@ class V2Vchannels:
         def PL_NLos(d_a,d_b):
                 n_j = max(2.8 - 0.0024*d_b, 1.84)
                 return PL_Los(d_a) + 20 - 12.5*n_j + 10 * n_j * np.log10(d_b) + 3*np.log10(self.fc/5)
-        if min(d1,d2) < 7: 
+        if min(d1,d2) < 7:  # (x,y 좌표 둘중 1개라도 7이하 이면 Los로 path loss 계산)
             PL = PL_Los(d)
             self.ifLOS = True
-            self.shadow_std = 3
-        else:
+            self.shadow_std = 3 
+        else: # (그외 NLos로 path loss 계산)
             PL = min(PL_NLos(d1,d2), PL_NLos(d2,d1))
             self.ifLOS = False
             self.shadow_std = 4                      # if Non line of sight, the std is 4
@@ -98,10 +142,10 @@ class V2Vchannels:
 class V2Ichannels: 
     # Simulator of the V2I channels
     def __init__(self, n_Veh, n_RB):
-        self.h_bs = 25
-        self.h_ms = 1.5        
+        self.h_bs = 25 #기지국의 높이
+        self.h_ms = 1.5 #안테나의 높이
         self.Decorrelation_distance = 50        
-        self.BS_position = [750/2, 1299/2]    # Suppose the BS is in the center
+        self.BS_position = [750/2, 1299/2]    # 베이스스테이션은 정가운대에 있음
         self.shadow_std = 8
         self.n_Veh = n_Veh
         self.n_RB = n_RB
@@ -116,6 +160,7 @@ class V2Ichannels:
             d2 = abs(self.positions[i][1] - self.BS_position[1])
             distance = math.hypot(d1,d2) # change from meters to kilometers
             self.PathLoss[i] = 128.1 + 37.6*np.log10(math.sqrt(distance**2 + (self.h_bs-self.h_ms)**2)/1000)
+
     def update_shadow(self, delta_distance_list):
         if len(delta_distance_list) == 0:  # initialization
             self.Shadow = np.random.normal(0, self.shadow_std, self.n_Veh)
@@ -169,8 +214,8 @@ class Environ:
         self.vehAntGain = 3          #차량 안테나 gain
         self.vehNoiseFigure = 9      #차량 수신 잡음 지수
         self.sig2 = 10**(self.sig2_dB/10) #노이즈 파워 watt 단위
-        self.V2V_Shadowing = []     #v2v link의 Shadowing?
-        self.V2I_Shadowing = []     #v2i link의 Shadowing?
+        self.V2V_Shadowing = []     #v2v link의 Shadowing : 안쓰임 V2V Channel class에서 모두 다룸
+        self.V2I_Shadowing = []     #v2i link의 Shadowing : 안쓰임 V2I Channel class에서 모두 다룸
         self.delta_distance = []    #?
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
         self.n_Veh = 40             #최대 vehicle 수
@@ -386,7 +431,7 @@ class Environ:
             positions = [c.position for c in self.vehicles]
             
             self.update_large_fading(positions, time_step) #차량의 위치를 보고 large fading을 재갱신함
-            self.update_small_fading()
+            self.update_small_fading()#small fading은 fast fading에 의거해서 재갱신하며 차량의 갯수, 리소스 블럭의 수로 다룸.
             
             print("Time step: ", i)
             print(" ============== V2I ===========")
@@ -416,6 +461,7 @@ class Environ:
         
         """
         기존에 저장되어있는 V2I, V2V Channels 의 shadow 업데이트, 속력도 필요함
+        delta_distance, 100ms 지났을때의 이동거리.
         """
         delta_distance = time_step * np.asarray([c.velocity for c in self.vehicles])
         self.V2Ichannels.update_shadow(delta_distance)
@@ -426,11 +472,7 @@ class Environ:
         self.V2Vchannels.update_fast_fading()
    
     #아래 주석 사이의 함수들은 DQN적용을 위해 사용함, Interference 계산도 있음!
-    """
-    
-    
-    
-    
+    """   
     def renew_neighbor(self):   
         # ==========================================
         # update the neighbors of each vehicle.
@@ -828,48 +870,104 @@ def CreateMAP(width, height, roads):
                 MAP[posY - 1][posX - 1] = 2 #1은 도로를 의
                     
     return np.array(MAP)
- 
-up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
-down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
-left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
-right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,1299-3.5/2]
 
-width = 750
-height = 1299
+def show_plot(ax, Env, width, height):    
+    position_BaseStation = Env.V2Ichannels.BS_position
+    ax.set_ylim(-100, height +  100)
+    ax.set_xlim(-100, width + 100)
+    
+    position_BaseStation
+    
+    ax.add_patch(
+   patches.Rectangle(
+      (position_BaseStation[0], position_BaseStation[1]),             
+      30, 30,                    
+      edgecolor = 'deeppink',
+      facecolor = 'lightgray',
+      fill=True,
+   ))
+    
+    for index in range(len(Env.vehicles)):
+        vehicle = Env.vehicles[index]
+        
+        positionX_vehicle = vehicle.position[0]
+        positionY_vehicle = vehicle.position[1]  
+        
+        color = 'b'
+        direction = [-30,0]
+        width = 50
+        if vehicle.direction == 'u':
+            color = 'g'
+            direction = [0,60]
+            width = 27
+        elif vehicle.direction == 'd':
+            color = 'r'
+            direction = [0,-60]
+            width = 27
+        elif vehicle.direction == 'l':
+            color = 'violet'
+            direction = [30,0]
+        
+        ax.add_patch(
+        patches.Arrow(
+        positionX_vehicle, positionY_vehicle,
+        direction[0], direction[1],
+        width=width,        
+        edgecolor = color,
+        facecolor = color
+     ))
 
+
+
+"""
 TRAFFIC_ROADS = []
 
 plt.title("Green : Up, Red : Down, Blue : Left, Violet : Right")     
 
-#차도 설정
-for index in range(len(up_lanes)):
+#차도 그리기
+for index in range(len(up_lanes)):    
+    plt.plot([up_lanes[index],up_lanes[index]],[0,height],'r')
+    plt.plot([down_lanes[index],down_lanes[index]],[0,height],'g')
+    
+    plt.plot([0,width],[left_lanes[index],left_lanes[index]],'b')
+    plt.plot([0,width],[right_lanes[index],right_lanes[index]],'violet')
+    
     TRAFFIC_ROADS.append([(up_lanes[index],0), (up_lanes[index],height)])
     TRAFFIC_ROADS.append([(down_lanes[index],0), (down_lanes[index],height)])
-    plt.vlines(up_lanes[index],0,height,colors='g')
-    plt.vlines(down_lanes[index],0,height,colors='r')
     TRAFFIC_ROADS.append([(0, left_lanes[index]), (width, left_lanes[index])])
     TRAFFIC_ROADS.append([(0, right_lanes[index]), (width, right_lanes[index])])
-    plt.hlines(left_lanes[index],0,width,colors='b')
-    plt.hlines(right_lanes[index],0,width,colors='violet')
-
-
-MAP = CreateMAP(width=width, height=height, roads=TRAFFIC_ROADS)
-
-graph3DX = [] 
-graph3DY = [] 
-graph3DZ = [] 
-
-for posY in range(len(MAP)):
-    for posX in range(len(MAP[posY])):
-        if MAP[posY][posX] > 0:
-            graph3DX.append(posX)
-            graph3DY.append(posY)
-            graph3DZ.append(MAP[posY][posX])
-            
- 
 plt.show()
+"""
+
+Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
+position_BaseStation = [width/2, height/2] 
+
 
 #plt.imshow(MAP, interpolation='nearest', cmap=plt.cm.bone_r)
 
-#Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
+#환경 생성
+Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
+
+vehicleNumber = 20
+#차량 추가 
+Env.add_new_vehicles_by_number(int(vehicleNumber/4))
+
+
+fig = plt.figure()
+ax1 = fig.add_subplot(1,2,1)
+ax2 = fig.add_subplot(1,2,2)
+
+teststep=1000
+
+show_plot(ax1, Env, width, height)
+
+for _ in range(teststep):
+       
+    Env.renew_positions()
+
+
+show_plot(ax2, Env, width, height)
+
+#plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
+    
 #Env.test_channel()    
