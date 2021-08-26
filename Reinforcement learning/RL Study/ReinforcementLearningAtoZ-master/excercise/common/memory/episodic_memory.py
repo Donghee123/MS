@@ -1,6 +1,6 @@
 import torch
 from collections import deque
-from src.common.memory.trajectory import Trajectory
+from common.memory.trajectory import Trajectory
 
 
 class EpisodicMemory:
@@ -11,6 +11,7 @@ class EpisodicMemory:
         self.trajectories = deque(maxlen=max_size)
         self._trajectory = Trajectory(gamma=gamma)
 
+    #state, action, reward, nest_state, done을 __trajectory에 저장함.
     def push(self, state, action, reward, next_state, done):
         self._trajectory.push(state, action, reward, next_state, done)
         if done:
@@ -20,9 +21,11 @@ class EpisodicMemory:
     def reset(self):
         self.trajectories.clear()
         self._trajectory = Trajectory(gamma=self.gamma)
-
+        
+        
     def get_samples(self):
         states, actions, rewards, next_states, dones, returns = [], [], [], [], [], []
+        #self.trajectories의 사이즈가 0보다 크다면
         while self.trajectories:
             traj = self.trajectories.pop()
             s, a, r, ns, done, g = traj.get_samples()
@@ -31,7 +34,7 @@ class EpisodicMemory:
             rewards.append(torch.cat(r, dim=0))
             next_states.append(torch.cat(ns, dim=0))
             dones.append(torch.cat(done, dim=0))
-            returns.append(torch.cat(g, dim=0))
+            returns.append(torch.cat(g, dim=0)) #trajectories에서 done이 True가 있어야 returns이 있음.
 
         states = torch.cat(states, dim=0)
         actions = torch.cat(actions, dim=0)

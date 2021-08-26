@@ -91,6 +91,7 @@ for ep in range(n_eps):
         print("Episode {} || EMA: {}".format(ep, ema.s))
         
     #업데이트를 위해 states, actions, rewards의 자료구조를 수정
+    #REINFORCE는 1개의 에피소드에서 모든 샘플들을 사용해서 업데이트함.
     states = torch.cat(states, dim=0)
     actions = torch.stack(actions).squeeze()
     rewards = torch.tensor(rewards)

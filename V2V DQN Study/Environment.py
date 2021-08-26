@@ -954,8 +954,8 @@ Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 
 fig = plt.figure()
-ax1 = fig.add_subplot(1,2,1)
-ax2 = fig.add_subplot(1,2,2)
+ax1 = fig.add_subplot(1,1,1)
+#ax2 = fig.add_subplot(1,2,2)
 
 teststep=1000
 
@@ -966,7 +966,7 @@ for _ in range(teststep):
     Env.renew_positions()
 
 
-show_plot(ax2, Env, width, height)
+#show_plot(ax2, Env, width, height)
 
 #plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
     

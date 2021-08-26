@@ -57,6 +57,7 @@ class REINFORCE(nn.Module):
         states, actions, rewards = self._pre_process_inputs(episode)
 
         g = 0
+        #1쌍의 s,a,r 기반으로 업데이트
         for s, a, r in zip(states, actions, rewards):
             g = r + self.gamma * g
             
