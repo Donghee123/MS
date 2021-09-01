@@ -92,13 +92,13 @@ class V2Vchannels:
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
                          
     def update_fast_fading(self):
-        h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) ) + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
-        self.FastFading = 20 * np.log10(np.abs(h))
+        h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) )  + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
+        self.FastFading = 20 * np.log10(np.abs(h)) #magnitude to db
         
     def get_path_loss(self, position_A, position_B):
         #상호 차량간의 거리 계산 d1 : x 좌표, d2 : y 좌
         """
-        WINNDER 2 채널모델의 4.3 pathloss, B1 시나리오를 따름.
+        WINNER 2 채널모델의 4.3 pathloss, B1 시나리오를 따름.
         fc : 캐리어 주파수
         h_bs : bastaion의 안테나 높이
         h_ms : vehicle의 안테나 높이
@@ -158,7 +158,7 @@ class V2Ichannels:
         for i in range(len(self.positions)):
             d1 = abs(self.positions[i][0] - self.BS_position[0])
             d2 = abs(self.positions[i][1] - self.BS_position[1])
-            distance = math.hypot(d1,d2) # change from meters to kilometers
+            distance = math.hypot(d1,d2) #대각거리 계산 # change from meters to kilometers
             self.PathLoss[i] = 128.1 + 37.6*np.log10(math.sqrt(distance**2 + (self.h_bs-self.h_ms)**2)/1000)
 
     def update_shadow(self, delta_distance_list):
@@ -216,9 +216,9 @@ class Environ:
         self.sig2 = 10**(self.sig2_dB/10) #노이즈 파워 watt 단위
         self.V2V_Shadowing = []     #v2v link의 Shadowing : 안쓰임 V2V Channel class에서 모두 다룸
         self.V2I_Shadowing = []     #v2i link의 Shadowing : 안쓰임 V2I Channel class에서 모두 다룸
-        self.delta_distance = []    #?
+        self.delta_distance = []    #한스탭 사이에서 차량이동 거리 
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
-        self.n_Veh = 40             #최대 vehicle 수
+        self.n_Veh = 40             #현재 시뮬레이션에 차량의 
         
         self.V2Vchannels = V2Vchannels(self.n_Veh, self.n_RB)  # V2V 채널 Class, 차량 수와 동일함.
         self.V2Ichannels = V2Ichannels(self.n_Veh, self.n_RB)
@@ -844,6 +844,7 @@ class Environ:
         self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
     """
+    
 #도로 생성 함수 (진입 못하는 도로 : -1, 도로 : 0,  BasetStation : 1, 차량 : 2)
 def CreateMAP(width, height, roads):
     MAP = []
@@ -948,7 +949,7 @@ position_BaseStation = [width/2, height/2]
 #환경 생성
 Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
 
-vehicleNumber = 20
+vehicleNumber = 4
 #차량 추가 
 Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
