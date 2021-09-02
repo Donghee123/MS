@@ -36,7 +36,7 @@ reward : state의 cos theta, sin theta, action 값이 0에 가까워 질수록 �
 
 
 #저장 되어있는 파라미터를 불러올거면 False, 새로 학습 시킬거면 True
-FROM_SCRATCH = True
+FROM_SCRATCH = False
 
 #DDPG 학습은 시간이 매우 오래 걸림
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -114,7 +114,7 @@ s = env.reset()
 cum_r = 0
 
 while True:
-    s = to_tensor(s, size=(1, 3).to(DEVICE))
+    s = to_tensor(s, size=(1, 3)).to(DEVICE)
     a = agent.get_action(s).to('cpu').numpy()
     ns, r, done, info = env.step(a)
     s = ns
@@ -122,4 +122,4 @@ while True:
     if done:
         break
     
-    
+env.close()
