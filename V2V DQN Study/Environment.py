@@ -100,12 +100,20 @@ class V2Vchannels:
         """
         WINNER 2 채널모델의 4.3 pathloss, B1 시나리오를 따름.
         fc : 캐리어 주파수
-        h_bs : bastaion의 안테나 높이
-        h_ms : vehicle의 안테나 높이
+        h_bs : 송신 vehicle 의 안테나 높이
+        h_ms : 수신 vehicle 의 안테나 높이
         d1 : 두차량의 x축 거리
         d2 : 두차량의 y축 거리
-        h : d1 과 d2의 대각거리
-        d_bp : 충돌지점 거리
+        d : d1 과 d2의 대각거리
+        d_bp : 4 * (self.h_bs - 1) * (self.h_ms - 1) * self.fc * (10**9)/(3*10**8) 
+        
+        Path loss 계산 방법
+        
+        
+        LOS 경우 
+        두차량의 x, y축 거리 값이 둘중 하나라도 7m 미만
+        그외
+        NLOS 계산
         """
         d1 = abs(position_A[0] - position_B[0])
         d2 = abs(position_A[1] - position_B[1])
@@ -119,16 +127,17 @@ class V2Vchannels:
         #WINNER2 채널모델 기반 pathloss 계산함.
         
         def PL_Los(d):
-            if d <= 3:
+            if d <= 3:#두차량의 거리가 3m 이하이면 A = 22.7, B=41.0, C=20, 거리는 3m로 고정 계산
                 return 22.7 * np.log10(3) + 41 + 20*np.log10(self.fc/5)
-            else:
-                if d < d_bp:
+            else:#두차량의 거리가 3m 이상이면 A = 22.7, B=41.0, C=20으로 계산
+                if d < d_bp: #두차량의 거리가 d_bp보다 작으면 위의 공식에서 거리는 실측으로 계산
                     return 22.7 * np.log10(d) + 41 + 20 * np.log10(self.fc/5)
-                else:
+                else:#두차량의 거리가 d_bp보다 크면 
                     return 40.0 * np.log10(d) + 9.45 - 17.3 * np.log10(self.h_bs) - 17.3 * np.log10(self.h_ms) + 2.7 * np.log10(self.fc/5)
         def PL_NLos(d_a,d_b):
                 n_j = max(2.8 - 0.0024*d_b, 1.84)
                 return PL_Los(d_a) + 20 - 12.5*n_j + 10 * n_j * np.log10(d_b) + 3*np.log10(self.fc/5)
+            
         if min(d1,d2) < 7:  # (x,y 좌표 둘중 1개라도 7이하 이면 Los로 path loss 계산)
             PL = PL_Los(d)
             self.ifLOS = True
@@ -895,7 +904,7 @@ def show_plot(ax, Env, width, height):
         positionY_vehicle = vehicle.position[1]  
         
         color = 'b'
-        direction = [-30,0]
+        direction = [30,0]
         width = 50
         if vehicle.direction == 'u':
             color = 'g'
@@ -907,7 +916,7 @@ def show_plot(ax, Env, width, height):
             width = 27
         elif vehicle.direction == 'l':
             color = 'violet'
-            direction = [30,0]
+            direction = [-30,0]
         
         ax.add_patch(
         patches.Arrow(
@@ -949,25 +958,30 @@ position_BaseStation = [width/2, height/2]
 #환경 생성
 Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height) 
 
-vehicleNumber = 4
+vehicleNumber = 40
 #차량 추가 
 Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 
-fig = plt.figure()
-ax1 = fig.add_subplot(1,1,1)
-#ax2 = fig.add_subplot(1,2,2)
+figs=[]
+axs = []
+teststep=50000
+capture_term = 500
 
-teststep=1000
+for i in range(int(teststep/capture_term)):
+    figs.append(plt.figure(i))
 
-show_plot(ax1, Env, width, height)
-
-for _ in range(teststep):
-       
+for i in range(len(figs)):
+    axs.append(figs[i].add_subplot(1,1,1))
+    
+count = 0;
+for i in range(teststep):
+    if i % 500 == 0:
+        show_plot(axs[count], Env, width, height)
+        count += 1
+        
     Env.renew_positions()
 
-
-#show_plot(ax2, Env, width, height)
 
 #plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
     
