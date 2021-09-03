@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Sep  3 15:53:27 2021
+
+@author: CNL-B3
+Fast fading : Reighy
+"""
+
 from __future__ import division
 import numpy as np
 import time
@@ -7,6 +15,8 @@ import matplotlib.pylab as plt
 import matplotlib.patches as patches
 
 
+MAX_SNR_DB = 30 #releigh
+
 up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
 down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
 left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
@@ -14,9 +24,13 @@ right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,12
 
 width = 750
 height = 1299
+n_Veh = 20
 
-v2vlink_fastfading = []
-v2ilink_fastfading = []
+v2vlink_fastfading_normal = []
+v2ilink_fastfading_normal = []
+v2vlink_fastfading_rayleight = []
+v2ilink_fastfading_rayleight = []
+
 
 # This file is revised for more precise and concise expression.
 """
@@ -44,6 +58,27 @@ v2ilink_fastfading = []
    
 5. 5G Channel 모델 찾기
 """
+
+#SNRCreater 생성 Class     
+class SNRCreater:
+    #db값을 실수로
+    def dB2real(self,fDBValue):
+        return pow(10.0, fDBValue/10.0);
+
+    #실수를 db값으로
+    def	real2dB(self,fRealValue):
+        return 10.0 * math.log10(fRealValue)
+ 
+    #레일리 페이딩 기반 랜덤값 생성
+    def GetReleighSNR(self,fAvgValue):
+        value = random.random()  
+        return self.real2dB(-self.dB2real(fAvgValue) * math.log(1.0 - value))
+    
+    def GetRageRandom(self, fMaxValue, fMinValue):
+        return random.uniform(fMinValue,fMaxValue)
+
+snrCreater = SNRCreater()
+    
 class V2Vchannels:              
     # Simulator of the V2V Channels
     def __init__(self, n_Veh, n_RB):
@@ -56,6 +91,10 @@ class V2Vchannels:
         self.n_Veh = n_Veh # 차량의 갯수
         self.n_RB = n_RB # resource 블록 -> 차량들이 점유할 수 있는 주파수블럭의 수
         self.update_shadow([])
+        self.vehicles = []
+    
+    def set_vehicles(self, vehicles : list):
+        self.vehicles = vehicles
         
     def update_positions(self, positions):
         self.positions = positions
@@ -94,9 +133,40 @@ class V2Vchannels:
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
                          
     def update_fast_fading(self):
+        
+        """
+        [
+         [ [r,r,r] , [r,r,r], [r,r,r] ],
+         [ [r,r,r] , [r,r,r], [r,r,r] ],
+         [ [r,r,r] , [r,r,r], [r,r,r] ],
+                  ]
+        """
         h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) )  + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h)) #magnitude to db 20을 곱하는 이유 -> Volt -> SNR dbm으로 변환을 위함. -> 레일리 페이딩 써도 될듯..? 차량들의 평균 SNR을 랜덤으로 설정하고 지정
-        v2vlink_fastfading.append(self.FastFading[0][0][0])
+        v2vlink_fastfading_normal.append(self.FastFading[0][1][0])
+        
+    def update_fast_fading_reyleigh(self):    
+        """
+        rayleight fading 함수 추가
+        """
+        self.FastFading_rayleight = []
+        for vehicle_i in range(len(self.vehicles)):
+            vehicles_i_to_j_snrs_blocks = []
+            for vehicle_j in range(len(self.vehicles)):
+                resourceBlocks = []
+                for resourceIndex in range(self.n_RB): 
+                    fillValue = snrCreater.GetReleighSNR(self.vehicles[vehicle_j].snrAverage_dB)
+                    
+                    if vehicle_i == vehicle_j:                  
+                        fillValue = 0
+                        
+                    resourceBlocks.append(fillValue)
+                    
+                vehicles_i_to_j_snrs_blocks.append(resourceBlocks)
+        
+            self.FastFading_rayleight.append(vehicles_i_to_j_snrs_blocks)
+        
+        v2vlink_fastfading_rayleight.append(self.FastFading_rayleight[0][1][0])
         
     def get_path_loss(self, position_A, position_B):
         #상호 차량간의 거리 계산 d1 : x 좌표, d2 : y 좌
@@ -162,8 +232,13 @@ class V2Ichannels:
         self.n_Veh = n_Veh
         self.n_RB = n_RB
         self.update_shadow([])
+        self.vehicles = []
+        
     def update_positions(self, positions):
         self.positions = positions
+    
+    def set_vehicles(self, vehicles : list):
+        self.vehicles = vehicles
         
     def update_pathloss(self):
         self.PathLoss = np.zeros(len(self.positions))
@@ -180,11 +255,24 @@ class V2Ichannels:
             delta_distance = np.asarray(delta_distance_list)
             self.Shadow = np.exp(-1*(delta_distance/self.Decorrelation_distance))* self.Shadow +\
                           np.sqrt(1-np.exp(-2*(delta_distance/self.Decorrelation_distance)))*np.random.normal(0,self.shadow_std, self.n_Veh)
-                          
     def update_fast_fading(self):
         h = 1/np.sqrt(2) * (np.random.normal(size = (self.n_Veh, self.n_RB)) + 1j* np.random.normal(size = (self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h))
-        v2ilink_fastfading.append(self.FastFading[0][0])
+        v2ilink_fastfading_normal.append(self.FastFading[0][1])
+         
+    def update_fast_fading_reyleigh(self):    
+        """
+        rayleight fading 함수 추가
+        """
+        self.FastFading_rayleight = []
+        for vehicle_index in range(len(self.vehicles)):
+            resourceBlocks = []
+            for resourceIndex in range(self.n_RB):             
+                resourceBlocks.append(snrCreater.GetReleighSNR(self.vehicles[vehicle_index].snrAverage_dB))
+            self.FastFading_rayleight.append(resourceBlocks)
+        
+        v2ilink_fastfading_rayleight.append(self.FastFading_rayleight[0][1])
+            
 
 class Vehicle:
     # Vehicle simulator: include all the information for a vehicle
@@ -192,8 +280,10 @@ class Vehicle:
         self.position = start_position
         self.direction = start_direction
         self.velocity = velocity
+        self.snrAverage_dB = 0.0 #random.uniform(1.0, 10.0) #레일레이 페이딩을 위함
         self.neighbors = []
         self.destinations = []
+        
 class Environ:
     # Enviroment Simulator: Provide states and rewards to agents. 
     # Evolve to new state based on the actions taken by the vehicles.
@@ -242,6 +332,9 @@ class Environ:
         
     def add_new_vehicles(self, start_position, start_direction, start_velocity):    
         self.vehicles.append(Vehicle(start_position, start_direction, start_velocity))
+        self.V2Vchannels.set_vehicles(self.vehicles)
+        self.V2Ichannels.set_vehicles(self.vehicles)
+        
         
     """
     
@@ -433,7 +526,7 @@ class Environ:
         
         self.n_step = 0 #시뮬레이션 스탭
         self.vehicles = [] #차량 등록 list
-        #n_Veh = 20 #테스트 차량의수 20대
+        n_Veh = 20 #테스트 차량의수 20대
         self.n_Veh = n_Veh  
         self.add_new_vehicles_by_number(int(self.n_Veh/4)) #4를 나누는 이유 add_new_vehicles_by_number함수에서 1번 루프당 4대의 차를 생성하기 때문
        
@@ -484,6 +577,9 @@ class Environ:
     def update_small_fading(self):
         self.V2Ichannels.update_fast_fading()
         self.V2Vchannels.update_fast_fading()
+        
+        self.V2Ichannels.update_fast_fading_reyleigh()
+        self.V2Vchannels.update_fast_fading_reyleigh()
    
     #아래 주석 사이의 함수들은 DQN적용을 위해 사용함, Interference 계산도 있음!
     
@@ -937,68 +1033,31 @@ def show_plot(ax, Env, width, height):
 
 
 
-"""
-TRAFFIC_ROADS = []
-
-plt.title("Green : Up, Red : Down, Blue : Left, Violet : Right")     
-
-#차도 그리기
-for index in range(len(up_lanes)):    
-    plt.plot([up_lanes[index],up_lanes[index]],[0,height],'r')
-    plt.plot([down_lanes[index],down_lanes[index]],[0,height],'g')
-    
-    plt.plot([0,width],[left_lanes[index],left_lanes[index]],'b')
-    plt.plot([0,width],[right_lanes[index],right_lanes[index]],'violet')
-    
-    TRAFFIC_ROADS.append([(up_lanes[index],0), (up_lanes[index],height)])
-    TRAFFIC_ROADS.append([(down_lanes[index],0), (down_lanes[index],height)])
-    TRAFFIC_ROADS.append([(0, left_lanes[index]), (width, left_lanes[index])])
-    TRAFFIC_ROADS.append([(0, right_lanes[index]), (width, right_lanes[index])])
-plt.show()
-"""
-
-n_Veh = 4
-#환경 생성
 Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height, n_Veh) 
 position_BaseStation = [width/2, height/2] 
-
-"""
-vehicleNumber = 40
-#차량 추가 
-Env.add_new_vehicles_by_number(int(vehicleNumber/4))
-
-
-figs=[]
-axs = []
-teststep=5000
-capture_term = 500
-
-
-for i in range(int(teststep/capture_term)):
-    figs.append(plt.figure(i))
-
-for i in range(len(figs)):
-    axs.append(figs[i].add_subplot(1,1,1))
-
-count = 0;
-for i in range(teststep):
-    
-    if i % 500 == 0:
-        show_plot(axs[count], Env, width, height)
-        count += 1
-       
-    Env.renew_positions()
-""" 
-
 Env.test_channel()
 
-plt.plot(v2vlink_fastfading)
-plt.plot(v2ilink_fastfading)
+v2vlink_fastfading_normal = np.array(v2vlink_fastfading_normal)
+v2ilink_fastfading_normal = np.array(v2ilink_fastfading_normal)
+v2vlink_fastfading_rayleight = np.array(v2vlink_fastfading_rayleight)
+v2ilink_fastfading_rayleight = np.array(v2ilink_fastfading_rayleight)
 
+indexSize_normal = int(v2vlink_fastfading_normal.max() - v2vlink_fastfading_normal.min()) + 1
+indexSize_reyleight = int(v2vlink_fastfading_rayleight.max() - v2vlink_fastfading_rayleight.min()) + 1
 
-plt.show()
+hist_normal = np.zeros(indexSize_normal)
+hist_reyleight = np.zeros(indexSize_reyleight)
 
+for normalIndex in range(len(v2vlink_fastfading_normal)):
+    index = int(v2vlink_fastfading_normal[normalIndex] + abs(v2vlink_fastfading_normal.min()))
+    hist_normal[index] = hist_normal[index] + 1
 
+for reyleighlIndex in range(len(v2vlink_fastfading_rayleight)):
+    index = int(v2vlink_fastfading_rayleight[reyleighlIndex] + abs(v2vlink_fastfading_rayleight.min()))
+    hist_reyleight[index] = hist_reyleight[index] + 1
+ 
+plt.plot(hist_reyleight)    
+plt.plot(hist_normal)
 #plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
     
 #Env.test_channel()    
