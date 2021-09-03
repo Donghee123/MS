@@ -86,7 +86,7 @@ class V2Vchannels:
         
         #처음에는 가우시안 분포로 초기화
         if len(delta_distance_list) == 0: 
-            self.Shadow = np.random.normal(0,self.shadow_std, size=(self.n_Veh, self.n_Veh))
+            self.Shadow = np.random.lognormal(0,self.shadow_std, size=(self.n_Veh, self.n_Veh))
         else:#이후 업데이트는 다음 공식따름
             self.Shadow = np.exp(-1*(delta_distance/self.decorrelation_distance)) * self.Shadow +\
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
@@ -481,10 +481,11 @@ class Environ:
         self.V2Vchannels.update_fast_fading()
    
     #아래 주석 사이의 함수들은 DQN적용을 위해 사용함, Interference 계산도 있음!
-    """   
+    
     def renew_neighbor(self):   
         # ==========================================
         # update the neighbors of each vehicle.
+        # 상호 차량들의 거리를 보고 현재 차량의 vehicle class의 neighbor를 재갱신한다.
         # ===========================================
         for i in range(len(self.vehicles)):
             self.vehicles[i].neighbors = []
@@ -499,6 +500,7 @@ class Environ:
                 self.vehicles[i].neighbors.append(sort_idx[j+1])                
             destination = np.random.choice(sort_idx[1:int(len(sort_idx)/5)],3, replace = False)
             self.vehicles[i].destinations = destination
+            
     def renew_channel(self):
         # ===========================================================================
         # This function updates all the channels including V2V and V2I channels
@@ -819,6 +821,7 @@ class Environ:
         reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
         self.Compute_Interference(actions)
         return reward
+    
     def act(self, actions):
         # simulate the next state after the action is given
         self.n_step += 1        
@@ -852,7 +855,7 @@ class Environ:
         self.update_time_test = 0.002 # 2ms update time for testing
         self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
-    """
+
     
 #도로 생성 함수 (진입 못하는 도로 : -1, 도로 : 0,  BasetStation : 1, 차량 : 2)
 def CreateMAP(width, height, roads):
