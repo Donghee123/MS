@@ -280,7 +280,7 @@ class Vehicle:
         self.position = start_position
         self.direction = start_direction
         self.velocity = velocity
-        self.snrAverage_dB = 0.0 #random.uniform(1.0, 10.0) #레일레이 페이딩을 위함
+        self.snrAverage_dB = 0 #random.uniform(1.0, 10.0) #레일레이 페이딩을 위함
         self.neighbors = []
         self.destinations = []
         
@@ -1046,18 +1046,30 @@ indexSize_normal = int(v2vlink_fastfading_normal.max() - v2vlink_fastfading_norm
 indexSize_reyleight = int(v2vlink_fastfading_rayleight.max() - v2vlink_fastfading_rayleight.min()) + 1
 
 hist_normal = np.zeros(indexSize_normal)
-hist_reyleight = np.zeros(indexSize_reyleight)
+hist_normalX = []
 
 for normalIndex in range(len(v2vlink_fastfading_normal)):
     index = int(v2vlink_fastfading_normal[normalIndex] + abs(v2vlink_fastfading_normal.min()))
     hist_normal[index] = hist_normal[index] + 1
 
+for normalIndex in range(indexSize_normal):
+    hist_normalX.append(v2vlink_fastfading_normal.min() + normalIndex)
+
+
+hist_reyleight = np.zeros(indexSize_reyleight)
+hist_reyleightX = []
+
 for reyleighlIndex in range(len(v2vlink_fastfading_rayleight)):
     index = int(v2vlink_fastfading_rayleight[reyleighlIndex] + abs(v2vlink_fastfading_rayleight.min()))
     hist_reyleight[index] = hist_reyleight[index] + 1
  
-plt.plot(hist_reyleight)    
-plt.plot(hist_normal)
+for reyleighlIndex in range(indexSize_reyleight):
+    hist_reyleightX.append(v2vlink_fastfading_rayleight.min() + reyleighlIndex)
+    
+        
+plt.plot(hist_reyleightX, hist_reyleight, label = 'Reyleigh')    
+plt.plot(hist_normalX, hist_normal, label = 'Gaussian distribution')
+plt.legend()
 #plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
     
 #Env.test_channel()    
