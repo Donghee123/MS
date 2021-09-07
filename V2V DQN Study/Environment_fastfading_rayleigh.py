@@ -246,7 +246,7 @@ class V2Ichannels:
             d1 = abs(self.positions[i][0] - self.BS_position[0])
             d2 = abs(self.positions[i][1] - self.BS_position[1])
             distance = math.hypot(d1,d2) #대각거리 계산 # change from meters to kilometers
-            self.PathLoss[i] = 128.1 + 37.6*np.log10(math.sqrt(distance**2 + (self.h_bs-self.h_ms)**2)/1000)
+            self.PathLoss[i] = 128.1 + 37.6*np.log10( math.sqrt(distance**2 + (self.h_bs-self.h_ms)**2) / 1000 )
 
     def update_shadow(self, delta_distance_list):
         if len(delta_distance_list) == 0:  # initialization
