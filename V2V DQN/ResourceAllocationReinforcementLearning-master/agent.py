@@ -48,10 +48,12 @@ class Agent(BaseModel):
         
         #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         V2I_channel = (self.env.V2I_channels_with_fastfading[idx[0], :] - 80)/60
+        
         #이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
         V2V_interference = (-self.env.V2V_Interference_all[idx[0],idx[1],:] - 60)/60
         #선택한 resource block
         NeiSelection = np.zeros(self.RB_number)
+        
         #인접한 차량에게 전송할 power 선정
         for i in range(3):
             for j in range(3):
@@ -69,11 +71,12 @@ class Agent(BaseModel):
             else:
                 if self.action_all_with_power[idx[0],i,0] >= 0:
                     NeiSelection[self.action_all_with_power[idx[0],i,0]] = 1
+                    
         time_remaining = np.asarray([self.env.demand[idx[0],idx[1]] / self.env.demand_amount])
         load_remaining = np.asarray([self.env.individual_time_limit[idx[0],idx[1]] / self.env.V2V_limit])
         #print('shapes', time_remaining.shape,load_remaining.shape)
         # V2I_channel : #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
-        # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
+        # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 볼 수 있는 Interference
         # V2V_channel : #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
         # 근접한 차량이 선택한 리소스 블록 상태
         # 남은 시간
@@ -124,21 +127,37 @@ class Agent(BaseModel):
             # action = self.predict(self.history.get())
             if (self.step % 2000 == 1):
                 self.env.new_random_game(20)
+                
             print(self.step)
             state_old = self.get_state([0,0])
             #print("state", state_old)
             self.training = True
             for k in range(1):
-                for i in range(len(self.env.vehicles)):              
+                #i번째 송신 차량
+                for i in range(len(self.env.vehicles)):
+                    #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
                     for j in range(3): 
+                        # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
                         state_old = self.get_state([i,j]) 
+                        
+                        #state를 보고 action을 정함
+                        #action은 선택한 power level, 선택한 resource block 정보를 가짐
                         action = self.predict(state_old, self.step)                    
                         #self.merge_action([i,j], action)   
-                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number #선택한 리소스 블록
-                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number)) #선택한 power                                              
+                        
+                        #선택한 resource block을 넣어줌
+                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number 
+                        
+                        #선택한 power level을 넣어줌
+                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number))  
+                                         
+                        #선택한 power level과 resource block을 기반으로 reward를 계산함.
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
+                        
                         state_new = self.get_state([i,j]) 
+                        
                         self.observe(state_old, state_new, reward_train, action)
+                        
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 
                 self.training = False
