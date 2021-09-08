@@ -42,10 +42,17 @@ class Agent(BaseModel):
     #  Get State from the environment
     # =============
         vehicle_number = len(self.env.vehicles)
+        
+        #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
         V2V_channel = (self.env.V2V_channels_with_fastfading[idx[0],self.env.vehicles[idx[0]].destinations[idx[1]],:] - 80)/60
+        
+        #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         V2I_channel = (self.env.V2I_channels_with_fastfading[idx[0], :] - 80)/60
+        #이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
         V2V_interference = (-self.env.V2V_Interference_all[idx[0],idx[1],:] - 60)/60
+        #선택한 resource block
         NeiSelection = np.zeros(self.RB_number)
+        #인접한 차량에게 전송할 power 선정
         for i in range(3):
             for j in range(3):
                 if self.training:
@@ -65,6 +72,12 @@ class Agent(BaseModel):
         time_remaining = np.asarray([self.env.demand[idx[0],idx[1]] / self.env.demand_amount])
         load_remaining = np.asarray([self.env.individual_time_limit[idx[0],idx[1]] / self.env.V2V_limit])
         #print('shapes', time_remaining.shape,load_remaining.shape)
+        # V2I_channel : #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
+        # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
+        # V2V_channel : #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
+        # 근접한 차량이 선택한 리소스 블록 상태
+        # 남은 시간
+        # 걸린 시간
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
     def predict(self, s_t,  step, test_ep = False):
@@ -121,8 +134,8 @@ class Agent(BaseModel):
                         state_old = self.get_state([i,j]) 
                         action = self.predict(state_old, self.step)                    
                         #self.merge_action([i,j], action)   
-                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number
-                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number))                                                    
+                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number #선택한 리소스 블록
+                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number)) #선택한 power                                              
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
                         state_new = self.get_state([i,j]) 
                         self.observe(state_old, state_new, reward_train, action)
