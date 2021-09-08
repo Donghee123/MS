@@ -586,7 +586,7 @@ class Environ:
     def renew_neighbor(self):   
         # ==========================================
         # update the neighbors of each vehicle.
-        # 상호 차량들의 거리를 보고 현재 차량의 vehicle class의 neighbor를 재갱신한다.
+        # 각 차량들의 거리를 보고 현재 차량의 vehicle class의 neighbor를 재갱신한다.
         # ===========================================
         for i in range(len(self.vehicles)):
             self.vehicles[i].neighbors = []
@@ -595,10 +595,27 @@ class Environ:
         Distance = np.zeros((len(self.vehicles),len(self.vehicles)))
         z = np.array([[complex(c.position[0],c.position[1]) for c in self.vehicles]])
         Distance = abs(z.T-z)
+        """
+        Distance = [차량수 x 차량수]
+        Distance i : 송신차량
+        Distance j : 수신 차량
+        Distance[i][j] = 두차량의 거리, Distance[j][i]와 같음
+        Distance[i][i] = 자기자신 -> 0        
+        """
         for i in range(len(self.vehicles)):       
             sort_idx = np.argsort(Distance[:,i])
             for j in range(3):
-                self.vehicles[i].neighbors.append(sort_idx[j+1])                
+                """
+                현재 차량 vehicles[i]에서 가장 가까운 차량 3개를 선택함.
+                """
+                self.vehicles[i].neighbors.append(sort_idx[j+1])
+                
+            """
+            차량의수 / 5 개 만큼 송신하고자 하는 차량을 3대 선택함.
+            40대 차량 기준 -> 40/5 -> 8대 차량중 랜덤 선택
+            8대 차량 구성 : 인접한 차량 3대 + 덜 인접한 차량 5대
+            8대 중 3대 랜덤 선택            
+            """
             destination = np.random.choice(sort_idx[1:int(len(sort_idx)/5)],3, replace = False)
             self.vehicles[i].destinations = destination
             
