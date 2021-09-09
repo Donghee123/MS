@@ -19,9 +19,12 @@ height = 1299
 v2ilink_fastfading = []
 
 v2vlink_pathloss = []
+v2ilink_pathloss = []
 v2vlink_shadowing = []
 v2vlink_fastfading = []
 v2vlink_allfading = []
+v2ilink_allfading = []
+
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -865,55 +868,59 @@ class Environ:
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
 
     
-#도로 생성 함수 (진입 못하는 도로 : -1, 도로 : 0,  BasetStation : 1, 차량 : 2)
-def CreateMAP(width, height, roads):
-    MAP = []
+def Show_V2V_ALL_lossgraph(ax, Env, pair, rbIndex, tick, color):
+    v2v_lossValue = Env.V2V_channels_with_fastfading[pair[0]][pair[1]][rbIndex]
     
-    #지도 생성
-    for i in range(height):
-        temp = []
-        for j in range(width):
-            temp.append(0)
-        
-        MAP.append(temp)
+    v2vlink_allfading.append(v2v_lossValue)
     
-    #도로 생성
-    for road in roads: 
-             
-        roadStartPositionX = int(road[0][0])
-        roadStartPositionY = int(road[0][1])
-        
-        roadEndPositionX = int(road[1][0])
-        roadEndPositionY = int(road[1][1])
-        
-        for posY in range(roadStartPositionY, roadEndPositionY + 1):
-            for posX in range(roadStartPositionX, roadEndPositionX + 1):
-                MAP[posY - 1][posX - 1] = 2 #1은 도로를 의
-                    
-    return np.array(MAP)
+    ax.set_ylim(0, 200)
+    ax.set_xlim(0,int(teststep/capture_term))
+    ax.plot(np.array(v2vlink_allfading), color)
+    
+    ax.tick_params(axis='both', direction='in')
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('V2V loss(Db)')
 
-def Show_Alllossgraph(ax, Env, pair, tick):
-    alllossValue = Env.V2V_channels_abs[pair[0]][pair[1]]
+def Show_V2I_ALL_lossgraph(ax, Env, vehicle_index, rbIndex, tick, color):
+    v2i_lossValue = Env.V2I_channels_with_fastfading[vehicle_index][rbIndex]
     
-    v2vlink_allfading.append(alllossValue)
+    v2ilink_allfading.append(v2i_lossValue)
     
-    ax.set_ylim(np.array(v2vlink_allfading).min(), np.array(v2vlink_allfading).max()+np.array(v2vlink_allfading).max()/10)
-    ax.plot(np.array(v2vlink_allfading), 'b')
+    ax.set_ylim(0, 200)
+    ax.set_xlim(0,int(teststep/capture_term))
+    ax.plot(np.array(v2ilink_allfading), color)
     
-    ax.set_xlabel('Time step({}ms)'.format(tick))
-    ax.set_ylabel('All loss(Db)')
+    ax.tick_params(axis='both', direction='in')
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('V2I loss(Db)')
     
-def Show_Pathlossgraph(ax, Env, pair, tick):
+def Show_V2V_Pathlossgraph(ax, Env, pair, tick, color):
     
     pathlossValue = Env.V2Vchannels.PathLoss[pair[0]][pair[1]]
     
     v2vlink_pathloss.append(pathlossValue)
     
-    ax.set_ylim(np.array(v2vlink_pathloss).min(), np.array(v2vlink_pathloss).max()+np.array(v2vlink_pathloss).max()/10)
-    ax.plot(np.array(v2vlink_pathloss), 'b')
+    ax.set_ylim(0, 200)
+    ax.set_xlim(0,int(teststep/capture_term))
+   
+    ax.plot(np.array(v2vlink_pathloss), color)
+    ax.tick_params(axis='both', direction='in')
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('Pathloss(Db)')
     
-    ax.set_xlabel('Time step({}ms)'.format(tick))
-    ax.set_ylabel('Pathloss(Db)')
+def Show_V2I_Pathlossgraph(ax, Env, pair, tick, color):
+    
+    pathlossValue = Env.V2Ichannels.PathLoss[pair[0]]
+    
+    v2ilink_pathloss.append(pathlossValue)
+    
+    ax.set_ylim(0, 200)
+    ax.set_xlim(0,int(teststep/capture_term))
+    
+    ax.plot(np.array(v2ilink_pathloss), color)
+    ax.tick_params(axis='both', direction='in')
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('Pathloss(Db)')
     
 def Show_Shadowinggraph(ax, Env, pair, tick):
     
@@ -924,8 +931,8 @@ def Show_Shadowinggraph(ax, Env, pair, tick):
     ax.set_ylim(np.array(v2vlink_shadowing).min(), np.array(v2vlink_shadowing).max()+np.array(v2vlink_shadowing).max()/10)
     ax.plot(np.array(v2vlink_shadowing), 'g')
     
-    ax.set_xlabel('Time step({}ms)'.format(tick))
-    ax.set_ylabel('Shadowing(Db)')
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('Shadowing(Db)')
     
 def Show_Fastfading(ax, Env, pair, rbIndex, tick):
     fastfadingValue = Env.V2Vchannels.FastFading[pair[0]][pair[1]][rbIndex]
@@ -937,13 +944,13 @@ def Show_Fastfading(ax, Env, pair, rbIndex, tick):
     
   
     ax.set_xlabel('Time step({}ms)'.format(tick))
-    ax.set_ylabel('Fast fading(Db)')
+    #ax.set_ylabel('Fast fading(Db)')
     
 def Show_plot(ax, Env, width, height, anlysysVehiclesPair):    
     position_BaseStation = Env.V2Ichannels.BS_position
     ax.set_ylim(-100, height +  100)
     ax.set_xlim(-100, width + 100)
-    
+    ax.tick_params(axis='both', direction='in')
     position_BaseStation
     
     ax.add_patch(
@@ -989,7 +996,8 @@ def Show_plot(ax, Env, width, height, anlysysVehiclesPair):
     firstVehicle = Env.vehicles[anlysysVehiclesPair[0]]    
     secondVehicle = Env.vehicles[anlysysVehiclesPair[1]]
     
-    ax.plot([firstVehicle.position[0],secondVehicle.position[0]] ,[firstVehicle.position[1],secondVehicle.position[1]])
+    #ax.plot([firstVehicle.position[0],secondVehicle.position[0]] ,[firstVehicle.position[1],secondVehicle.position[1]], 'b--')
+    ax.plot([firstVehicle.position[0],position_BaseStation[0]] ,[firstVehicle.position[1],position_BaseStation[1]], 'r--')
 
 vehicleNumber = 20
 #환경 생성
@@ -1001,17 +1009,18 @@ Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 figs=[]
 axs = []
-teststep=5000
+teststep=50000
 
-capture_term = 50
+capture_term = 100
 onetick = Env.timestep
 
 for i in range(int(teststep/capture_term)):
     figs.append(plt.figure(i))
 
 for i in range(len(figs)):
-    axs.append(figs[i].add_subplot(2,2,1))
-    axs.append(figs[i].add_subplot(2,1,2))
+    axs.append(figs[i].add_subplot(1,2,1))
+    axs.append(figs[i].add_subplot(2,2,2))
+    axs.append(figs[i].add_subplot(2,2,4))
     
 
 count = 0;
@@ -1024,13 +1033,16 @@ tick = capture_term * onetick
 for i in range(teststep):
     
     Env.renew_positions()
-    Env.renew_channel()
+    Env.renew_channels_fastfading()
     
     if i % capture_term == 0:
         Show_plot(axs[count], Env, width, height,anlysysVehiclesPair)
-        #Show_Alllossgraph(axs[count+1], Env, pair, tick)
-        Show_Pathlossgraph(axs[count+1], Env, pair, tick)
-        count += 2
+        #Show_V2V_ALL_lossgraph(axs[count+1], Env, pair, observeRbIndex, tick, 'r')
+        Show_V2I_ALL_lossgraph(axs[count+1], Env, pair[0], observeRbIndex, tick, 'r')
+        
+        #Show_V2V_Pathlossgraph(axs[count+2], Env, pair, tick, 'b')
+        Show_V2I_Pathlossgraph(axs[count+2], Env, pair, tick, 'b')
+        count += 3
        
     
 
