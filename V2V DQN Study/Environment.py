@@ -21,6 +21,7 @@ v2ilink_fastfading = []
 v2vlink_pathloss = []
 v2vlink_shadowing = []
 v2vlink_fastfading = []
+v2vlink_allfading = []
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -891,6 +892,17 @@ def CreateMAP(width, height, roads):
                     
     return np.array(MAP)
 
+def Show_Alllossgraph(ax, Env, pair, tick):
+    alllossValue = Env.V2V_channels_abs[pair[0]][pair[1]]
+    
+    v2vlink_allfading.append(alllossValue)
+    
+    ax.set_ylim(np.array(v2vlink_allfading).min(), np.array(v2vlink_allfading).max()+np.array(v2vlink_allfading).max()/10)
+    ax.plot(np.array(v2vlink_allfading), 'b')
+    
+    ax.set_xlabel('Time step({}ms)'.format(tick))
+    ax.set_ylabel('All loss(Db)')
+    
 def Show_Pathlossgraph(ax, Env, pair, tick):
     
     pathlossValue = Env.V2Vchannels.PathLoss[pair[0]][pair[1]]
@@ -999,31 +1011,26 @@ for i in range(int(teststep/capture_term)):
 
 for i in range(len(figs)):
     axs.append(figs[i].add_subplot(2,2,1))
-    axs.append(figs[i].add_subplot(2,2,2))
-    axs.append(figs[i].add_subplot(2,2,3))
-    axs.append(figs[i].add_subplot(2,2,4))
+    axs.append(figs[i].add_subplot(2,1,2))
     
 
 count = 0;
 time_step = 0.1
 anlysysVehiclesPair = (0,2)
 observeRbIndex = 0
-
+pair = (0,3)
 tick = capture_term * onetick
 
 for i in range(teststep):
     
     Env.renew_positions()
-    positions = [c.position for c in Env.vehicles]            
-    Env.update_large_fading(positions, time_step)
-    Env.update_small_fading()
+    Env.renew_channel()
     
     if i % capture_term == 0:
         Show_plot(axs[count], Env, width, height,anlysysVehiclesPair)
-        Show_Pathlossgraph(axs[count+1], Env, anlysysVehiclesPair, tick)
-        Show_Shadowinggraph(axs[count+2], Env, anlysysVehiclesPair, tick)
-        Show_Fastfading(axs[count+3], Env, anlysysVehiclesPair,observeRbIndex, tick)
-        count += 4
+        #Show_Alllossgraph(axs[count+1], Env, pair, tick)
+        Show_Pathlossgraph(axs[count+1], Env, pair, tick)
+        count += 2
        
     
 
