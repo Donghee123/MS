@@ -897,7 +897,7 @@ def Show_Pathlossgraph(ax, Env, pair, tick):
     
     v2vlink_pathloss.append(pathlossValue)
     
-    ax.set_ylim(np.array(v2vlink_pathloss).min(), np.array(v2vlink_pathloss).max()+100)
+    ax.set_ylim(np.array(v2vlink_pathloss).min(), np.array(v2vlink_pathloss).max()+np.array(v2vlink_pathloss).max()/10)
     ax.plot(np.array(v2vlink_pathloss), 'b')
     
     ax.set_xlabel('Time step({}ms)'.format(tick))
@@ -909,7 +909,7 @@ def Show_Shadowinggraph(ax, Env, pair, tick):
 
     v2vlink_shadowing.append(shadowing)
     
-    ax.set_ylim(np.array(v2vlink_shadowing).min(), np.array(v2vlink_shadowing).max()+100)
+    ax.set_ylim(np.array(v2vlink_shadowing).min(), np.array(v2vlink_shadowing).max()+np.array(v2vlink_shadowing).max()/10)
     ax.plot(np.array(v2vlink_shadowing), 'g')
     
     ax.set_xlabel('Time step({}ms)'.format(tick))
@@ -920,7 +920,7 @@ def Show_Fastfading(ax, Env, pair, rbIndex, tick):
                                                           
     v2vlink_fastfading.append(fastfadingValue)
              
-    ax.set_ylim(np.array(v2vlink_fastfading).min(), np.array(v2vlink_fastfading).max()+100)    
+    ax.set_ylim(np.array(v2vlink_fastfading).min(), np.array(v2vlink_fastfading).max()+np.array(v2vlink_fastfading).max()/10)    
     ax.plot(np.array(v2vlink_fastfading),'r')
     
   
@@ -989,9 +989,9 @@ Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 figs=[]
 axs = []
-teststep=50000
+teststep=5000
 
-capture_term = 100
+capture_term = 50
 onetick = Env.timestep
 
 for i in range(int(teststep/capture_term)):
