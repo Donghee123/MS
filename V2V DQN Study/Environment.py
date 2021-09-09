@@ -15,9 +15,12 @@ right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,12
 width = 750
 height = 1299
 
-v2vlink_fastfading = []
+
 v2ilink_fastfading = []
 
+v2vlink_pathloss = []
+v2vlink_shadowing = []
+v2vlink_fastfading = []
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -96,8 +99,7 @@ class V2Vchannels:
     def update_fast_fading(self):
         h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) )  + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h)) #magnitude to db 20을 곱하는 이유 -> Volt -> SNR dbm으로 변환을 위함. -> 레일리 페이딩 써도 될듯..? 차량들의 평균 SNR을 랜덤으로 설정하고 지정
-        v2vlink_fastfading.append(self.FastFading[0][0][0])
-        
+       
     def get_path_loss(self, position_A, position_B):
         #상호 차량간의 거리 계산 d1 : x 좌표, d2 : y 좌
         """
@@ -426,7 +428,7 @@ class Environ:
                                 self.vehicles[i].position = [self.down_lanes[-1],self.vehicles[i].position[1]]
                 
             i += 1
-    def test_channel(self):
+    def test_channel(self, n_Veh):
         # ===================================
         #   test the V2I and the V2V channel 
         # ===================================
@@ -889,7 +891,43 @@ def CreateMAP(width, height, roads):
                     
     return np.array(MAP)
 
-def show_plot(ax, Env, width, height):    
+def Show_Pathlossgraph(ax, Env, pair, tick):
+    
+    pathlossValue = Env.V2Vchannels.PathLoss[pair[0]][pair[1]]
+    
+    v2vlink_pathloss.append(pathlossValue)
+    
+    ax.set_ylim(np.array(v2vlink_pathloss).min(), np.array(v2vlink_pathloss).max()+100)
+    ax.plot(np.array(v2vlink_pathloss), 'b')
+    
+    ax.set_xlabel('Time step({}ms)'.format(tick))
+    ax.set_ylabel('Pathloss(Db)')
+    
+def Show_Shadowinggraph(ax, Env, pair, tick):
+    
+    shadowing = Env.V2Vchannels.Shadow[pair[0]][pair[1]]
+
+    v2vlink_shadowing.append(shadowing)
+    
+    ax.set_ylim(np.array(v2vlink_shadowing).min(), np.array(v2vlink_shadowing).max()+100)
+    ax.plot(np.array(v2vlink_shadowing), 'g')
+    
+    ax.set_xlabel('Time step({}ms)'.format(tick))
+    ax.set_ylabel('Shadowing(Db)')
+    
+def Show_Fastfading(ax, Env, pair, rbIndex, tick):
+    fastfadingValue = Env.V2Vchannels.FastFading[pair[0]][pair[1]][rbIndex]
+                                                          
+    v2vlink_fastfading.append(fastfadingValue)
+             
+    ax.set_ylim(np.array(v2vlink_fastfading).min(), np.array(v2vlink_fastfading).max()+100)    
+    ax.plot(np.array(v2vlink_fastfading),'r')
+    
+  
+    ax.set_xlabel('Time step({}ms)'.format(tick))
+    ax.set_ylabel('Fast fading(Db)')
+    
+def Show_plot(ax, Env, width, height, anlysysVehiclesPair):    
     position_BaseStation = Env.V2Ichannels.BS_position
     ax.set_ylim(-100, height +  100)
     ax.set_xlim(-100, width + 100)
@@ -935,68 +973,68 @@ def show_plot(ax, Env, width, height):
         facecolor = color
      ))
 
-
-
-"""
-TRAFFIC_ROADS = []
-
-plt.title("Green : Up, Red : Down, Blue : Left, Violet : Right")     
-
-#차도 그리기
-for index in range(len(up_lanes)):    
-    plt.plot([up_lanes[index],up_lanes[index]],[0,height],'r')
-    plt.plot([down_lanes[index],down_lanes[index]],[0,height],'g')
     
-    plt.plot([0,width],[left_lanes[index],left_lanes[index]],'b')
-    plt.plot([0,width],[right_lanes[index],right_lanes[index]],'violet')
+    firstVehicle = Env.vehicles[anlysysVehiclesPair[0]]    
+    secondVehicle = Env.vehicles[anlysysVehiclesPair[1]]
     
-    TRAFFIC_ROADS.append([(up_lanes[index],0), (up_lanes[index],height)])
-    TRAFFIC_ROADS.append([(down_lanes[index],0), (down_lanes[index],height)])
-    TRAFFIC_ROADS.append([(0, left_lanes[index]), (width, left_lanes[index])])
-    TRAFFIC_ROADS.append([(0, right_lanes[index]), (width, right_lanes[index])])
-plt.show()
-"""
+    ax.plot([firstVehicle.position[0],secondVehicle.position[0]] ,[firstVehicle.position[1],secondVehicle.position[1]])
 
-n_Veh = 4
+vehicleNumber = 20
 #환경 생성
-Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height, n_Veh) 
-position_BaseStation = [width/2, height/2] 
+Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height, vehicleNumber) 
 
-"""
-vehicleNumber = 40
-#차량 추가 
+
 Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 
 figs=[]
 axs = []
-teststep=5000
-capture_term = 500
+teststep=50000
 
+capture_term = 100
+onetick = Env.timestep
 
 for i in range(int(teststep/capture_term)):
     figs.append(plt.figure(i))
 
 for i in range(len(figs)):
-    axs.append(figs[i].add_subplot(1,1,1))
+    axs.append(figs[i].add_subplot(2,2,1))
+    axs.append(figs[i].add_subplot(2,2,2))
+    axs.append(figs[i].add_subplot(2,2,3))
+    axs.append(figs[i].add_subplot(2,2,4))
+    
 
 count = 0;
+time_step = 0.1
+anlysysVehiclesPair = (0,2)
+observeRbIndex = 0
+
+tick = capture_term * onetick
+
 for i in range(teststep):
     
-    if i % 500 == 0:
-        show_plot(axs[count], Env, width, height)
-        count += 1
-       
     Env.renew_positions()
-""" 
+    positions = [c.position for c in Env.vehicles]            
+    Env.update_large_fading(positions, time_step)
+    Env.update_small_fading()
+    
+    if i % capture_term == 0:
+        Show_plot(axs[count], Env, width, height,anlysysVehiclesPair)
+        Show_Pathlossgraph(axs[count+1], Env, anlysysVehiclesPair, tick)
+        Show_Shadowinggraph(axs[count+2], Env, anlysysVehiclesPair, tick)
+        Show_Fastfading(axs[count+3], Env, anlysysVehiclesPair,observeRbIndex, tick)
+        count += 4
+       
+    
 
-Env.test_channel()
 
-plt.plot(v2vlink_fastfading)
-plt.plot(v2ilink_fastfading)
+#Env.test_channel()
+
+#plt.plot(v2vlink_fastfading)
+#plt.plot(v2ilink_fastfading)
 
 
-plt.show()
+#plt.show()
 
 
 #plt.scatter(positionX_vehicle, positionY_vehicle, color = color ,label='vehicle', marker='x')
