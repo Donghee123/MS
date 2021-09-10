@@ -147,16 +147,16 @@ def GetResult(excelPath, nameList, result):
 
 #집 전용 경로
 
-exelPath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-imagePath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
+#exelPath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+#imagePath = "C:\\Users\\Handonghee\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
 
 #노트북 전용 경로
 #exelPath = "C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
 #imagePath = 'C:\\Users\\gkseh\\anaconda3\\envs\\attendancecheck\\CheckFolder\\checkimages'
 
 #랩실 전용 경로
-#exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
-#imagePath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
+exelPath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\referencesheet\\CheckList.xlsx"
+imagePath = "C:\\Users\\CNL-B3\\anaconda3\\envs\\attendanceCheck\\CheckFolder\\checkimages"
 
 result = UpdateCheckList(exelPath)
 
