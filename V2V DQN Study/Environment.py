@@ -25,6 +25,9 @@ v2vlink_fastfading = []
 v2vlink_allfading = []
 v2ilink_allfading = []
 
+v2vlink_neibor1 = []
+v2vlink_neibor2 = []
+v2vlink_neibor3 = []
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -908,6 +911,39 @@ def Show_V2V_Pathlossgraph(ax, Env, pair, tick, color):
     #ax.set_xlabel('Time step({}ms)'.format(tick))
     #ax.set_ylabel('Pathloss(Db)')
     
+def Show_Neighbor_V2V_Pathlossgraph(ax1, ax2, ax3, Env, pair, tick, rbIndex):
+    
+    ConnectedVehicleIndexs = Env.vehicles[pair[0]].destinations
+        
+    pathlossValue1 = Env.V2V_channels_with_fastfading[pair[0]][ConnectedVehicleIndexs[0]][rbIndex]
+    pathlossValue2 = Env.V2V_channels_with_fastfading[pair[0]][ConnectedVehicleIndexs[1]][rbIndex]
+    pathlossValue3 = Env.V2V_channels_with_fastfading[pair[0]][ConnectedVehicleIndexs[2]][rbIndex]
+     
+    v2vlink_neibor1.append(pathlossValue1)
+    v2vlink_neibor2.append(pathlossValue2)
+    v2vlink_neibor3.append(pathlossValue3)
+    
+    ax1.set_ylim(0, 200)
+    ax1.set_xlim(0,int(teststep/capture_term))
+   
+    ax2.set_ylim(0, 200)
+    ax2.set_xlim(0,int(teststep/capture_term))
+    
+    ax3.set_ylim(0, 200)
+    ax3.set_xlim(0,int(teststep/capture_term))
+    
+    ax1.plot(np.array(v2vlink_neibor1), 'b')
+    ax1.tick_params(axis='both', direction='in')
+    
+    ax2.plot(np.array(v2vlink_neibor2), 'g')
+    ax2.tick_params(axis='both', direction='in')
+    
+    ax3.plot(np.array(v2vlink_neibor3), 'r')
+    ax3.tick_params(axis='both', direction='in')
+    
+    #ax.set_xlabel('Time step({}ms)'.format(tick))
+    #ax.set_ylabel('Pathloss(Db)')
+    
 def Show_V2I_Pathlossgraph(ax, Env, pair, tick, color):
     
     pathlossValue = Env.V2Ichannels.PathLoss[pair[0]]
@@ -945,8 +981,9 @@ def Show_Fastfading(ax, Env, pair, rbIndex, tick):
   
     ax.set_xlabel('Time step({}ms)'.format(tick))
     #ax.set_ylabel('Fast fading(Db)')
+
     
-def Show_plot(ax, Env, width, height, anlysysVehiclesPair):    
+def Show_plot(ax, Env, width, height, anlysysVehiclesPair, IsAdaptneighbors = False):    
     position_BaseStation = Env.V2Ichannels.BS_position
     ax.set_ylim(-100, height +  100)
     ax.set_xlim(-100, width + 100)
@@ -992,12 +1029,19 @@ def Show_plot(ax, Env, width, height, anlysysVehiclesPair):
         facecolor = color
      ))
 
-    
     firstVehicle = Env.vehicles[anlysysVehiclesPair[0]]    
-    secondVehicle = Env.vehicles[anlysysVehiclesPair[1]]
     
-    #ax.plot([firstVehicle.position[0],secondVehicle.position[0]] ,[firstVehicle.position[1],secondVehicle.position[1]], 'b--')
-    ax.plot([firstVehicle.position[0],position_BaseStation[0]] ,[firstVehicle.position[1],position_BaseStation[1]], 'r--')
+    if IsAdaptneighbors == False:        
+        secondVehicle = Env.vehicles[anlysysVehiclesPair[1]]        
+        ax.plot([firstVehicle.position[0],secondVehicle.position[0]] ,[firstVehicle.position[1],secondVehicle.position[1]], 'b--')
+        ax.plot([firstVehicle.position[0],position_BaseStation[0]] ,[firstVehicle.position[1],position_BaseStation[1]], 'r--')
+    else:
+        colors = ['b--','g--','r--']
+        for i in range(len(firstVehicle.destinations)):
+            connectedVehicle = Env.vehicles[firstVehicle.destinations[i]]
+            ax.plot([firstVehicle.position[0],connectedVehicle.position[0]] ,[firstVehicle.position[1],connectedVehicle.position[1]], colors[i])
+            
+    
 
 vehicleNumber = 20
 #환경 생성
@@ -1009,9 +1053,11 @@ Env.add_new_vehicles_by_number(int(vehicleNumber/4))
 
 figs=[]
 axs = []
-teststep=50000
+teststep= 50000
 
 capture_term = 100
+renew_neighbor_term = 1000 
+
 onetick = Env.timestep
 
 for i in range(int(teststep/capture_term)):
@@ -1019,30 +1065,40 @@ for i in range(int(teststep/capture_term)):
 
 for i in range(len(figs)):
     axs.append(figs[i].add_subplot(1,2,1))
-    axs.append(figs[i].add_subplot(2,2,2))
-    axs.append(figs[i].add_subplot(2,2,4))
+    axs.append(figs[i].add_subplot(3,2,2))
+    axs.append(figs[i].add_subplot(3,2,4))
+    axs.append(figs[i].add_subplot(3,2,6))
     
 
+neighbors_number = 3
 count = 0;
 time_step = 0.1
 anlysysVehiclesPair = (0,2)
 observeRbIndex = 0
 pair = (0,3)
 tick = capture_term * onetick
+IsAdaptneighbors = True
+color = ['b','g','r']
 
 for i in range(teststep):
     
     Env.renew_positions()
-    Env.renew_channels_fastfading()
+    Env.renew_channels_fastfading()    
     
-    if i % capture_term == 0:
-        Show_plot(axs[count], Env, width, height,anlysysVehiclesPair)
-        #Show_V2V_ALL_lossgraph(axs[count+1], Env, pair, observeRbIndex, tick, 'r')
-        Show_V2I_ALL_lossgraph(axs[count+1], Env, pair[0], observeRbIndex, tick, 'r')
+    
+    if i % renew_neighbor_term == 0:
+        Env.renew_neighbor()
         
+    if i % capture_term == 0:
+        Show_plot(axs[count], Env, width, height,anlysysVehiclesPair, IsAdaptneighbors=IsAdaptneighbors)
+        
+        
+        Show_Neighbor_V2V_Pathlossgraph(axs[count+1], axs[count+2], axs[count+3], Env, anlysysVehiclesPair, tick, 0)   
+        
+        #Show_V2I_ALL_lossgraph(axs[count+1], Env, pair[0], observeRbIndex, tick, 'r')       
         #Show_V2V_Pathlossgraph(axs[count+2], Env, pair, tick, 'b')
-        Show_V2I_Pathlossgraph(axs[count+2], Env, pair, tick, 'b')
-        count += 3
+        #Show_V2I_Pathlossgraph(axs[count+2], Env, pair, tick, 'b')
+        count += 4
        
     
 
