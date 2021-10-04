@@ -364,6 +364,8 @@ class Agent(BaseModel):
                             power_select_list_2.append(state_old[-1])
                         
                         self.merge_action([i, j], action)
+                    
+                    #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
                         reward, percent = self.env.act_asyn(action_temp)  # self.action_all)
