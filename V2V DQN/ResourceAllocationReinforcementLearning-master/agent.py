@@ -83,16 +83,21 @@ class Agent(BaseModel):
         # 걸린 시간
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
-    def predict(self, s_t,  step, test_ep = False):
+    def predict(self, s_t,  step, test_ep = False, random_choice = False):
         # ==========================
         #  Select actions
         # ======================
-        ep = 1/(step/1000000 + 1)
-        if random.random() < ep and test_ep == False:   # epsion to balance the exporation and exploition
+        if random_choice == True:
             action = np.random.randint(60)
-        else:          
-            action =  self.q_action.eval({self.s_t:[s_t]})[0] 
-        return action
+            return action
+        else:
+            ep = 1/(step/1000000 + 1)
+            if random.random() < ep and test_ep == False:   # epsion to balance the exporation and exploition
+                action = np.random.randint(60)
+            else:          
+                action =  self.q_action.eval({self.s_t:[s_t]})[0] 
+            return action
+        
     def observe(self, prestate, state, reward, action):
         # -----------
         # Collect Data for Training 
@@ -315,8 +320,8 @@ class Agent(BaseModel):
             self.w_assign_op[name].eval({self.w_input[name]:load_pkl(os.path.join(self.weight_dir, "%s.pkl" % name))})
         self.update_target_q_network()   
       
-    def play(self, n_step = 100, n_episode = 100, test_ep = None, render = False):
-        number_of_game = 100
+    def play(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+        number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
         Fail_percent_list = np.zeros(number_of_game)
         self.load_weight_from_pkl()
@@ -325,10 +330,11 @@ class Agent(BaseModel):
 
         for game_idx in range(number_of_game):
             self.env.new_random_game(self.num_vehicle)
-            test_sample = 200
+            test_sample = n_step
             Rate_list = []
             print('test game idx:', game_idx)
             print('The number of vehicle is ', len(self.env.vehicles))
+            
             time_left_list = []
             power_select_list_0 = []
             power_select_list_1 = []
@@ -342,11 +348,13 @@ class Agent(BaseModel):
                     for j in sorted_idx:
                         state_old = self.get_state([i, j])
                         time_left_list.append(state_old[-1])
-                        action = self.predict(state_old, 0, True)
+                        action = self.predict(state_old, 0, True, random_choice = random_choice)
                         
                         if state_old[-1] <=0:
                             continue
+                        
                         power_selection = int(np.floor(action/self.RB_number))
+                        
                         if power_selection == 0:
                             power_select_list_0.append(state_old[-1])
 
@@ -377,6 +385,7 @@ class Agent(BaseModel):
             plt.plot(bin_edges[:-1]*0.1 + 0.01, p_0, 'b*-', label='Power Level 23 dB')
             plt.plot(bin_edges[:-1]*0.1 + 0.01, p_1, 'rs-', label='Power Level 10 dB')
             plt.plot(bin_edges[:-1]*0.1 + 0.01, p_2, 'go-', label='Power Level 5 dB')
+            
             plt.xlim([0,0.12])
             plt.xlabel("Time left for V2V transmission (s)")
             plt.ylabel("Probability of power selection")
@@ -395,8 +404,6 @@ class Agent(BaseModel):
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
         # print('Test Reward is ', np.mean(test_result))
-	
-
-
-
+        
+        return np.mean(V2I_Rate_list), np.mean(Fail_percent_list)
 

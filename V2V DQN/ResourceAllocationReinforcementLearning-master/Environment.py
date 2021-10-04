@@ -123,7 +123,7 @@ class Environ:
     vehicles이 취한 행동에 따라 새로운 상태로 전환함.
     """
 
-    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height):
+    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh):
         self.timestep = 0.01 # 시간은 0.01초 단위 
         self.down_lanes = down_lane   # 아래 도로 ? 
         self.up_lanes = up_lane       # 위 도로 ?
@@ -151,7 +151,7 @@ class Environ:
         self.V2I_Shadowing = []     #v2i link의 Shadowing?
         self.delta_distance = []    #?
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
-        self.n_Veh = 40             #최대 vehicle 수
+        self.n_Veh = n_Veh             #최대 vehicle 수
         
         self.V2Vchannels = V2Vchannels(self.n_Veh, self.n_RB)  # V2V 채널 Class, 차량 수와 동일함.
         self.V2Ichannels = V2Ichannels(self.n_Veh, self.n_RB)
@@ -192,19 +192,23 @@ class Environ:
             ind = np.random.randint(0,len(self.down_lanes))
             start_position = [self.down_lanes[ind], random.randint(0,self.height)]
             start_direction = 'd'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [self.up_lanes[ind], random.randint(0,self.height)]
             start_direction = 'u'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [random.randint(0,self.width), self.left_lanes[ind]]
             start_direction = 'l'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [random.randint(0,self.width), self.right_lanes[ind]]
             start_direction = 'r'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
         self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
         self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
@@ -477,7 +481,7 @@ class Environ:
 
 
          # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_test * 1500    # decrease the demand
+        self.demand -= V2V_Rate * self.update_time_test * 1500    # decrease the demand, V2V Link에서 요구하는 데이터 량
         self.test_time_count -= self.update_time_test               # compute the time left for estimation
         self.individual_time_limit -= self.update_time_test         # compute the time left for individual V2V transmission
         self.individual_time_interval -= self.update_time_test      # compute the time interval left for next transmission
@@ -488,7 +492,7 @@ class Environ:
         self.activate_links[new_active] = True
         self.individual_time_interval[new_active] = np.random.exponential(0.02, self.individual_time_interval[new_active].shape ) + self.V2V_limit
         self.individual_time_limit[new_active] = self.V2V_limit
-        self.demand[new_active] = self.demand_amount
+        self.demand[new_active] = self.demand_amount #
         #print("demand is", self.demand)
         #print('mean rate of average V2V link is', np.mean(V2V_Rate[self.activate_links]))
         
