@@ -323,6 +323,7 @@ class Agent(BaseModel):
     def play(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
+        V2V_Rate_list = np.zeros(number_of_game)
         Fail_percent_list = np.zeros(number_of_game)
         self.load_weight_from_pkl()
         self.training = False
@@ -332,6 +333,8 @@ class Agent(BaseModel):
             self.env.new_random_game(self.num_vehicle)
             test_sample = n_step
             Rate_list = []
+            Rate_list_V2V = []
+            
             print('test game idx:', game_idx)
             print('The number of vehicle is ', len(self.env.vehicles))
             
@@ -368,8 +371,10 @@ class Agent(BaseModel):
                     #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
-                        reward, percent = self.env.act_asyn(action_temp)  # self.action_all)
-                        Rate_list.append(np.sum(reward))
+                        rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
+                        Rate_list.append(np.sum(rewardOfV2I))
+                        Rate_list_V2V.append(np.sum(rewardOfV2V))
+                        
                 # print("actions", self.action_all_with_power)
             
             
@@ -396,16 +401,20 @@ class Agent(BaseModel):
             plt.show()
             
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+            V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
+            
             Fail_percent_list[game_idx] = percent
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
+            print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
             print('Mean of Fail percent is that ',percent, np.mean(Fail_percent_list[0:game_idx]))
             # print('action is that', action_temp[0,:])
 
         print('The number of vehicle is ', len(self.env.vehicles))
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+        print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
         # print('Test Reward is ', np.mean(test_result))
         
-        return np.mean(V2I_Rate_list), np.mean(Fail_percent_list)
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
 

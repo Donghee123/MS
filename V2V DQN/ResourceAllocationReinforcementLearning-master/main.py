@@ -7,6 +7,8 @@ from Environment import *
 flags = tf.app.flags
 
 sumrateV2IList = []
+sumrateV2VList = []
+
 probabilityOfSatisfiedV2VList = []
   
 # Model
@@ -69,8 +71,11 @@ def main(_):
         agent = Agent(config, Env, sess)
         
         #학습 전
-        sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
-        sumrateV2IList.append(sumrate)
+        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
+        
+        sumrateV2IList.append(v2i_Sumrate)
+        sumrateV2VList.append(v2v_Sumrate)
+        
         probabilityOfSatisfiedV2VList.append(probability)
         
         #학습
@@ -79,5 +84,18 @@ def main(_):
         #학습 후
         #agent.play()
 
+  sumrateV2IListnpList = np.array(sumrateV2IList)
+  sumrateV2VListnpList = np.array(sumrateV2VList)
+  probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
+  
+  print('V2I sumrate')
+  print(sumrateV2IListnpList)
+  print('V2V sumrate')
+  print(sumrateV2VListnpList)
+  print('V2V + V2I rate')
+  print(sumrateV2IListnpList + sumrateV2VListnpList)
+  print('Outage probability')
+  print(probabilityOfSatisfiedV2VnpList)
+    
 if __name__ == '__main__':
     tf.app.run()

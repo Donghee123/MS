@@ -576,7 +576,11 @@ class Environ:
         self.success_transmission += np.sum(early_finish) #데이터 전송을 마친 경우에 한해 success_transmission에 더함
         self.failed_transmission += np.sum(unqulified)  #데이터 전송을 못 마친 경우에 한해 failed_transmission에 더함
         fail_percent = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001) #두 확률을 계산하여 실패확률을 계산함. fail_percent는 제한시간안에 요구한 데이터 량만큼 처리 했는지를 의미함.    
-        return V2I_Rate, fail_percent
+        
+        returnV2IReward = V2I_Rate
+        returnV2VReward = V2V_Rate
+        
+        return returnV2IReward, returnV2VReward, fail_percent
 
     def Compute_Performance_Reward_Batch(self, actions_power, idx):    # add the power dimension to the action selection
         # ==================================================
