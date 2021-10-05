@@ -123,7 +123,7 @@ class Environ:
     vehicles이 취한 행동에 따라 새로운 상태로 전환함.
     """
 
-    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height):
+    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh):
         self.timestep = 0.01 # 시간은 0.01초 단위 
         self.down_lanes = down_lane   # 아래 도로 ? 
         self.up_lanes = up_lane       # 위 도로 ?
@@ -151,7 +151,7 @@ class Environ:
         self.V2I_Shadowing = []     #v2i link의 Shadowing?
         self.delta_distance = []    #?
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
-        self.n_Veh = 40             #최대 vehicle 수
+        self.n_Veh = n_Veh             #최대 vehicle 수
         
         self.V2Vchannels = V2Vchannels(self.n_Veh, self.n_RB)  # V2V 채널 Class, 차량 수와 동일함.
         self.V2Ichannels = V2Ichannels(self.n_Veh, self.n_RB)
@@ -192,19 +192,23 @@ class Environ:
             ind = np.random.randint(0,len(self.down_lanes))
             start_position = [self.down_lanes[ind], random.randint(0,self.height)]
             start_direction = 'd'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [self.up_lanes[ind], random.randint(0,self.height)]
             start_direction = 'u'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [random.randint(0,self.width), self.left_lanes[ind]]
             start_direction = 'l'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
             start_position = [random.randint(0,self.width), self.right_lanes[ind]]
             start_direction = 'r'
-            self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
+            self.add_new_vehicles(start_position,start_direction,36)
             
         self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
         self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
@@ -477,7 +481,7 @@ class Environ:
 
 
          # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_test * 1500    # decrease the demand
+        self.demand -= V2V_Rate * self.update_time_test * 1500    # decrease the demand, V2V Link에서 요구하는 데이터 량
         self.test_time_count -= self.update_time_test               # compute the time left for estimation
         self.individual_time_limit -= self.update_time_test         # compute the time left for individual V2V transmission
         self.individual_time_interval -= self.update_time_test      # compute the time interval left for next transmission
@@ -488,7 +492,7 @@ class Environ:
         self.activate_links[new_active] = True
         self.individual_time_interval[new_active] = np.random.exponential(0.02, self.individual_time_interval[new_active].shape ) + self.V2V_limit
         self.individual_time_limit[new_active] = self.V2V_limit
-        self.demand[new_active] = self.demand_amount
+        self.demand[new_active] = self.demand_amount #
         #print("demand is", self.demand)
         #print('mean rate of average V2V link is', np.mean(V2V_Rate[self.activate_links]))
         
@@ -513,7 +517,7 @@ class Environ:
         # ===================================================
         actions = actions_power[:,:,0]  # the channel_selection_part
         power_selection = actions_power[:,:,1]
-        Interference = np.zeros(self.n_RB)   # Calculate the interference from V2V to V2I
+        Interference = np.zeros(self.n_RB)   # Calculate the interference from V2V to V2I     V2I의 간섭신호를 계산함. V2I Interference = V2V 간섭 신호 + V2I 간섭 신호
         for i in range(len(self.vehicles)):
             for j in range(len(actions[i,:])):
                 if not self.activate_links[i,j]:
@@ -525,9 +529,9 @@ class Environ:
         V2V_Interference = np.zeros((len(self.vehicles), 3))
         V2V_Signal = np.zeros((len(self.vehicles), 3))
         Interfence_times = np.zeros((len(self.vehicles), 3))
-        actions[(np.logical_not(self.activate_links))] = -1
+        actions[(np.logical_not(self.activate_links))] = -1   #들어온 action에서 동일한 리소스블럭을 사용하는 V2V의 간섭 신호들을 더함.
         for i in range(self.n_RB):
-            indexes = np.argwhere(actions == i)
+            indexes = np.argwhere(actions == i) #indexes [17, 1] -> 17번번째 차량이 1번번째 차량에게 데이터를 전송하는 것임. -> 현재 action과 동일한 리소스 블럭을 사용하는 V2V Link
             for j in range(len(indexes)):
                 #receiver_j = self.vehicles[indexes[j,0]].neighbors[indexes[j,1]]
                 receiver_j = self.vehicles[indexes[j,0]].destinations[indexes[j,1]]
@@ -543,18 +547,18 @@ class Environ:
                     self.V2V_channels_with_fastfading[indexes[k][0]][receiver_j][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
                     V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - \
                     self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
-                    Interfence_times[indexes[j,0],indexes[j,1]] += 1
-                    Interfence_times[indexes[k,0],indexes[k,1]] += 1               
+                    Interfence_times[indexes[j,0],indexes[j,1]] += 1 # 필요 없는듯?
+                    Interfence_times[indexes[k,0],indexes[k,1]] += 1 # 필요 없는듯?            
 
-        self.V2V_Interference = V2V_Interference + self.sig2
-        V2V_Rate = np.log2(1 + np.divide(V2V_Signal, self.V2V_Interference))
-        V2I_Signals = self.V2I_power_dB-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure
-        V2I_Rate = np.log2(1 + np.divide(10**(V2I_Signals/10), self.V2I_Interference[0:min(self.n_RB,self.n_Veh)]))
+        self.V2V_Interference = V2V_Interference + self.sig2 #위의 반복문에서 계산한 V2V 간섭신호들을 정함.
+        V2V_Rate = np.log2(1 + np.divide(V2V_Signal, self.V2V_Interference)) # V2V Signal / V2V Interference -> 현재 차량에서한 action의 V2V Link의 SINR을 계산함 -> 3개의 V2V Rate가 나옴 -> 이웃차량이 3대이기 때문.
+        V2I_Signals = self.V2I_power_dB-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure # V2I power는 23 dB 고정, 모든 차량에 대한 Signal이 나옴
+        V2I_Rate = np.log2(1 + np.divide(10**(V2I_Signals/10), self.V2I_Interference[0:min(self.n_RB,self.n_Veh)])) #V2I Signal / V2V Interference -> V2I Link의 SINR을 계산함
         #print("V2I information", V2I_Signals, self.V2I_Interference, V2I_Rate)
         
         # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_asyn * 1500    # decrease the demand
-        self.test_time_count -= self.update_time_asyn               # compute the time left for estimation
+        self.demand -= V2V_Rate * self.update_time_asyn * 1500    # decrease the demand, 계산된 V2V_Rate를 보고 차량들의 요구하는 비트수를 감소 시킴. 즉 일정 SINR을 가지고 데이터 전송을 의미함.
+        self.test_time_count -= self.update_time_asyn               # compute the time left for estimation 
         self.individual_time_limit -= self.update_time_asyn         # compute the time left for individual V2V transmission
         self.individual_time_interval -= self.update_time_asyn     # compute the time interval left for next transmission
 
@@ -565,13 +569,13 @@ class Environ:
         self.individual_time_limit[new_active] = self.V2V_limit
         self.demand[new_active] = self.demand_amount
         
-        # -- update the statistics---
-        early_finish = np.multiply(self.demand <= 0, self.activate_links)        
-        unqulified = np.multiply(self.individual_time_limit <=0, self.activate_links)
-        self.activate_links[np.add(early_finish, unqulified)] = False
-        self.success_transmission += np.sum(early_finish)
-        self.failed_transmission += np.sum(unqulified)
-        fail_percent = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001)            
+        # -- update the statistics--- 
+        early_finish = np.multiply(self.demand <= 0, self.activate_links) #데이터 전송을 제한시간안에  모두 마친 링크
+        unqulified = np.multiply(self.individual_time_limit <=0, self.activate_links)#데이터 전송을 제한시간 안에  마친 링크
+        self.activate_links[np.add(early_finish, unqulified)] = False #데이터 전송을 제한 시간안에 모두 마치거나, 제한 시간안에 못보낸 링크들을 activate link에서 False로 link를 재활성화 시킴.
+        self.success_transmission += np.sum(early_finish) #데이터 전송을 마친 경우에 한해 success_transmission에 더함
+        self.failed_transmission += np.sum(unqulified)  #데이터 전송을 못 마친 경우에 한해 failed_transmission에 더함
+        fail_percent = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001) #두 확률을 계산하여 실패확률을 계산함. fail_percent는 제한시간안에 요구한 데이터 량만큼 처리 했는지를 의미함.    
         return V2I_Rate, fail_percent
 
     def Compute_Performance_Reward_Batch(self, actions_power, idx):    # add the power dimension to the action selection
@@ -768,7 +772,7 @@ class Environ:
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit
-        
+    #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
         self.n_step += 1
         if self.n_step % 10 == 0:

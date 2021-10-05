@@ -6,6 +6,9 @@ from agent import Agent
 from Environment import *
 flags = tf.app.flags
 
+sumrateV2IList = []
+probabilityOfSatisfiedV2VList = []
+  
 # Model
 flags.DEFINE_string('model', 'm1', 'Type of model')
 flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
@@ -49,25 +52,32 @@ def main(_):
   width = 750
   height = 1299
   
-  Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height)
-  Env.new_random_game()
-  gpu_options = tf.GPUOptions(
-      per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
-  config = tf.ConfigProto()
-  config.gpu_options.allow_growth = True
+  arrayOfVeh = [20,40,60,80,100]
+  
 
-  with tf.Session(config=config) as sess:
-    config = []
-    agent = Agent(config, Env, sess)
+  
+  for nVeh in arrayOfVeh:      
+      Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
+      Env.new_random_game()
+      gpu_options = tf.GPUOptions(
+          per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
+      config = tf.ConfigProto()
+      config.gpu_options.allow_growth = True
     
-    #학습 전
-    #agent.play()
-    
-    #학습
-    agent.train()
-    
-    #학습 후
-    #agent.play()
+      with tf.Session(config=config) as sess:
+        config = []
+        agent = Agent(config, Env, sess)
+        
+        #학습 전
+        sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
+        sumrateV2IList.append(sumrate)
+        probabilityOfSatisfiedV2VList.append(probability)
+        
+        #학습
+        #agent.train()
+        
+        #학습 후
+        #agent.play()
 
 if __name__ == '__main__':
     tf.app.run()
