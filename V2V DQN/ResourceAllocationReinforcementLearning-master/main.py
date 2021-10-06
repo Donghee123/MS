@@ -95,7 +95,7 @@ def main(_):
         agent = Agent(config, Env, sess)
         
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = True)
+        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
         
         sumrateV2IList.append(v2i_Sumrate)
         sumrateV2VList.append(v2v_Sumrate)
