@@ -422,11 +422,11 @@ class Environ:
         # =======================================================================
         # This function updates all the channels including V2V and V2I channels
         #
-        # self.V2V_channels_abs : ( Pathloss + Shadow ) vehicles x vehicles x resource block
-        # self.V2I_channels_abs : ) Pathloss + Shadow ) vehicles x resource block
+        # self.V2V_channels_abs : ( Pathloss + Shadow ) vehicles x vehicles 
+        # self.V2I_channels_abs : ( Pathloss + Shadow ) x vehicles
         #
-        # self.V2V_channels_with_fastfading : self.V2V_channels_abs + fast fading
-        # self.V2I_channels_with_fastfading : self.V2I_channels_abs + fast fading
+        # self.V2V_channels_with_fastfading : self.V2V_channels_abs + fast fading -> 모든 리소스 블럭 까지 고려함 V2V Link
+        # self.V2I_channels_with_fastfading : self.V2I_channels_abs + fast fading -> 모든 리소스 블럭 까지 고려함 V2I Link
         # =========================================================================
         self.renew_channel()
         self.V2Ichannels.update_fast_fading()
@@ -526,9 +526,9 @@ class Environ:
             for j in range(len(actions[i,:])):
                 if not self.activate_links[i,j]:
                     continue
-                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - \
-                                                     self.V2I_channels_with_fastfading[i, actions[i,j]] + \
-                                                     self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+
+                
         self.V2I_Interference = Interference + self.sig2
         V2V_Interference = np.zeros((len(self.vehicles), 3))
         V2V_Signal = np.zeros((len(self.vehicles), 3))
@@ -556,7 +556,7 @@ class Environ:
 
         self.V2V_Interference = V2V_Interference + self.sig2 #위의 반복문에서 계산한 V2V 간섭신호들을 정함.
         V2V_Rate = np.log2(1 + np.divide(V2V_Signal, self.V2V_Interference)) # V2V Signal / V2V Interference -> 현재 차량에서한 action의 V2V Link의 SINR을 계산함 -> 3개의 V2V Rate가 나옴 -> 이웃차량이 3대이기 때문.
-        V2I_Signals = self.V2I_power_dB-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure # V2I power는 23 dB 고정, 모든 차량에 대한 Signal이 나옴
+        V2I_Signals = self.V2I_power_dB - self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure # V2I power는 23 dB 고정, 모든 리소스 블럭에 대한 신호 상태를봄.
         V2I_Rate = np.log2(1 + np.divide(10**(V2I_Signals/10), self.V2I_Interference[0:min(self.n_RB,self.n_Veh)])) #V2I Signal / V2V Interference -> V2I Link의 SINR을 계산함
         #print("V2I information", V2I_Signals, self.V2I_Interference, V2I_Rate)
         
