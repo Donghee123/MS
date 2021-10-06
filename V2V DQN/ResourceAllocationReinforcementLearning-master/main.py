@@ -4,6 +4,10 @@ import random
 import tensorflow as tf
 from agent import Agent
 from Environment import *
+import pandas as pd
+import csv
+import os
+
 flags = tf.app.flags
 
 sumrateV2IList = []
@@ -33,6 +37,26 @@ FLAGS = flags.FLAGS
 tf.set_random_seed(FLAGS.random_seed)
 random.seed(FLAGS.random_seed)
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(["V2I sumrate", "V2V sumrate", "V2I, V2V sumrate", "outageprobability"])
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
 if FLAGS.gpu_fraction == '':
   raise ValueError("--gpu_fraction should be defined")
 
@@ -71,7 +95,7 @@ def main(_):
         agent = Agent(config, Env, sess)
         
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
+        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = True)
         
         sumrateV2IList.append(v2i_Sumrate)
         sumrateV2VList.append(v2v_Sumrate)
@@ -86,6 +110,7 @@ def main(_):
 
   sumrateV2IListnpList = np.array(sumrateV2IList)
   sumrateV2VListnpList = np.array(sumrateV2VList)
+  sumrateV2V_V2IListnpList = sumrateV2IListnpList + sumrateV2VListnpList
   probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
   
   print('V2I sumrate')
@@ -96,6 +121,20 @@ def main(_):
   print(sumrateV2IListnpList + sumrateV2VListnpList)
   print('Outage probability')
   print(probabilityOfSatisfiedV2VnpList)
-    
+
+  allData=[]
+  allData.append(sumrateV2IListnpList)
+  allData.append(sumrateV2VListnpList)
+  allData.append(sumrateV2V_V2IListnpList)
+  allData.append(probabilityOfSatisfiedV2VnpList)
+  allData = np.transpose(allData)
+  
+  folderPath = './ResultData'
+  csvFileName = 'ResultData.csv'
+  
+  createFolder(folderPath)
+  MakeCSVFile(folderPath, csvFileName, allData)
+  
+  
 if __name__ == '__main__':
     tf.app.run()

@@ -3,6 +3,10 @@ import numpy as np
 import time
 import random
 import math
+
+
+
+    
 # This file is revised for more precise and concise expression.
 """
 분석 순서
