@@ -26,9 +26,7 @@ class V2Vchannels:
         self.h_ms = 1.6 #3GPP TR 37.885 Antenna 1.6m
         self.fc = 6 #3GPP TR 37.885 Below 6GHz Parameter
         self.decorrelation_distance = 10 #3GPP TR 36.885 for Shadowing
-        
-        
-        self.shadow_std = 3 # 
+        self.shadow_std = 3 #3GPP TR 36.885 for Shadowing 
         
         self.n_Veh = n_Veh
         self.n_RB = n_RB
@@ -72,11 +70,6 @@ class V2Vchannels:
         
         return d
     
-    #3GPP TR 37.885
-    def get_ProbabilityNLOSv(self, d_3d):  
-        prob_LOS = min(1, 1.05 * math.exp(-0.0114*d_3d))
-        prob_NLOSv = 1 - prob_LOS
-        return prob_NLOSv
     
     #3GPP TR 37.885
     def PL_NLosv(self, d_3d):
@@ -85,10 +78,10 @@ class V2Vchannels:
         
         if block_vehicle == 'type1':      #Block Vehicle Height < TX, RX Antenna
             return self.PL_Los(d_3d)       
-        else if block_vehicle == 'type2': #Block Vehicle Height == TX, RX Antenna
-            return self.PL_Los(d_3d) + max(0, np.random.lognormal(5 + max(0, 15 * np.log10(d_3d)-41), 4)
-        else :                            #Block Vehicle Height > TX, RX Antenna
-            return self.PL_Los(d_3d) + max(0, np.random.lognormal(9 + max(0, 15 * np.log10(d_3d)-41), 4.5)
+        elif block_vehicle == 'type2': #Block Vehicle Height == TX, RX Antenna
+            return self.PL_Los(d_3d) + max(0, np.random.lognormal(5 + max(0, 15 * np.log10(d_3d)-41), 4))
+        else:                            #Block Vehicle Height > TX, RX Antenna
+            return self.PL_Los(d_3d) + max(0, np.random.lognormal(9 + max(0, 15 * np.log10(d_3d)-41), 4.5))
     
     #3GPP TR 37.885
     def PL_Los(self, d_3d):
@@ -106,6 +99,12 @@ class V2Vchannels:
         return (min(d1, d2) < 7)
     
     #3GPP TR 37.885
+    def get_ProbabilityNLOSv(self, d_3d):  
+        prob_LOS = min(1, 1.05 * math.exp(-0.0114*d_3d))
+        prob_NLOSv = 1 - prob_LOS
+        return prob_NLOSv
+       
+    #3GPP TR 37.885
     def get_path_loss(self, position_A, position_B):
 
         d1 = abs(position_A[0] - position_B[0])
@@ -121,7 +120,7 @@ class V2Vchannels:
             self.shadow_std = 3 #3GPP TR 37.885 LOS, NLOSv Shadowing Stand deviation
             prob_NLosv = self.get_ProbabilityNLOSv(d_3d)
             
-            prob = random()
+            prob = random.random()
                         
             if(prob > prob_NLosv): #LOS
                 PL = self.PL_Los(d_3d)
