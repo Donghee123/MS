@@ -26,7 +26,7 @@ class V2Vchannels:
         self.h_ms = 1.6 #3GPP TR 37.885 Antenna 1.6m
         self.fc = 6 #3GPP TR 37.885 Below 6GHz Parameter
         self.decorrelation_distance = 10 #3GPP TR 36.885 for Shadowing
-        self.shadow_std = 3 #3GPP TR 36.885 for Shadowing 
+        self.shadow_std = 3 #3GPP TR 36.885 for LOS Shadowing 
         
         self.n_Veh = n_Veh
         self.n_RB = n_RB
@@ -152,8 +152,8 @@ Fast fading : reyleigh fading(안함)
 class V2Ichannels: 
     # Simulator of the V2I channels
     def __init__(self, n_Veh, n_RB):
-        self.h_bs = 25
-        self.h_ms = 1.5        
+        self.h_bs = 5 # UE type RSU의 안테나 높이 In below 6GHz parameters using same carrierfrequency with V2V link
+        self.h_ms = 1.5
         self.Decorrelation_distance = 50        
         self.BS_position = [750/2, 1299/2]    # Suppose the BS is in the center
         self.shadow_std = 8
