@@ -591,7 +591,7 @@ class Environ:
         # ------------- Used for Training ----------------
         # ==================================================
         # 선택한 resource block
-        actions = actions_power.copy()[:,:,0] 
+        actions = actions_power.copy()[:,:,0]
         
         # 선택한 power level -100~23dB사이값
         power_selection = actions_power.copy()[:,:,1]   
@@ -612,10 +612,10 @@ class Environ:
         
         #print(actions)
         
-        #idx[0] 전송차량, idx[1] 수신차량
-        origin_channel_selection = actions[idx[0], idx[1]]
+        #idx[0] 전송차량, idx[1] 수신차량의 선택한 리소스 블럭
+        origin_channel_selection = int(actions[idx[0], idx[1]])
         
-        actions[idx[0], idx[1]] = 1123  # something not relavant
+        #actions[idx[0], idx[1]] = 1123  # something not relavant
         
         for i in range(self.n_RB):
             
@@ -675,8 +675,9 @@ class Environ:
         if power_selection[idx[0], idx[1]] < -100.0 or power_selection[idx[0], idx[1]] > 23.0:
             print('out of range power: ', power_selection[idx[0], idx[1]])
         
-        if actions > 20 or actions < 0:
+        if  actions[idx[0], idx[1]] > 20.0 or actions[idx[0], idx[1]]  < 0.0:
             print('out of range resourceblock: ', actions)
+            
         V2V_Rate = 0
         
         for i in range(self.n_RB):

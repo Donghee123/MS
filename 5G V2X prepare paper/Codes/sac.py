@@ -208,10 +208,10 @@ class SAC(object):
             
         if action < 0:
             selected_resourceBlock = 0
-            selected_powerdB = -100
+            selected_powerdB = -100.0
         elif action >= 19123:
-            selected_resourceBlock = 20
-            selected_powerdB = 23
+            selected_resourceBlock = 19
+            selected_powerdB = 23.0
         else:
             selected_resourceBlock = int(action / 1000)
             selected_powerdB = (action % 1000)
@@ -219,7 +219,7 @@ class SAC(object):
         if selected_powerdB > 123.0:
             selected_powerdB = 123.0
                             
-        selected_powerdB -= 100
+        selected_powerdB -= 100.0
         
         return selected_resourceBlock, selected_powerdB
                             
