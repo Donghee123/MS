@@ -672,6 +672,11 @@ class Environ:
         V2V_Rate_list = np.zeros((self.n_RB, 124))   # 3 of power level, V2V link Channel capacity를 저장함.
         Deficit_list = np.zeros((self.n_RB, 124))
         
+        if power_selection[idx[0], idx[1]] < -100.0 or power_selection[idx[0], idx[1]] > 23.0:
+            print(power_selection[idx[0], idx[1]])
+        
+        V2V_Rate = 0
+        
         for i in range(self.n_RB):
             indexes = np.argwhere(actions == i)
             V2V_Signal_temp = V2V_Signal.copy()            
