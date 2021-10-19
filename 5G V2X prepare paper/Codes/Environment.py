@@ -673,8 +673,10 @@ class Environ:
         Deficit_list = np.zeros((self.n_RB, 124))
         
         if power_selection[idx[0], idx[1]] < -100.0 or power_selection[idx[0], idx[1]] > 23.0:
-            print(power_selection[idx[0], idx[1]])
+            print('out of range power: ', power_selection[idx[0], idx[1]])
         
+        if actions > 20 or actions < 0:
+            print('out of range resourceblock: ', actions)
         V2V_Rate = 0
         
         for i in range(self.n_RB):
