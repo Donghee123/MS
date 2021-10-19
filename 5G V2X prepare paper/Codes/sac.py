@@ -77,7 +77,7 @@ class SAC(object):
             action, _, _ = self.policy.sample(state)
         else:
             _, _, action = self.policy.sample(state)
-        return action.detach().cpu().numpy()[0]
+        return float(action.detach().cpu()[0])
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
@@ -85,9 +85,9 @@ class SAC(object):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
-        action_batch = torch.FloatTensor(action_batch).to(self.device).unsqueeze(1)
-        reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze(1)
-        mask_batch = torch.FloatTensor(mask_batch).to(self.device).unsqueeze(1)
+        action_batch = torch.FloatTensor(action_batch).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
+        mask_batch = torch.FloatTensor(mask_batch).to(self.device)
 
         with torch.no_grad():
             next_state_action, next_state_log_pi, _ = self.policy.sample(next_state_batch)
@@ -326,7 +326,7 @@ class SAC(object):
                         
                         #self.observe(state_old, state_new, reward_train, action)
                         
-                        self.memory.push(state_old, action, reward_train, state_new, 1) # Append transition to memory
+                        self.memory.push(state_old.reshape(82), np.array([action]), np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
             
             rewardloggingData.append(reward_sum/60.0) 
             """
