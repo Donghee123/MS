@@ -212,12 +212,12 @@ class SAC(object):
         
         onestep_PowerdB = 123.0/999.0
         
-        if action < 0:
+        if action < 0.0:
             selected_resourceBlock = 0
-            selected_powerdB = -100.0
+            selected_powerdB = 0.0
         elif action >= 20000:
             selected_resourceBlock = 19
-            selected_powerdB = 23.0
+            selected_powerdB = 123.0
         else:
             selected_resourceBlock = int(action / 1000)
             selected_powerdB = (action % 1000) * onestep_PowerdB
@@ -232,9 +232,10 @@ class SAC(object):
     def merge_action(self, idx, action):
         select_ResourceBlock, select_PowerdB = self.GenerateAction(action)
         self.action_all_with_power[idx[0], idx[1], 0] = select_ResourceBlock
-        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB
+        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB 
         
-    def play(self, actor_path = actor_path, critic_path = critic_path n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+    def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
+        
         self.load_model(actor_path = actor_path, critic_path = critic_path)
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
@@ -253,9 +254,7 @@ class SAC(object):
             print('The number of vehicle is ', len(self.env.vehicles))
             
             time_left_list = []
-            power_select_list_0 = []
-            power_select_list_1 = []
-            power_select_list_2 = []
+
 
             for k in range(test_sample):
                 action_temp = self.action_all_with_power.copy()
@@ -284,28 +283,7 @@ class SAC(object):
                 # print("actions", self.action_all_with_power)
             
             
-            number_0, bin_edges = np.histogram(power_select_list_0, bins = 10)
-
-            number_1, bin_edges = np.histogram(power_select_list_1, bins = 10)
-
-            number_2, bin_edges = np.histogram(power_select_list_2, bins = 10)
-
-
-            p_0 = number_0 / (number_0 + number_1 + number_2)
-            p_1 = number_1 / (number_0 + number_1 + number_2)
-            p_2 = number_2 / (number_0 + number_1 + number_2)
-
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_0, 'b*-', label='Power Level 23 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_1, 'rs-', label='Power Level 10 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_2, 'go-', label='Power Level 5 dB')
-            
-            plt.xlim([0,0.12])
-            plt.xlabel("Time left for V2V transmission (s)")
-            plt.ylabel("Probability of power selection")
-            plt.legend()
-            plt.grid()
-            plt.show()
-            
+          
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
             
@@ -355,7 +333,7 @@ class SAC(object):
         
         
         
-        for self.step in (range(0, 50000)): # need more configuration
+        for self.step in (range(0, 50000)): # need more configuration #50000
             if self.step == 0:                   # initialize set some varibles
                 num_game, self.update_count,ep_reward = 0, 0, 0.
                 total_reward, self.total_loss, self.total_q = 0., 0., 0.
@@ -371,6 +349,13 @@ class SAC(object):
             #print("state", state_old)
             self.training = True
             reward_sum = 0
+            
+            temp_critic_1_losses = []
+            temp_critic_2_losses = []
+            temp_policy_losses = []
+            temp_ent_losses = []
+            temp_alphas = []
+            
             for k in range(1):
                 #i번째 송신 차량
                 for i in range(len(self.env.vehicles)):
@@ -398,11 +383,11 @@ class SAC(object):
                                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = self.update_parameters(self.memory, self.args.batch_size, updates)
                                 updates += 1
                                 #print('parameter update count : ', updates)                              
-                                critic_1_losses.append(critic_1_loss)
-                                critic_2_losses.append(critic_2_loss)
-                                policy_losses.append(policy_loss)
-                                ent_losses.append(ent_loss)
-                                alphas.append(alpha)
+                                temp_critic_1_losses.append(critic_1_loss)
+                                temp_critic_2_losses.append(critic_2_loss)
+                                temp_policy_losses.append(policy_loss)
+                                temp_ent_losses.append(ent_loss)
+                                temp_alphas.append(alpha)
                           
 
                         total_numsteps+=1
@@ -428,7 +413,13 @@ class SAC(object):
                         
                         self.memory.push(state_old.reshape(82), np.array([action]), np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
             
-            rewardloggingData.append(reward_sum/60.0) 
+            critic_1_losses.append(np.mean(temp_critic_1_losses))
+            critic_2_losses.append( np.mean(temp_critic_2_losses))
+            policy_losses.append(np.mean(temp_policy_losses))
+            ent_losses.append(np.mean(temp_ent_losses))
+            alphas.append(np.mean(temp_alphas)   )                                                         
+            rewardloggingData.append(reward_sum/60.0)
+            
             """
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 

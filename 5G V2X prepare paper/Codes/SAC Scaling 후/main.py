@@ -30,7 +30,7 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N',
+parser.add_argument('--batch_size', type=int, default=512, metavar='N', # 
                     help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
@@ -38,7 +38,7 @@ parser.add_argument('--hidden_size', type=int, default=500, metavar='N',
                     help='hidden size (default: 500)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=20000, metavar='N', # 
                     help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
@@ -79,9 +79,9 @@ np.random.seed(args.seed)
 
 # Agent
 statespaceSize = 82
-actionRange = [0.0, 19123.0]
+actionRange = [0.0, 20000.0]
 action_space = spaces.Box(
-    np.array([0.0]), np.array([19123.0]), dtype=np.float32)
+    np.array([0.0]), np.array([20000.0]), dtype=np.float32)
 agent = SAC(statespaceSize, action_space, args, env)
 
 # Tesnorboard
