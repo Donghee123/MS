@@ -4,34 +4,44 @@ import time
 import random
 import math
 
-
-
-    
-# This file is revised for more precise and concise expression.
+   
 """
-분석 순서
-1. 차량의 Dropping model 찾기.
-2. 5G Channel 모델 찾기
+2021-10-15
+V2V channels 완료 
+
+3GPP 37.885
+
+Below 6GHz Parameter (완료)
+Probability NLOSv, LOS (완료)
+Pathloss : LOS, NLOS, NLOSv (완료)
+Shadowing : log-normal (완료)
+Fast fading : reyleigh fading (완료)
 """
 class V2Vchannels:              
     # Simulator of the V2V Channels
     def __init__(self, n_Veh, n_RB):
+    
         self.t = 0
-        self.h_bs = 1.5
-        self.h_ms = 1.5
-        self.fc = 2
-        self.decorrelation_distance = 10
-        self.shadow_std = 3
+        self.h_bs = 1.6 #3GPP TR 37.885 Antenna 1.6m
+        self.h_ms = 1.6 #3GPP TR 37.885 Antenna 1.6m
+        self.fc = 6 #3GPP TR 37.885 Below 6GHz Parameter
+        self.decorrelation_distance = 10 #3GPP TR 36.885 for Shadowing
+        self.shadow_std = 3 #3GPP TR 36.885 for LOS Shadowing 
+        
         self.n_Veh = n_Veh
         self.n_RB = n_RB
         self.update_shadow([])
+        
     def update_positions(self, positions):
         self.positions = positions
+        
     def update_pathloss(self):
         self.PathLoss = np.zeros(shape=(len(self.positions),len(self.positions)))
         for i in range(len(self.positions)):
             for j in range(len(self.positions)):
                 self.PathLoss[i][j] = self.get_path_loss(self.positions[i], self.positions[j])
+    
+    #3GPP 36.885를 따름.
     def update_shadow(self, delta_distance_list):
         delta_distance = np.zeros((len(delta_distance_list), len(delta_distance_list)))
         for i in range(len(delta_distance)):
@@ -42,40 +52,108 @@ class V2Vchannels:
         else:
             self.Shadow = np.exp(-1*(delta_distance/self.decorrelation_distance)) * self.Shadow +\
                          np.sqrt(1 - np.exp(-2*(delta_distance/self.decorrelation_distance))) * np.random.normal(0, self.shadow_std, size = (self.n_Veh, self.n_Veh))
+    
+    #reileigh fading
     def update_fast_fading(self):
         h = 1/np.sqrt(2) * (np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB) ) + 1j * np.random.normal(size=(self.n_Veh, self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h))
-    def get_path_loss(self, position_A, position_B):
-        d1 = abs(position_A[0] - position_B[0])
-        d2 = abs(position_A[1] - position_B[1])
-        d = math.hypot(d1,d2)+0.001
-        d_bp = 4 * (self.h_bs - 1) * (self.h_ms - 1) * self.fc * (10**9)/(3*10**8)     
-        def PL_Los(d):
-            if d <= 3:
-                return 22.7 * np.log10(3) + 41 + 20*np.log10(self.fc/5)
-            else:
-                if d < d_bp:
-                    return 22.7 * np.log10(d) + 41 + 20 * np.log10(self.fc/5)
-                else:
-                    return 40.0 * np.log10(d) + 9.45 - 17.3 * np.log10(self.h_bs) - 17.3 * np.log10(self.h_ms) + 2.7 * np.log10(self.fc/5)
-        def PL_NLos(d_a,d_b):
-                n_j = max(2.8 - 0.0024*d_b, 1.84)
-                return PL_Los(d_a) + 20 - 12.5*n_j + 10 * n_j * np.log10(d_b) + 3*np.log10(self.fc/5)
-        if min(d1,d2) < 7: 
-            PL = PL_Los(d)
-            self.ifLOS = True
-            self.shadow_std = 3
+    
+    #두 벡터의 Euclidean_Distance 구하기
+    def get_Euclidean_Distance(self,position_A, position_B):
+    
+        sumData = 0
+        
+        for i in range(len(position_A)):
+            sumData += (position_A[i] - position_B[i])**2
+        
+        d = math.sqrt(sumData) + 0.001 # 0을 피하기 위함.
+        
+        return d
+    
+    
+    #3GPP TR 37.885
+    def PL_NLosv(self, d_3d):
+        vehicle_type = ['type1', 'type2', 'type3']
+        block_vehicle = random.choice(vehicle_type)
+        
+        if block_vehicle == 'type1':      #Block Vehicle Height < TX, RX Antenna
+            return self.PL_Los(d_3d)       
+        elif block_vehicle == 'type2': #Block Vehicle Height == TX, RX Antenna
+            return self.PL_Los(d_3d) + max(0, np.random.lognormal(5 + max(0, 15 * np.log10(d_3d)-41), 4))
+        else:                            #Block Vehicle Height > TX, RX Antenna
+            return self.PL_Los(d_3d) + max(0, np.random.lognormal(9 + max(0, 15 * np.log10(d_3d)-41), 4.5))
+    
+    #3GPP TR 37.885
+    def PL_Los(self, d_3d):
+        if d_3d <= 3:
+            return 38.77 * np.log10(3) + 18.2 * np.log10(self.fc)
         else:
-            PL = min(PL_NLos(d1,d2), PL_NLos(d2,d1))
+            return 38.77 * np.log10(d_3d) + 18.2 * np.log10(self.fc)
+    
+    #3GPP TR 37.885    
+    def PL_NLos(self, d_3d):
+        return 36.85 + 30 * np.log10(d_3d) + 18.9*np.log10(self.fc)
+     
+    #3GPP TR 36.885
+    def IsLOS(self, d1, d2):
+        return (min(d1, d2) < 7)
+    
+    #3GPP TR 37.885
+    def get_ProbabilityNLOSv(self, d_3d):  
+        prob_LOS = min(1, 1.05 * math.exp(-0.0114*d_3d))
+        prob_NLOSv = 1 - prob_LOS
+        return prob_NLOSv
+       
+    #3GPP TR 37.885
+    def get_path_loss(self, position_A, position_B):
+
+        d1 = abs(position_A[0] - position_B[0])
+        d2 = abs(position_A[1] - position_B[1]) 
+        
+        d_3d = self.get_Euclidean_Distance(position_A, position_B)          
+      
+        d_bp = 4 * (self.h_bs) * (self.h_ms) * self.fc * (10**9)/(3*10**8)
+        
+        PL = 0
+        
+        if self.IsLOS(d1,d2): 
+            self.shadow_std = 3 #3GPP TR 37.885 LOS, NLOSv Shadowing Stand deviation
+            prob_NLosv = self.get_ProbabilityNLOSv(d_3d)
+            
+            prob = random.random()
+                        
+            if(prob > prob_NLosv): #LOS
+                PL = self.PL_Los(d_3d)
+                self.ifLOS = True
+            else: #NLOSv
+                PL = self.PL_NLosv(d_3d)
+                self.ifLOS = False
+            
+        else: #NLOS
+            PL = self.PL_NLos(d_3d)
+            self.shadow_std = 4 #3GPP TR 37.885 NLOS Shadowing Stand deviation
             self.ifLOS = False
-            self.shadow_std = 4                      # if Non line of sight, the std is 4
+            
         return PL
+
+"""
+2021-10-15
+V2I channels 진행중 
+
+3GPP 37.885
+
+Below 6GHz Parameter (안함)
+Probability NLOSv, LOS(안함)
+Pathloss : LOS, NLOS, NLOSv(안함)
+Shadowing : log-normal(안함)
+Fast fading : reyleigh fading(안함)
+"""
 
 class V2Ichannels: 
     # Simulator of the V2I channels
     def __init__(self, n_Veh, n_RB):
-        self.h_bs = 25
-        self.h_ms = 1.5        
+        self.h_bs = 5 # UE type RSU의 안테나 높이 In below 6GHz parameters using same carrierfrequency with V2V link
+        self.h_ms = 1.5
         self.Decorrelation_distance = 50        
         self.BS_position = [750/2, 1299/2]    # Suppose the BS is in the center
         self.shadow_std = 8
@@ -104,58 +182,68 @@ class V2Ichannels:
         self.FastFading = 20 * np.log10(np.abs(h))
 
 """
-차량 
-- 위치 선정 공식:  
-- 방향 선정 공식:
-- 속력 선정 공식:
+type 2 차량 
+- 2차원 좌표 
+- 방향
+- 속력
+- 인접한 차량 5대
+- 통신 링크가 형성된 차량 3대
+- 차량의 안테나 높이 
 """
 class Vehicle:
-    # Vehicle simulator: include all the information for a vehicle
     def __init__(self, start_position, start_direction, velocity):
-        self.position = start_position
-        self.direction = start_direction
-        self.velocity = velocity
-        self.neighbors = []
-        self.destinations = []
+        self.position = start_position #차량의 X,Y 좌표
+        self.direction = start_direction #차량의 방향 
+        self.velocity = velocity #차량의 속력
+        self.neighbors = [] # 인접한 차량 5대
+        self.destinations = [] # 통신 링크가 형성된 차량 3대
+        self.antennaHeight = 1.6 #  type 2 antenna height 1.6m, 3GPP 37.885 UE Type
+        
+   
 class Environ:
     # Enviroment Simulator: Provide states and rewards to agents. 
     # Evolve to new state based on the actions taken by the vehicles.
     
     """
-    TvT 논문의 Simulation 환경을 제공
-    state와 action에 대한 reward를 agent에게 전달
-    vehicles이 취한 행동에 따라 새로운 상태로 전환함.
+    5G V2X 시뮬레이션 구현 Below 6GHz, Manhattan case
     """
 
     def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh):
+    
         self.timestep = 0.01 # 시간은 0.01초 단위 
-        self.down_lanes = down_lane   # 아래 도로 ? 
-        self.up_lanes = up_lane       # 위 도로 ?
-        self.left_lanes = left_lane   # 왼쪽 도로 ?
-        self.right_lanes = right_lane # 오른쪽 도로 ?
+        self.down_lanes = down_lane   # 아래 도로 
+        self.up_lanes = up_lane       # 위 도로 
+        self.left_lanes = left_lane   # 왼쪽 도로 
+        self.right_lanes = right_lane # 오른쪽 도로 
         
         self.width = width           # 지도의 가로 방향
         self.height = height         # 지도의 세로 방향
         
         self.vehicles = []           # 차량의 수
-        self.demands = []            # 요구하는 차량의 수 ?
+        self.demands = []            # 요구하는 차량의 수 
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = [23, 10, 5]            # v2v link의 종류별 파워 레벨
-        #self.V2V_power = 10**(self.V2V_power_dB)
-        #self.V2I_power = 10**(self.V2I_power_dB)
-        self.sig2_dB = -114          #노이즈 파워 dbm 단위
-        self.bsAntGain = 8           #기지국 안테나 gain
+        
+        self.V2V_power_dB_List = [23, 10, 5]            #V2V DQN의 이산선택을 위한 power dB.
+        
+        self.V2V_power_Max = 23 #V2V DDPG의 연속 데이터의 한계를 정하기 위함 Max.
+        self.V2V_power_Min = -100 #V2V DDPG의 연속 데이터의 한계를 정하기 위함 Min.
+        
+        
+        #?? 어디서 오는지 찾아야함.
+        self.sig2_dB = -114          #노이즈 파워 dbm 단위 
+        self.sig2 = 10**(self.sig2_dB/10) #노이즈 파워 watt 단위
+        
+        self.bsAntGain = 8           #기지국 안테나 gain      
         self.bsNoiseFigure = 5       #기지국 수신 잡음 지수
+        
         self.vehAntGain = 3          #차량 안테나 gain
         self.vehNoiseFigure = 9      #차량 수신 잡음 지수
-        self.sig2 = 10**(self.sig2_dB/10) #노이즈 파워 watt 단위
-        self.V2V_Shadowing = []     #v2v link의 Shadowing?
-        self.V2I_Shadowing = []     #v2i link의 Shadowing?
-        self.delta_distance = []    #?
-        self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
-        self.n_Veh = n_Veh             #최대 vehicle 수
+        
+          
+        self.n_RB = 20              #resource block의 수 NOMA 환경에서도 20개인지 확인 필요함. #?? 
+        self.n_Veh = n_Veh          #시뮬레이션에 사용한 vehicle 수
         
         self.V2Vchannels = V2Vchannels(self.n_Veh, self.n_RB)  # V2V 채널 Class, 차량 수와 동일함.
         self.V2Ichannels = V2Ichannels(self.n_Veh, self.n_RB)
@@ -191,32 +279,27 @@ class Environ:
             width = 750 : 지도의 가로 사이즈가 750
             height = 1299 : 지도의 세로 사이즈가 1299
             
-            """
-            
+            """          
             ind = np.random.randint(0,len(self.down_lanes))
             start_position = [self.down_lanes[ind], random.randint(0,self.height)]
             start_direction = 'd'
-            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+
+            self.add_new_vehicles(start_position,start_direction,60) # 3GPP 37.885 모든 차량 속력은 60km/h 고정
             
             start_position = [self.up_lanes[ind], random.randint(0,self.height)]
             start_direction = 'u'
-            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,60) # 3GPP 37.885 모든 차량 속력은 60km/h 고정
             
             start_position = [random.randint(0,self.width), self.left_lanes[ind]]
-            start_direction = 'l'
-            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            start_direction = 'l'      
+            self.add_new_vehicles(start_position,start_direction,60) # 3GPP 37.885 모든 차량 속력은 60km/h 고정
             
             start_position = [random.randint(0,self.width), self.right_lanes[ind]]
             start_direction = 'r'
-            #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,60) # 3GPP 37.885 모든 차량 속력은 60km/h 고정
             
-        self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
-        self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
-        self.delta_distance = np.asarray([c.velocity for c in self.vehicles])
+
+       
         #self.renew_channel()
     def renew_positions(self):
         # ========================================================
@@ -329,6 +412,7 @@ class Environ:
                                 self.vehicles[i].position = [self.down_lanes[-1],self.vehicles[i].position[1]]
                 
             i += 1
+            
     def test_channel(self):
         # ===================================
         #   test the V2I and the V2V channel 
@@ -526,7 +610,7 @@ class Environ:
             for j in range(len(actions[i,:])):
                 if not self.activate_links[i,j]:
                     continue
-                Interference[actions[i][j]] += 10**((power_selection[i,j] - self.V2I_channels_with_fastfading[i, int(actions[i,j])] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
 
                 
         self.V2I_Interference = Interference + self.sig2
@@ -539,7 +623,7 @@ class Environ:
             for j in range(len(indexes)):
                 #receiver_j = self.vehicles[indexes[j,0]].neighbors[indexes[j,1]]
                 receiver_j = self.vehicles[indexes[j,0]].destinations[indexes[j,1]]
-                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((power_selection[indexes[j, 0],indexes[j, 1]] -\
+                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[power_selection[indexes[j, 0],indexes[j, 1]]] -\
                 self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
                 #V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[0] - self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i])/10) 
                 if i<self.n_Veh:
@@ -547,9 +631,9 @@ class Environ:
                     self.V2V_channels_with_fastfading[i][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure )/10)  # V2I links interference to V2V links
                 for k in range(j+1, len(indexes)):
                     receiver_k = self.vehicles[indexes[k][0]].destinations[indexes[k][1]]
-                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((power_selection[indexes[k,0],indexes[k,1]] -\
+                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[k,0],indexes[k,1]]] -\
                     self.V2V_channels_with_fastfading[indexes[k][0]][receiver_j][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
-                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((power_selection[indexes[j,0],indexes[j,1]] - \
+                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - \
                     self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
                     Interfence_times[indexes[j,0],indexes[j,1]] += 1 # 필요 없는듯?
                     Interfence_times[indexes[k,0],indexes[k,1]] += 1 # 필요 없는듯?            

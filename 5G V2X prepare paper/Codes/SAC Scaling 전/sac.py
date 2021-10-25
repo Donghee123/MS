@@ -222,7 +222,101 @@ class SAC(object):
         selected_powerdB -= 100.0
         
         return selected_resourceBlock, selected_powerdB
-                            
+    
+    def merge_action(self, idx, action):
+        select_ResourceBlock, select_PowerdB = self.GenerateAction(action)
+        self.action_all_with_power[idx[0], idx[1], 0] = select_ResourceBlock
+        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB
+        
+    def play(self, actor_path = actor_path, critic_path = critic_path n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+        self.load_model(actor_path = actor_path, critic_path = critic_path)
+        number_of_game = n_episode
+        V2I_Rate_list = np.zeros(number_of_game)
+        V2V_Rate_list = np.zeros(number_of_game)
+        Fail_percent_list = np.zeros(number_of_game)  
+        self.training = False
+
+
+        for game_idx in range(number_of_game):
+            self.env.new_random_game(self.num_vehicle)
+            test_sample = n_step
+            Rate_list = []
+            Rate_list_V2V = []
+            
+            print('test game idx:', game_idx)
+            print('The number of vehicle is ', len(self.env.vehicles))
+            
+            time_left_list = []
+            power_select_list_0 = []
+            power_select_list_1 = []
+            power_select_list_2 = []
+
+            for k in range(test_sample):
+                action_temp = self.action_all_with_power.copy()
+                for i in range(len(self.env.vehicles)):
+                    self.action_all_with_power[i, :, 0] = -1
+                    sorted_idx = np.argsort(self.env.individual_time_limit[i, :])
+                    for j in sorted_idx:
+                        state_old = self.get_state([i, j])
+                        time_left_list.append(state_old[-1])
+                        action = self.select_action(state_old, evaluate=True)
+                        
+                        if state_old[-1] <=0:
+                            continue
+                        
+                        selectResouceBlock, selectPowerDB = self.GenerateAction(action)                                            
+                        
+                        self.merge_action([i, j], action)
+                    
+                    #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
+                    if i % (len(self.env.vehicles) / 10) == 1:
+                        action_temp = self.action_all_with_power.copy()
+                        rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
+                        Rate_list.append(np.sum(rewardOfV2I))
+                        Rate_list_V2V.append(np.sum(rewardOfV2V))
+                        
+                # print("actions", self.action_all_with_power)
+            
+            
+            number_0, bin_edges = np.histogram(power_select_list_0, bins = 10)
+
+            number_1, bin_edges = np.histogram(power_select_list_1, bins = 10)
+
+            number_2, bin_edges = np.histogram(power_select_list_2, bins = 10)
+
+
+            p_0 = number_0 / (number_0 + number_1 + number_2)
+            p_1 = number_1 / (number_0 + number_1 + number_2)
+            p_2 = number_2 / (number_0 + number_1 + number_2)
+
+            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_0, 'b*-', label='Power Level 23 dB')
+            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_1, 'rs-', label='Power Level 10 dB')
+            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_2, 'go-', label='Power Level 5 dB')
+            
+            plt.xlim([0,0.12])
+            plt.xlabel("Time left for V2V transmission (s)")
+            plt.ylabel("Probability of power selection")
+            plt.legend()
+            plt.grid()
+            plt.show()
+            
+            V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+            V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
+            
+            Fail_percent_list[game_idx] = percent
+
+            print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
+            print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
+            print('Mean of Fail percent is that ',percent, np.mean(Fail_percent_list[0:game_idx]))
+            # print('action is that', action_temp[0,:])
+
+        print('The number of vehicle is ', len(self.env.vehicles))
+        print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+        print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+        print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
+        # print('Test Reward is ', np.mean(test_result))
+        
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
     def train(self): 
         
         updateloggingData = []

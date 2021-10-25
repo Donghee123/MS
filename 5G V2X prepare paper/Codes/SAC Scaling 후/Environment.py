@@ -142,7 +142,7 @@ class Environ:
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = [23, 10, 5]            # v2v link의 종류별 파워 레벨
+        
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
@@ -526,7 +526,7 @@ class Environ:
             for j in range(len(actions[i,:])):
                 if not self.activate_links[i,j]:
                     continue
-                Interference[actions[i][j]] += 10**((power_selection[i,j] - self.V2I_channels_with_fastfading[i, int(actions[i,j])] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
 
                 
         self.V2I_Interference = Interference + self.sig2
@@ -539,7 +539,7 @@ class Environ:
             for j in range(len(indexes)):
                 #receiver_j = self.vehicles[indexes[j,0]].neighbors[indexes[j,1]]
                 receiver_j = self.vehicles[indexes[j,0]].destinations[indexes[j,1]]
-                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((power_selection[indexes[j, 0],indexes[j, 1]] -\
+                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[power_selection[indexes[j, 0],indexes[j, 1]]] -\
                 self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
                 #V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[0] - self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i])/10) 
                 if i<self.n_Veh:
@@ -547,9 +547,9 @@ class Environ:
                     self.V2V_channels_with_fastfading[i][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure )/10)  # V2I links interference to V2V links
                 for k in range(j+1, len(indexes)):
                     receiver_k = self.vehicles[indexes[k][0]].destinations[indexes[k][1]]
-                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((power_selection[indexes[k,0],indexes[k,1]] -\
+                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[k,0],indexes[k,1]]] -\
                     self.V2V_channels_with_fastfading[indexes[k][0]][receiver_j][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
-                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((power_selection[indexes[j,0],indexes[j,1]] - \
+                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - \
                     self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
                     Interfence_times[indexes[j,0],indexes[j,1]] += 1 # 필요 없는듯?
                     Interfence_times[indexes[k,0],indexes[k,1]] += 1 # 필요 없는듯?            
@@ -591,14 +591,16 @@ class Environ:
         # ------------- Used for Training ----------------
         # ==================================================
         # 선택한 resource block
-        actions = actions_power.copy()[:,:,0] 
-        # 선택한 power level          
+        actions = actions_power.copy()[:,:,0]
+        
+        # 선택한 power level -100~23dB사이값
         power_selection = actions_power.copy()[:,:,1]   
         
-        print('select resource block')
-        print(actions)
-        print('select power level')
-        print(power_selection)
+        #print('select resource block')
+        #print(actions)
+        
+        #print('select power level')
+        #print(power_selection)
         #모든 차량에 대해서 연결된 3개의 차량의 Interference
         V2V_Interference = np.zeros((len(self.vehicles), 3))
         
@@ -610,10 +612,10 @@ class Environ:
         
         #print(actions)
         
-        #idx[0] 전송차량, idx[1] 수신차량
-        origin_channel_selection = actions[idx[0], idx[1]]
+        #idx[0] 전송차량, idx[1] 수신차량의 선택한 리소스 블럭
+        origin_channel_selection = int(actions[idx[0], idx[1]])
         
-        actions[idx[0], idx[1]] = 100  # something not relavant
+        #actions[idx[0], idx[1]] = 1123  # something not relavant
         
         for i in range(self.n_RB):
             
@@ -638,7 +640,7 @@ class Environ:
                 # V2V_Signal = 10 ^ ( (선택한 파워 dbm - 선택한 리소스 블록의 fading값 + 2 * 차량의 안테나 게인 - 9(차량 노이즈)) / 10)
                 
                 # V2V Signal은 송신 차량, 수신 차량으로 구분지어서 저장됨. 
-                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[power_selection[indexes[j, 0],indexes[j, 1]]] - self.V2V_channels_with_fastfading[indexes[j,0], receiver_j, i]+ 2 * self.vehAntGain - self.vehNoiseFigure) / 10) 
+                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((power_selection[indexes[j, 0],indexes[j, 1]] - self.V2V_channels_with_fastfading[indexes[j,0], receiver_j, i]+ 2 * self.vehAntGain - self.vehNoiseFigure) / 10) 
                 
                 # 같은 리소스 블록을 사용하는 신호들의 V2V_Interference를 누적 시킴.
                 V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((self.V2I_power_dB - self.V2V_channels_with_fastfading[i,receiver_j,i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)  # interference from the V2I links
@@ -649,59 +651,74 @@ class Environ:
                 # 3. i번째 Resource block에서 다른 수신 차량(k,1)들에 대해서도 현재 송신 차량(j,0)의 신호에 의한 power_db((j,0) -> (j,1)) - Fast fading((j,0) -> (k,1))에 영향을 미침 Interference 증가
                 for k in range(j+1, len(indexes)):
                     receiver_k = self.vehicles[indexes[k,0]].destinations[indexes[k,1]]
-                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[k,0],indexes[k,1]]] - self.V2V_channels_with_fastfading[indexes[k,0],receiver_j, i] + 2 * self.vehAntGain - self.vehNoiseFigure)/10)
-                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - self.V2V_channels_with_fastfading[indexes[j,0],receiver_k, i] + 2 * self.vehAntGain - self.vehNoiseFigure)/10)
+                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((power_selection[indexes[k,0],indexes[k,1]] - self.V2V_channels_with_fastfading[indexes[k,0],receiver_j, i] + 2 * self.vehAntGain - self.vehNoiseFigure)/10)
+                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((power_selection[indexes[j,0],indexes[j,1]] - self.V2V_channels_with_fastfading[indexes[j,0],receiver_k, i] + 2 * self.vehAntGain - self.vehNoiseFigure)/10)
                     Interfence_times[indexes[j,0],indexes[j,1]] += 1
                     Interfence_times[indexes[k,0],indexes[k,1]] += 1
          
         #계산한 V2V_Interference에서 sig2 노이즈를 더함.
         self.V2V_Interference = V2V_Interference + self.sig2
         
+        
         """
         여기까지 정리
         2021/09/08
-        1. V2V Signal 계산 (power, fast fading, 차량 antena gain, Noise)
+        1. V2V Signal 계산 (power, fast fading, 차량 antena gain, Noise) 
         2. V2V Interference / time 계산  (power, fast fading, 차량 antena gain, Noise)
            - 동일한 resource block에서 V2I link, 다른 차량들의 V2V link를 고려한 interference 계산
            - 한번 계산 할때마다 1씩 시간 증가
         """
         
-        V2V_Rate_list = np.zeros((self.n_RB, len(self.V2V_power_dB_List)))   # 3 of power level, V2V link Channel capacity를 저장함.
-        Deficit_list = np.zeros((self.n_RB, len(self.V2V_power_dB_List)))
+        V2V_Rate_list = np.zeros((self.n_RB, 124))   # 3 of power level, V2V link Channel capacity를 저장함.
+        Deficit_list = np.zeros((self.n_RB, 124))
+        
+        if power_selection[idx[0], idx[1]] < -100.0 or power_selection[idx[0], idx[1]] > 23.0:
+            print('out of range power: ', power_selection[idx[0], idx[1]])
+        
+        if  actions[idx[0], idx[1]] > 20.0 or actions[idx[0], idx[1]]  < 0.0:
+            print('out of range resourceblock: ', actions)
+            
+        V2V_Rate = 0
         
         for i in range(self.n_RB):
             indexes = np.argwhere(actions == i)
             V2V_Signal_temp = V2V_Signal.copy()            
             #receiver_k = self.vehicles[idx[0]].neighbors[idx[1]]
             receiver_k = self.vehicles[idx[0]].destinations[idx[1]]
-            for power_idx in range(len(self.V2V_power_dB_List)):
+            
+            # power_idx .. 0,1,2 인데?
+            for power_idx in range(124):
                 V2V_Interference_temp = V2V_Interference.copy()
-                V2V_Signal_temp[idx[0],idx[1]] = 10**((self.V2V_power_dB_List[power_idx] - self.V2V_channels_with_fastfading[idx[0], self.vehicles[idx[0]].destinations[idx[1]],i] + 2*self.vehAntGain - self.vehNoiseFigure )/10)
+                V2V_Signal_temp[idx[0],idx[1]] = 10**(((power_idx-100) - self.V2V_channels_with_fastfading[idx[0], self.vehicles[idx[0]].destinations[idx[1]],i] + 2*self.vehAntGain - self.vehNoiseFigure )/10)
                 V2V_Interference_temp[idx[0],idx[1]] +=  10**((self.V2I_power_dB - self.V2V_channels_with_fastfading[i,self.vehicles[idx[0]].destinations[idx[1]],i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
                 for j in range(len(indexes)):
                     receiver_j = self.vehicles[indexes[j,0]].destinations[indexes[j,1]]
-                    V2V_Interference_temp[idx[0],idx[1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0], indexes[j,1]]] - self.V2V_channels_with_fastfading[indexes[j,0],receiver_k, i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
-                    V2V_Interference_temp[indexes[j,0],indexes[j,1]] += 10**((self.V2V_power_dB_List[power_idx] - self.V2V_channels_with_fastfading[idx[0],receiver_j, i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
+                    V2V_Interference_temp[idx[0],idx[1]] += 10**((power_selection[indexes[j,0], indexes[j,1]] - self.V2V_channels_with_fastfading[indexes[j,0],receiver_k, i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
+                    V2V_Interference_temp[indexes[j,0],indexes[j,1]] += 10**(((power_idx-100) - self.V2V_channels_with_fastfading[idx[0],receiver_j, i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
+                
                 V2V_Rate_cur = np.log2(1 + np.divide(V2V_Signal_temp, V2V_Interference_temp))#V2V link의 SINR 계산.
-                if (origin_channel_selection == i) and (power_selection[idx[0], idx[1]] == power_idx):
+                if (int(origin_channel_selection) == i) and (int((power_selection[idx[0], idx[1]]) + 100) == power_idx):
                     V2V_Rate = V2V_Rate_cur.copy()
+                    
                 V2V_Rate_list[i, power_idx] = np.sum(V2V_Rate_cur)
                 Deficit_list[i,power_idx] = 0 - 1 * np.sum(np.maximum(np.zeros(V2V_Signal_temp.shape), (self.demand - self.individual_time_limit * V2V_Rate_cur * 1500)))
+                
         Interference = np.zeros(self.n_RB)  
-        V2I_Rate_list = np.zeros((self.n_RB,len(self.V2V_power_dB_List)))    # 3 of power level, V2I link Channel capacity를 저장함.
+        V2I_Rate_list = np.zeros((self.n_RB,124))    # 3 of power level, V2I link Channel capacity를 저장함.
+        
         for i in range(len(self.vehicles)):
             for j in range(len(actions[i,:])):
                 if (i ==idx[0] and j == idx[1]):
                     continue
-                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - \
-                self.V2I_channels_with_fastfading[i, actions[i][j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10) 
+                Interference[int(actions[i][j])] += 10**((power_selection[i,j] - self.V2I_channels_with_fastfading[i, int(actions[i][j])] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10) 
+                    
         V2I_Interference = Interference + self.sig2
+        
         for i in range(self.n_RB):            
-            for j in range(len(self.V2V_power_dB_List)):
+            for j in range(124):
                 V2I_Interference_temp = V2I_Interference.copy()
-                V2I_Interference_temp[i] += 10**((self.V2V_power_dB_List[j] - self.V2I_channels_with_fastfading[idx[0], i] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
-                V2I_Rate_list[i, j] = np.sum(np.log2(1 + np.divide(10**((self.V2I_power_dB + self.vehAntGain + self.bsAntGain \
-                - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
+                V2I_Interference_temp[i] += 10**(((j-100) - self.V2I_channels_with_fastfading[idx[0], i] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+                V2I_Rate_list[i, j] = np.sum(np.log2(1 + np.divide(10**((self.V2I_power_dB + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
                      
         self.demand -= V2V_Rate * self.update_time_train * 1500
         self.test_time_count -= self.update_time_train
@@ -735,7 +752,7 @@ class Environ:
                         for m in range(len(channel_selection[k,:])):
                             if (i==k) or (channel_selection[i,j] >= 0):
                                 continue
-                            V2V_Interference[k, m, channel_selection[i,j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] -\
+                            V2V_Interference[k, m, channel_selection[i,j]] += 10**((power_selection[i,j] -\
                             self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][channel_selection[i,j]] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
 
         self.V2V_Interference_all = 10 * np.log10(V2V_Interference)
@@ -770,10 +787,18 @@ class Environ:
         self.renew_channels_fastfading()
         self.Compute_Interference(actions) 
         rewards_list = rewards_list.T.reshape([-1])
-        V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
-        V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
-        V2I_reward = (V2I_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
-        V2V_reward = (V2V_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        #V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
+        #V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
+        
+        selected_RB = int(actions[idx[0],idx[1], 0])
+        selected_PowerdB = int(actions[idx[0],idx[1], 1]) + 100
+        
+        if selected_PowerdB >= 123:
+            selected_PowerdB = 123
+            
+        V2I_reward = (V2I_rewardlist[selected_RB, selected_PowerdB] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
+        V2V_reward = (V2V_rewardlist[selected_RB, selected_PowerdB] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        
         lambdda = 0.1
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
