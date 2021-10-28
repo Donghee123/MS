@@ -4,6 +4,25 @@ import time
 import random
 import math
 
+"""
+type 2 차량 
+- 2차원 좌표 
+- 방향
+- 속력
+- 인접한 차량 5대
+- 통신 링크가 형성된 차량 3대
+- 차량의 안테나 높이 
+"""
+class Vehicle:
+    def __init__(self, start_position, start_direction, velocity):
+        self.position = start_position #차량의 X,Y 좌표
+        self.direction = start_direction #차량의 방향 
+        self.velocity = velocity #차량의 속력
+        self.neighbors = [] # 인접한 차량 5대
+        self.destinations = [] # 통신 링크가 형성된 차량 3대
+        self.antennaHeight = 1.6 #  type 2 antenna height 1.6m, 3GPP 37.885 UE Type
+        
+        
    
 """
 2021-10-15
@@ -24,7 +43,7 @@ class V2Vchannels:
         self.t = 0
         self.h_bs = 1.6 #3GPP TR 37.885 Antenna 1.6m
         self.h_ms = 1.6 #3GPP TR 37.885 Antenna 1.6m
-        self.fc = 6 #3GPP TR 37.885 Below 6GHz Parameter
+        self.fc = 5.7 #3GPP TR 37.885 Below 6GHz Parameter
         self.decorrelation_distance = 10 #3GPP TR 36.885 for Shadowing
         self.shadow_std = 3 #3GPP TR 36.885 for LOS Shadowing 
         
@@ -112,7 +131,7 @@ class V2Vchannels:
         
         d_3d = self.get_Euclidean_Distance(position_A, position_B)          
       
-        d_bp = 4 * (self.h_bs) * (self.h_ms) * self.fc * (10**9)/(3*10**8)
+        self.d_bp = 4 * (self.h_bs) * (self.h_ms) * self.fc * (10**9)/(3*(10**8))
         
         PL = 0
         
@@ -144,7 +163,7 @@ V2I channels 진행중
 
 Below 6GHz Parameter (안함)
 Probability NLOSv, LOS(안함)
-Pathloss : LOS, NLOS, NLOSv(안함)
+Pathloss : LOS, NLOS(완료, but 적용, LOS,NLOS 구분을 안함)
 Shadowing : log-normal(안함)
 Fast fading : reyleigh fading(안함)
 """
@@ -152,7 +171,7 @@ Fast fading : reyleigh fading(안함)
 class V2Ichannels: 
     # Simulator of the V2I channels
     def __init__(self, n_Veh, n_RB):
-        self.h_bs = 5 # UE type RSU의 안테나 높이 In below 6GHz parameters using same carrierfrequency with V2V link
+        self.h_bs = 25 # UE type RSU의 안테나 높이 In below 6GHz parameters using same carrierfrequency with V2V link
         self.h_ms = 1.5
         self.Decorrelation_distance = 50        
         self.BS_position = [750/2, 1299/2]    # Suppose the BS is in the center
@@ -160,9 +179,79 @@ class V2Ichannels:
         self.n_Veh = n_Veh
         self.n_RB = n_RB
         self.update_shadow([])
+        self.fc = 5.7 #3GPP TR 37.885 Below 6GHz Parameter
+        self.d_bp = 4 * (self.h_bs) * (self.h_ms) * self.fc * (10**9)/(3*(10**8))
+        
+    #두 벡터의 Euclidean_Distance 구하기
+    def get_Euclidean_Distance(self,position_A, position_B):
+    
+        sumData = 0
+        
+        for i in range(len(position_A)):
+            sumData += (position_A[i] - position_B[i])**2
+        
+        d = math.sqrt(sumData) + 0.001 # 0을 피하기 위함.
+        
+        return d
+    
     def update_positions(self, positions):
         self.positions = positions
+    
+    """Start PathLoss LOS Function 3GPP 37.885"""
+    def PathLoss_LOS1(self, vehicle : Vehicle):
         
+        #차량의 안테나 기준으로 3D 좌표를 저장
+        vehiclePositionVector = vehicle.position + [vehicle.antennaHeight]
+        BaseStationPositionVector = self.positions + [self.h_bs]
+        d_3D = self.get_Euclidean_Distance(BaseStationPositionVector, vehiclePositionVector)
+        pathLoss = 28.0 + 22 * np.log10(d_3D) + 20 * np.log10(self.fc) 
+        return pathLoss
+    
+    def PathLoss_LOS2(self, vehicle : Vehicle):
+        
+        #차량의 안테나 기준으로 3D 좌표를 저장
+        vehiclePositionVector = vehicle.position + [vehicle.antennaHeight]
+        BaseStationPositionVector = self.positions + [self.h_bs]
+        d_3D = self.get_Euclidean_Distance(BaseStationPositionVector, vehiclePositionVector)
+        pathLoss = 28.0 + 40 * np.log10(d_3D) + 20 * np.log10(self.fc) - 9 * np.log10((self.d_bp ** 2) + (self.h_bs - vehicle.antennaHeight) ** 2)
+        return pathLoss
+    
+    def IsPathlossLOS1(self, vehicle : Vehicle):
+       #차량의 안테나 기준으로 3D 좌표를 저장
+       vehiclePositionVector = vehicle.position
+       BaseStationPositionVector = self.positions
+       d_2D = self.get_Euclidean_Distance(BaseStationPositionVector, vehiclePositionVector)
+       return d_2D <= self.d_bp
+    """End PathLoss LOS Function 3GPP 37.885"""  
+    
+    """Start PathLoss NLOS Function 3GPP 37.885"""
+    def PathLoss_NLOS1(self, vehicle : Vehicle):
+        
+        if self.IsPathlossLOS1(vehicle) == True:
+            return max(self.PathLoss_LOS1(vehicle), self.PathLoss_NLOS2(vehicle))
+        else:
+            return max(self.PathLoss_LOS2(vehicle), self.PathLoss_NLOS2(vehicle))
+        
+        
+    
+    def PathLoss_NLOS2(self, vehicle : Vehicle):
+        
+        #차량의 안테나 기준으로 3D 좌표를 저장
+        vehiclePositionVector = vehicle.position + [vehicle.antennaHeight]
+        BaseStationPositionVector = self.positions + [self.h_bs]
+        d_3D = self.get_Euclidean_Distance(BaseStationPositionVector, vehiclePositionVector)
+        pathLoss = 13.54 + 39.08 * np.log10(d_3D) + 20 * np.log10(self.fc) - 0.6 * (vehicle.antennaHeight - 1.5)
+        return pathLoss
+    
+    def IsPathlossNLOS1(self, vehicle : Vehicle):
+       #차량의 안테나 기준으로 3D 좌표를 저장
+       vehiclePositionVector = vehicle.position
+       BaseStationPositionVector = self.positions
+       d_2D = self.get_Euclidean_Distance(BaseStationPositionVector, vehiclePositionVector)
+       return d_2D <= (5 * 1000)
+   
+    """End PathLoss LOS Function 3GPP 37.885"""   
+   
     def update_pathloss(self):
         self.PathLoss = np.zeros(len(self.positions))
         for i in range(len(self.positions)):
@@ -170,6 +259,7 @@ class V2Ichannels:
             d2 = abs(self.positions[i][1] - self.BS_position[1])
             distance = math.hypot(d1,d2) # change from meters to kilometers
             self.PathLoss[i] = 128.1 + 37.6*np.log10(math.sqrt(distance**2 + (self.h_bs-self.h_ms)**2)/1000)
+            
     def update_shadow(self, delta_distance_list):
         if len(delta_distance_list) == 0:  # initialization
             self.Shadow = np.random.normal(0, self.shadow_std, self.n_Veh)
@@ -177,28 +267,12 @@ class V2Ichannels:
             delta_distance = np.asarray(delta_distance_list)
             self.Shadow = np.exp(-1*(delta_distance/self.Decorrelation_distance))* self.Shadow +\
                           np.sqrt(1-np.exp(-2*(delta_distance/self.Decorrelation_distance)))*np.random.normal(0,self.shadow_std, self.n_Veh)
+                          
     def update_fast_fading(self):
         h = 1/np.sqrt(2) * (np.random.normal(size = (self.n_Veh, self.n_RB)) + 1j* np.random.normal(size = (self.n_Veh, self.n_RB)))
         self.FastFading = 20 * np.log10(np.abs(h))
 
-"""
-type 2 차량 
-- 2차원 좌표 
-- 방향
-- 속력
-- 인접한 차량 5대
-- 통신 링크가 형성된 차량 3대
-- 차량의 안테나 높이 
-"""
-class Vehicle:
-    def __init__(self, start_position, start_direction, velocity):
-        self.position = start_position #차량의 X,Y 좌표
-        self.direction = start_direction #차량의 방향 
-        self.velocity = velocity #차량의 속력
-        self.neighbors = [] # 인접한 차량 5대
-        self.destinations = [] # 통신 링크가 형성된 차량 3대
-        self.antennaHeight = 1.6 #  type 2 antenna height 1.6m, 3GPP 37.885 UE Type
-        
+
    
 class Environ:
     # Enviroment Simulator: Provide states and rewards to agents. 
