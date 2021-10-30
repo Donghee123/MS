@@ -228,7 +228,7 @@ class SAC(object):
         self.action_all_with_power[idx[0], idx[1], 0] = select_ResourceBlock
         self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB
         
-    def play(self, actor_path = actor_path, critic_path = critic_path n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+    def play(self, actor_path, critic_path, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
         self.load_model(actor_path = actor_path, critic_path = critic_path)
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
@@ -277,7 +277,7 @@ class SAC(object):
                         
                 # print("actions", self.action_all_with_power)
             
-            
+            """ 
             number_0, bin_edges = np.histogram(power_select_list_0, bins = 10)
 
             number_1, bin_edges = np.histogram(power_select_list_1, bins = 10)
@@ -299,7 +299,7 @@ class SAC(object):
             plt.legend()
             plt.grid()
             plt.show()
-            
+            """
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
             

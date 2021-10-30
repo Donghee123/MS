@@ -10,6 +10,32 @@ from Environment import *
 #from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
 
+
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
+sumrateV2IList = []
+sumrateV2VList = []
+
+probabilityOfSatisfiedV2VList = []
+
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env-name', default="HalfCheetah-v2",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
@@ -26,7 +52,7 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
@@ -82,6 +108,7 @@ statespaceSize = 82
 actionRange = [0.0, 19123.0]
 action_space = spaces.Box(
     np.array([0.0]), np.array([19123.0]), dtype=np.float32)
+
 agent = SAC(statespaceSize, action_space, args, env)
 
 # Tesnorboard
@@ -89,9 +116,54 @@ agent = SAC(statespaceSize, action_space, args, env)
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
 
-agent.train()
+
+#agent.train()
+
+arrayOfVeh = [20,40,60,80,100]
+actor_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_actor_V2X_Model_'
+critic_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_critic_V2X_Model_'
+for nVeh in arrayOfVeh:      
+      Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
+      Env.new_random_game()
+      
+      agent = SAC(statespaceSize, action_space, args, Env)
+              
+      #학습 
+      v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+        
+      sumrateV2IList.append(v2i_Sumrate)
+      sumrateV2VList.append(v2v_Sumrate)
+        
+      probabilityOfSatisfiedV2VList.append(probability)
+               
 
 
+sumrateV2IListnpList = np.array(sumrateV2IList)
+sumrateV2VListnpList = np.array(sumrateV2VList)
+sumrateV2V_V2IListnpList = sumrateV2IListnpList + sumrateV2VListnpList
+probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
+  
+print('V2I sumrate')
+print(sumrateV2IListnpList)
+print('V2V sumrate')
+print(sumrateV2VListnpList)
+print('V2V + V2I rate')
+print(sumrateV2IListnpList + sumrateV2VListnpList)
+print('Outage probability')
+print(probabilityOfSatisfiedV2VnpList)
+
+allData=[]
+allData.append(sumrateV2IListnpList)
+allData.append(sumrateV2VListnpList)
+allData.append(sumrateV2V_V2IListnpList)
+allData.append(probabilityOfSatisfiedV2VnpList)
+allData = np.transpose(allData)
+  
+folderPath = './ResultData'
+csvFileName = 'ResultData.csv'
+createFolder(folderPath)
+MakeCSVFile(folderPath, csvFileName, allData)
+  
 """
 # Training Loop
 total_numsteps = 0

@@ -526,7 +526,7 @@ class Environ:
             for j in range(len(actions[i,:])):
                 if not self.activate_links[i,j]:
                     continue
-                Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
+                Interference[int(actions[i][j])] += 10**((power_selection[i,j] - self.V2I_channels_with_fastfading[i, int(actions[i,j])] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
 
                 
         self.V2I_Interference = Interference + self.sig2
@@ -539,7 +539,7 @@ class Environ:
             for j in range(len(indexes)):
                 #receiver_j = self.vehicles[indexes[j,0]].neighbors[indexes[j,1]]
                 receiver_j = self.vehicles[indexes[j,0]].destinations[indexes[j,1]]
-                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[power_selection[indexes[j, 0],indexes[j, 1]]] -\
+                V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((power_selection[indexes[j, 0],indexes[j, 1]] -\
                 self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
                 #V2V_Signal[indexes[j, 0],indexes[j, 1]] = 10**((self.V2V_power_dB_List[0] - self.V2V_channels_with_fastfading[indexes[j][0]][receiver_j][i])/10) 
                 if i<self.n_Veh:
@@ -547,9 +547,9 @@ class Environ:
                     self.V2V_channels_with_fastfading[i][receiver_j][i] + 2*self.vehAntGain - self.vehNoiseFigure )/10)  # V2I links interference to V2V links
                 for k in range(j+1, len(indexes)):
                     receiver_k = self.vehicles[indexes[k][0]].destinations[indexes[k][1]]
-                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[k,0],indexes[k,1]]] -\
+                    V2V_Interference[indexes[j,0],indexes[j,1]] += 10**((power_selection[indexes[k,0],indexes[k,1]] -\
                     self.V2V_channels_with_fastfading[indexes[k][0]][receiver_j][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
-                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - \
+                    V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((power_selection[indexes[j,0],indexes[j,1]] - \
                     self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)
                     Interfence_times[indexes[j,0],indexes[j,1]] += 1 # 필요 없는듯?
                     Interfence_times[indexes[k,0],indexes[k,1]] += 1 # 필요 없는듯?            
@@ -741,7 +741,8 @@ class Environ:
         if len(actions.shape) == 3:
             channel_selection = actions.copy()[:,:,0]
             power_selection = actions[:,:,1]
-            channel_selection[np.logical_not(self.activate_links)] = -1
+            channel_selection[np.logical_not(self.activate_links)] = -1        
+                    
             for i in range(self.n_RB):
                 for k in range(len(self.vehicles)):
                     for m in range(len(channel_selection[k,:])):
@@ -750,10 +751,10 @@ class Environ:
                 for j in range(len(channel_selection[i,:])):
                     for k in range(len(self.vehicles)):
                         for m in range(len(channel_selection[k,:])):
-                            if (i==k) or (channel_selection[i,j] >= 0):
+                            if (i==k) or (int(channel_selection[i,j]) >= 0):
                                 continue
-                            V2V_Interference[k, m, channel_selection[i,j]] += 10**((power_selection[i,j] -\
-                            self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][channel_selection[i,j]] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
+                            V2V_Interference[k, m, int(channel_selection[i,j])] += 10**((power_selection[i,j] -\
+                            self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][int(channel_selection[i,j])] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
 
         self.V2V_Interference_all = 10 * np.log10(V2V_Interference)
                 
