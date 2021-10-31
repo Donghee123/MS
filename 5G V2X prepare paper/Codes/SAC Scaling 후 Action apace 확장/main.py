@@ -44,7 +44,7 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 
-#======================================================================================
+#테스트 관련 하이퍼파라미터==============================================================
 parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256
                     help='batch size (default: 256)')
 
