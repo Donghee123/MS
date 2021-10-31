@@ -45,17 +45,17 @@ parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 
 #======================================================================================
-parser.add_argument('--batch_size', type=int, default=10, metavar='N', # 256
+parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256
                     help='batch size (default: 256)')
 
 #처음에 랜덤 선택하는 횟수를 지정함
-parser.add_argument('--start_steps', type=int, default=50, metavar='N',  # 10000
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
                     help='Steps sampling random actions (default: 10000)')
 
-parser.add_argument('--train_step', type=int, default=6, metavar='N',  # 40000
+parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
                     help='Set train step (default: 40000)')
 
-parser.add_argument('--test_step', type=int, default=1, metavar='N',  # 2000
+parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
                     help='Set test interval step (default: 2000)')
 #======================================================================================
 
