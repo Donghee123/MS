@@ -741,8 +741,7 @@ class Environ:
         if len(actions.shape) == 3:
             channel_selection = actions.copy()[:,:,0]
             power_selection = actions[:,:,1]
-            channel_selection[np.logical_not(self.activate_links)] = -1        
-                    
+            channel_selection[np.logical_not(self.activate_links)] = -1
             for i in range(self.n_RB):
                 for k in range(len(self.vehicles)):
                     for m in range(len(channel_selection[k,:])):
@@ -751,7 +750,7 @@ class Environ:
                 for j in range(len(channel_selection[i,:])):
                     for k in range(len(self.vehicles)):
                         for m in range(len(channel_selection[k,:])):
-                            if (i==k) or (int(channel_selection[i,j]) >= 0):
+                            if (i==k) or (channel_selection[i,j] >= 0):
                                 continue
                             V2V_Interference[k, m, int(channel_selection[i,j])] += 10**((power_selection[i,j] -\
                             self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][int(channel_selection[i,j])] + 2*self.vehAntGain - self.vehNoiseFigure)/10)

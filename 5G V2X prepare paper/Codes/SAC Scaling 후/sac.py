@@ -264,7 +264,7 @@ class SAC(object):
                     for j in sorted_idx:
                         state_old = self.get_state([i, j])
                         time_left_list.append(state_old[-1])
-                        action = self.select_action(state_old, evaluate=True)
+                        action = self.select_action(state_old)
                         
                         if state_old[-1] <=0:
                             continue
