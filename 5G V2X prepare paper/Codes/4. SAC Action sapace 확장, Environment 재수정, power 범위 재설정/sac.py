@@ -427,10 +427,10 @@ class SAC(object):
                         selected_resourceBlock , selected_powerdB = self.ClipAction(action)
                          
                         #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
-                        self.action_all_with_power_training[i, j, 0] = int(selected_resourceBlock)  # Resourceblock 인덱스 
+                        self.action_all_with_power_training[i, j, 0] = int(selected_resourceBlock)  # 선택한 Resourceblock을 저장함. 
                         
                         #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
-                        self.action_all_with_power_training[i, j, 1] = selected_powerdB #-100~23 power dB
+                        self.action_all_with_power_training[i, j, 1] = selected_powerdB # PowerdBm을 저장함.
                                          
                         #선택한 power level과 resource block을 기반으로 reward를 계산함.
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
