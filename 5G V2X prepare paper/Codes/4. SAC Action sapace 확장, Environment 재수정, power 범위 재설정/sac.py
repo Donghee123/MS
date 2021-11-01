@@ -50,6 +50,7 @@ class SAC(object):
         self.action_all_with_power_training = np.zeros([20, 3, 2],dtype = 'float')   # this is actions that taken by V2V links with power
         self.memory = ReplayMemory(args.replay_size, args.seed)
         self.device = torch.device("cuda" if args.cuda else "cpu")
+        print('test wiil be processing by ', self.device)
         self.RB_number = 20
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
