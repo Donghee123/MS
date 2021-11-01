@@ -35,6 +35,8 @@ class SAC(object):
     def __init__(self, num_inputs, action_space, args, env):
 
         self.env = env
+        self.train_step = args.train_step
+        self.test_step = args.test_step
         self.num_vehicle = env.n_Veh
         self.gamma = args.gamma
         self.tau = args.tau
@@ -77,7 +79,7 @@ class SAC(object):
             action, _, _ = self.policy.sample(state)
         else:
             _, _, action = self.policy.sample(state)
-        return float(action.detach().cpu()[0])
+        return action.detach().cpu()[0]
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
@@ -86,6 +88,8 @@ class SAC(object):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = torch.FloatTensor(action_batch).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
+        mask_batch = torch.FloatTensor(mask_batch).to(self.device)
         reward_batch = torch.FloatTensor(reward_batch).to(self.device)
         mask_batch = torch.FloatTensor(mask_batch).to(self.device)
 
@@ -229,9 +233,32 @@ class SAC(object):
         
         return selected_resourceBlock, selected_powerdB
     
+    
+    """
+    Clip 기능 추가 2021/10/31
+    """
+    
+    def ClipAction(self, action : np.array):
+        
+        selected_resourceBlock = int(action[0])
+        
+        if selected_resourceBlock < 0:
+            selected_resourceBlock = 0
+        elif selected_resourceBlock > 19:
+            selected_resourceBlock = 19
+         
+        selected_powerdB = action[1]
+        
+        if selected_powerdB < 0.0:
+            selected_powerdB = 0.0
+        elif selected_powerdB > 23.0:
+            selected_powerdB = 23.0
+        
+        return selected_resourceBlock, selected_powerdB
+    
     def merge_action(self, idx, action):
-        select_ResourceBlock, select_PowerdB = self.GenerateAction(action)
-        self.action_all_with_power[idx[0], idx[1], 0] = select_ResourceBlock
+        select_ResourceBlock, select_PowerdB = self.ClipAction(action) 
+        self.action_all_with_power[idx[0], idx[1], 0] = int(select_ResourceBlock)
         self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB 
         
     def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
@@ -264,7 +291,7 @@ class SAC(object):
                     for j in sorted_idx:
                         state_old = self.get_state([i, j])
                         time_left_list.append(state_old[-1])
-                        action = self.select_action(state_old)
+                        action = self.select_action(state_old, evaluate=True)
                         
                         if state_old[-1] <=0:
                             continue
@@ -333,7 +360,7 @@ class SAC(object):
         
         
         
-        for self.step in (range(0, 50000)): # need more configuration #50000
+        for self.step in (range(0, self.train_step)): # need more configuration #40000
             if self.step == 0:                   # initialize set some varibles
                 num_game, self.update_count,ep_reward = 0, 0, 0.
                 total_reward, self.total_loss, self.total_q = 0., 0., 0.
@@ -356,11 +383,13 @@ class SAC(object):
             temp_ent_losses = []
             temp_alphas = []
             
+            #현재 상태에서 모든 차량이 선택을 수행함.
             for k in range(1):
                 #i번째 송신 차량
                 for i in range(len(self.env.vehicles)):
                     #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
                     for j in range(3): 
+                        
                         # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
                         state_old = self.get_state([i,j]) 
                         
@@ -369,11 +398,11 @@ class SAC(object):
                         # 랜덤 선택
                         if self.args.start_steps > total_numsteps:
                             resourceblock = random.randint(0, 19)
-                            powerdBm = random.uniform(0.0, 123.0)
-                            action = (resourceblock * 1000) + powerdBm
+                            powerdBm = random.uniform(0.0, 23.0)
+                            action = np.array([resourceblock, powerdBm])
                         else:
                             action = self.select_action(state_old)
-                            print('selcted greedy action : ', action)
+                            #print('selcted greedy action : ', action)
                         
                         # 업데이트 
                         if len(self.memory) > self.args.batch_size:
@@ -394,7 +423,7 @@ class SAC(object):
                         #self.merge_action([i,j], action)   
                         
                         #선택 selected_resourceBlock, selected_powerdB                 
-                        selected_resourceBlock , selected_powerdB = self.GenerateAction(action)
+                        selected_resourceBlock , selected_powerdB = self.ClipAction(action)
                          
                         #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
                         self.action_all_with_power_training[i, j, 0] = int(selected_resourceBlock)  # Resourceblock 인덱스 
@@ -411,7 +440,7 @@ class SAC(object):
                         
                         #self.observe(state_old, state_new, reward_train, action)
                         
-                        self.memory.push(state_old.reshape(82), np.array([action]), np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
+                        self.memory.push(state_old.reshape(82), action, np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
             
             critic_1_losses.append(np.mean(temp_critic_1_losses))
             critic_2_losses.append( np.mean(temp_critic_2_losses))
@@ -420,8 +449,7 @@ class SAC(object):
             alphas.append(np.mean(temp_alphas)   )                                                         
             rewardloggingData.append(reward_sum/60.0)
             
-            """
-            if (self.step % 2000 == 0) and (self.step > 0):
+            if (self.step % self.test_step == 0) and (self.step > 0):
                 # testing 
                 self.training = False
                 number_of_game = 10
@@ -430,11 +458,13 @@ class SAC(object):
                 if (self.step == 38000):
                     number_of_game = 100               
                 V2I_Rate_list = np.zeros(number_of_game)
+                V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
                 for game_idx in range(number_of_game):
                     self.env.new_random_game(self.num_vehicle)
                     test_sample = 200
-                    Rate_list = []
+                    V2IRate_list = []
+                    V2VRate_list = []
                     print('test game idx:', game_idx)
                     for k in range(test_sample):
                         action_temp = self.action_all_with_power.copy()
@@ -442,28 +472,31 @@ class SAC(object):
                             self.action_all_with_power[i,:,0] = -1
                             sorted_idx = np.argsort(self.env.individual_time_limit[i,:])          
                             for j in sorted_idx:                   
-                                state_old = self.get_state([i,j])
-                                action = self.select_action(state_old)
+                                state_old = self.get_state([i,j])                               
+                                action = self.select_action(state_old, evaluate=True)
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
                                 action_temp = self.action_all_with_power.copy()
-                                reward, percent = self.env.act_asyn(action_temp) #self.action_all)            
-                                Rate_list.append(np.sum(reward))
+                                V2IRate, V2VRate, percent = self.env.act_asyn(action_temp) #self.action_all)            
+                                V2IRate_list.append(np.sum(V2IRate))
+                                V2VRate_list.append(np.sum(V2VRate))
                         #print("actions", self.action_all_with_power)
-                    V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_Rate_list[game_idx] = np.mean(np.asarray(V2IRate_list))
+                    V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
                     Fail_percent_list[game_idx] = percent
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
                     
-                self.save_model('V2X_Model')
+                
+                
+                #2000번 트레이닝 할때 마다 모델 저장.
+                self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print ('The number of vehicle is ', len(self.env.vehicles))
-                print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
                 print('Mean of Fail percent is that ', np.mean(Fail_percent_list))                   
-                #print('Test Reward is ', np.mean(test_result))
-              
-            """    
-             
+                
+           
                                 
         allTrainLogingData=[]
         allTrainLogingData.append(np.array(critic_1_losses))
@@ -483,4 +516,5 @@ class SAC(object):
         createFolder(folderPath)
         MakeCSVFile(folderPath, csvFileName, updateloggingDataHeader, allTrainLogingData)
         MakeCSVFile(folderPath, csvrewardFileName, rewardloggingDataHeader, allTrainRewardLogingData)
+        
         self.save_model('V2X_Model')

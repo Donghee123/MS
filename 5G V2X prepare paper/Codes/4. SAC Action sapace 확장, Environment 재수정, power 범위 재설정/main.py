@@ -26,26 +26,39 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=512, metavar='N', # 
-                    help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=500, metavar='N',
+parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
                     help='hidden size (default: 500)')
-parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
+parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=20000, metavar='N', # 
-                    help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
+
+parser.add_argument('--target_update_interval', type=int, default=3, metavar='N', # 1
                     help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
+
+#테스트 관련 하이퍼파라미터==============================================================
+parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256
+                    help='batch size (default: 256)')
+
+#처음에 랜덤 선택하는 횟수를 지정함
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
+                    help='Steps sampling random actions (default: 10000)')
+
+parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
+                    help='Set train step (default: 40000)')
+
+parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
+                    help='Set test interval step (default: 2000)')
+#======================================================================================
+
 args = parser.parse_args()
 
 # Environment
@@ -79,9 +92,9 @@ np.random.seed(args.seed)
 
 # Agent
 statespaceSize = 82
-actionRange = [0.0, 20000.0]
 action_space = spaces.Box(
-    np.array([0.0]), np.array([20000.0]), dtype=np.float32)
+    np.array([0,0.0]), np.array([19,23.0]), dtype=np.float32)
+
 agent = SAC(statespaceSize, action_space, args, env)
 
 # Tesnorboard
