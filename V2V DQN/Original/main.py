@@ -61,10 +61,10 @@ def main(_):
     agent = Agent(config, Env, sess)
     
     #학습 전
-    agent.play()
+    gent.play()
     
     #학습
-    #agent.train()
+    agent.train()
     
     #학습 후
     #agent.play()

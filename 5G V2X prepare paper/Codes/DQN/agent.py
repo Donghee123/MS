@@ -17,7 +17,11 @@ class Agent(BaseModel):
         #self.history = History(self.config)
         model_dir = './Model/a.model'
         self.memory = ReplayMemory(model_dir) 
+        self.isCollectMemory = True
         self.max_step = 100000 
+        
+        self.replay_memory_size = self.memory.memory_size
+        
         self.RB_number = 20
         self.num_vehicle = len(self.env.vehicles)
         self.action_all_with_power = np.zeros([self.num_vehicle, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
@@ -113,8 +117,9 @@ class Agent(BaseModel):
             if self.step % self.target_q_update_step == self.target_q_update_step - 1:
                 #print("Update Target Q network:")
                 self.update_target_q_network()           # ?? what is the meaning ??
-                
-    def train(self):        
+    
+    
+    def train(self):  
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0.,0.,0.
         max_avg_ep_reward = 0
@@ -134,6 +139,8 @@ class Agent(BaseModel):
             # action = self.predict(self.history.get())
             if (self.step % 2000 == 1):
                 self.env.new_random_game(20)
+                
+            
                 
             print(self.step)
             state_old = self.get_state([0,0])
@@ -164,6 +171,9 @@ class Agent(BaseModel):
                         state_new = self.get_state([i,j]) 
                         
                         self.observe(state_old, state_new, reward_train, action)
+                        
+                        if self.memory.addCount % self.memory_size == 0:
+                            self.memory.save('train')
                         
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 

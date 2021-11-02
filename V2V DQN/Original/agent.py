@@ -126,6 +126,7 @@ class Agent(BaseModel):
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
                         state_new = self.get_state([i,j]) 
                         self.observe(state_old, state_new, reward_train, action)
+                        
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 
                 self.training = False

@@ -4,6 +4,25 @@ import logging
 import numpy as np
 #from utils import save_npy, load_npy
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    
 class ReplayMemory:
     def __init__(self, model_dir):
         self.model_dir = model_dir        
@@ -37,4 +56,7 @@ class ReplayMemory:
         actions = self.actions[indexes]
         rewards = self.rewards[indexes]
         return prestate, poststate, actions, rewards
+    
+    def save(self):
+        
    
