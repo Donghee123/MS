@@ -78,8 +78,8 @@ def main(_):
   width = 750
   height = 1299
   
-  arrayOfVeh = [20,40,60,80,100]
-  
+  #arrayOfVeh = [20,40,60,80,100] for play
+  arrayOfVeh = [20] # for train
 
   
   for nVeh in arrayOfVeh:      
@@ -98,12 +98,12 @@ def main(_):
         agent.train()
         
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
+        #v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
         
-        sumrateV2IList.append(v2i_Sumrate)
-        sumrateV2VList.append(v2v_Sumrate)
+        #sumrateV2IList.append(v2i_Sumrate)
+        #sumrateV2VList.append(v2v_Sumrate)
         
-        probabilityOfSatisfiedV2VList.append(probability)
+        #probabilityOfSatisfiedV2VList.append(probability)
         
         
         #학습 후

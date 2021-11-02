@@ -172,7 +172,7 @@ class Agent(BaseModel):
                         
                         self.observe(state_old, state_new, reward_train, action)
                         
-                        if self.memory.addCount % self.memory_size == 0:
+                        if self.memory.addCount % self.replay_memory_size == 0:
                             self.memory.save('train')
                         
             if (self.step % 2000 == 0) and (self.step > 0):

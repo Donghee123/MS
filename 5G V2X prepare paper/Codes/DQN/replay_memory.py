@@ -8,7 +8,7 @@ from utils import *
 class ReplayMemory:
     def __init__(self, model_dir):
         self.model_dir = model_dir        
-        self.memory_size = 1000000
+        self.memory_size = 1000000 # 1000000
         self.actions = np.empty(self.memory_size, dtype = np.uint8)
         self.rewards = np.empty(self.memory_size, dtype = np.float64)
         self.prestate = np.empty((self.memory_size, 82), dtype = np.float16)
@@ -54,16 +54,13 @@ class ReplayMemory:
         createFolder(folderpath)
         V2V_power_dB_List = [23, 10, 5] 
                      
-        self.datas = []
+        datas = []
         
-        for index in len(actions):
-            if len(actions[index]) < 1:
-                continue
-            else:
-                selectRB = actions[index] % 20        
-                selectPowerdBmIndex = V2V_power_dB_List[int(np.floor(actions[index]/20))]                
-                datas.append(np.concatenate(self.prestate[indexes], self.poststate[indexes], np.array([selectRB, selectPowerdBmIndex]), self.rewards[indexes]))
+        for index in range(len(self.actions)):           
+            selectRB = self.actions[index] % 20        
+            selectPowerdBmIndex = V2V_power_dB_List[int(np.floor(self.actions[index]/20))]             
+            datas.append(np.concatenate((self.prestate[index], self.poststate[index], np.array([selectRB, selectPowerdBmIndex]),np.array([self.rewards[index]]))))
                 
-        MakeCSVFile(folderpath, datas, useCaseFilename, saveCount)
-        saveCount += 1
+        MakeCSVFile(folderpath, datas, useCaseFilename, self.saveCount)
+        self.saveCount += 1
         
