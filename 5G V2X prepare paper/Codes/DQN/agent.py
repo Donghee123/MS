@@ -174,7 +174,7 @@ class Agent(BaseModel):
                         
                         if self.memory.addCount % self.replay_memory_size == 0:
                             self.memory.save('train')
-                        
+            """            
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 
                 self.training = False
@@ -213,8 +213,8 @@ class Agent(BaseModel):
                 print ('The number of vehicle is ', len(self.env.vehicles))
                 print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
                 print('Mean of Fail percent is that ', np.mean(Fail_percent_list))                   
-                #print('Test Reward is ', np.mean(test_result))
-             
+                #print('Test Reward is ', np.mean(test_result))"""
+        self.memory.save('train')    
                   
                     
             

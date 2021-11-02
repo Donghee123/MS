@@ -595,10 +595,10 @@ class Environ:
         # 선택한 power level          
         power_selection = actions_power.copy()[:,:,1]   
         
-        print('select resource block')
-        print(actions)
-        print('select power level')
-        print(power_selection)
+        #print('select resource block')
+        #print(actions)
+        #print('select power level')
+        #print(power_selection)
         #모든 차량에 대해서 연결된 3개의 차량의 Interference
         V2V_Interference = np.zeros((len(self.vehicles), 3))
         
