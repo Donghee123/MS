@@ -55,7 +55,7 @@ parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10
 parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
                     help='Set train step (default: 40000)')
 
-parser.add_argument('--test_step', type=int, default=2, metavar='N',  # 2000
+parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
                     help='Set test interval step (default: 2000)')
 #======================================================================================
 
