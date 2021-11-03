@@ -60,8 +60,8 @@ class ReplayMemory:
         for index in range(len(self.actions)):           
             selectRB = self.actions[index] % 20        
             selectPowerdBmIndex = V2V_power_dB_List[int(np.floor(self.actions[index]/20))]             
-            datas.append(np.concatenate((self.prestate[index], self.poststate[index], np.array([selectRB, selectPowerdBmIndex]),np.array([self.rewards[index]]))))
-                
+            #datas.append(np.concatenate((self.prestate[index], self.poststate[index], np.array([selectRB, selectPowerdBmIndex]),np.array([self.rewards[index]]))))
+            datas.append(np.concatenate((self.prestate[index],np.array([selectRB, selectPowerdBmIndex]), np.array([self.rewards[index]]), self.poststate[index])))
         MakeCSVFile(folderpath, datas, useCaseFilename, self.saveCount)
         self.saveCount += 1
         
