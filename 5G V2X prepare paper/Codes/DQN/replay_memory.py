@@ -28,8 +28,8 @@ class ReplayMemory:
         self.count = max(self.count, self.current + 1)
         self.current = (self.current + 1) % self.memory_size
         self.addCount += 1
-        print('add : ', self.addCount)
-        print('size : ', self.memory_size)
+        #print('add : ', self.addCount)
+        #print('size : ', self.memory_size)
        
    
            

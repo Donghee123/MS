@@ -494,8 +494,13 @@ class SAC(object):
                 self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print ('The number of vehicle is ', len(self.env.vehicles))
                 print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
-                print('Mean of Fail percent is that ', np.mean(Fail_percent_list))                   
+                print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+                print('Mean of Fail percent is that ', np.mean(Fail_percent_list))    
                 
+
+                
+        
            
                                 
         allTrainLogingData=[]

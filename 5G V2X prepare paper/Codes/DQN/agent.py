@@ -183,12 +183,16 @@ class Agent(BaseModel):
                     number_of_game = 50 
                 if (self.step == 38000):
                     number_of_game = 100               
+                V2I_V2X_Rate_list = np.zeros(number_of_game)
                 V2I_Rate_list = np.zeros(number_of_game)
+                V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
                 for game_idx in range(number_of_game):
                     self.env.new_random_game(self.num_vehicle)
                     test_sample = 200
                     Rate_list = []
+                    temp_V2V_Rate_list = []
+                    temp_V2I_Rate_list = []
                     print('test game idx:', game_idx)
                     for k in range(test_sample):
                         action_temp = self.action_all_with_power.copy()
@@ -200,18 +204,24 @@ class Agent(BaseModel):
                                 action = self.predict(state_old, self.step, True)
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
-                                action_temp = self.action_all_with_power.copy()
-                                reward, percent = self.env.act_asyn(action_temp) #self.action_all)            
-                                Rate_list.append(np.sum(reward))
+                                action_temp = self.action_all_with_power.copy()                                
+                                returnV2IReward, returnV2VReward, percent = self.env.act_asyn(action_temp) #self.action_all)            
+                                Rate_list.append(np.sum(returnV2IReward) + np.sum(returnV2VReward))
+                                temp_V2I_Rate_list.append(np.sum(returnV2IReward))
+                                temp_V2V_Rate_list.append(np.sum(returnV2VReward))
                         #print("actions", self.action_all_with_power)
-                    V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
+                    V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
                     Fail_percent_list[game_idx] = percent
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
                 self.save_weight_to_pkl()
                 print ('The number of vehicle is ', len(self.env.vehicles))
+                print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
                 print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
                 print('Mean of Fail percent is that ', np.mean(Fail_percent_list))                   
                 #print('Test Reward is ', np.mean(test_result))
         self.memory.save('train')    
