@@ -39,7 +39,7 @@ flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to u
 flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
 
 # Etc
-flags.DEFINE_boolean('use_gpu', False, 'Whether to use gpu or not')
+flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
 flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
 flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
@@ -87,7 +87,7 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
 
 #테스트 관련 하이퍼파라미터==============================================================
 
-parser.add_argument('--cuda', action="store_true",default=False,
+parser.add_argument('--cuda', action="store_true",default=True,
                     help='run on CUDA (default: False)')
 
 parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256
@@ -97,13 +97,13 @@ parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
                     help='model updates per simulator step (default: 1)')
 
 #처음에 랜덤 선택하는 횟수를 지정함
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
+parser.add_argument('--start_steps', type=int, default=1000, metavar='N',  # 10000
                     help='Steps sampling random actions (default: 10000)')
 
 parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
                     help='Set train step (default: 40000)')
 
-parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
+parser.add_argument('--test_step', type=int, default=50, metavar='N',  # 2000
                     help='Set test interval step (default: 2000)')
 
 parser.add_argument('--train_graph_step', type=int, default=50, metavar='N',  # 2000

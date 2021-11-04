@@ -254,9 +254,10 @@ class SAC(object):
         return selected_powerdB
     
     def merge_action(self, idx, action):
-        select_ResourceBlock, select_PowerdB = self.ClipAction(action) 
+        select_ResourceBlock = action[0]
+        select_PowerdBm = self.ClipAction(action[1]) 
         self.action_all_with_power[idx[0], idx[1], 0] = int(select_ResourceBlock)
-        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB 
+        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdBm 
         
     def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
         
@@ -466,7 +467,7 @@ class SAC(object):
             
             
             if self.step % self.train_graph_step == 0:
-                plt.hist(train_selectPowerList, bins=100, density=True, alpha=0.7, histtype='stepfilled')                       
+                plt.hist(train_selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')                       
                 plt.title('train')
                 plt.show()
                         
@@ -531,7 +532,7 @@ class SAC(object):
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     
-                    plt.hist(selectPowerList, bins=100, density=True, alpha=0.7, histtype='stepfilled')
+                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')
                     plt.title('play')
                     plt.show()
                     #print('action is that', action_temp[0,:])
