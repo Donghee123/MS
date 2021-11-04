@@ -23,7 +23,7 @@ class ReplayMemory:
         
         concatenateData.append(1) #to input done
         #state(82), action(2), reward(1), nextstate(82), done(1)
-        self.buffer[self.position] = (concatenateData[0:82], concatenateData[82:84], concatenateData[84:85], concatenateData[85:167], concatenateData[167:168])
+        self.buffer[self.position] = (np.array(concatenateData[0:82], dtype=float), np.array(concatenateData[82:84], dtype=float), np.array(concatenateData[84:85],dtype=float),np.array( concatenateData[85:167],dtype=float), np.array(concatenateData[167:168], dtype=float))
         self.position = (self.position + 1) % self.capacity
         
     def load(self, Filepath):

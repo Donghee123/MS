@@ -417,6 +417,10 @@ class SAC(object):
                                 temp_policy_losses.append(policy_loss)
                                 temp_ent_losses.append(ent_loss)
                                 temp_alphas.append(alpha)
+                                #print('policy loss : ', policy_loss)
+                                #print('critic1 loss : ', critic_1_loss)
+                                #print('critic2 loss : ', critic_2_loss)
+                                #print('entropy loss : ',ent_loss)
                           
 
                         total_numsteps+=1
@@ -442,6 +446,7 @@ class SAC(object):
                         
                         self.memory.push(state_old.reshape(82), action, np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
             
+            print(reward_sum)
             critic_1_losses.append(np.mean(temp_critic_1_losses))
             critic_2_losses.append( np.mean(temp_critic_2_losses))
             policy_losses.append(np.mean(temp_policy_losses))
