@@ -10,6 +10,32 @@ from Environment import *
 #from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
 
+
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
+sumrateV2IList = []
+sumrateV2VList = []
+
+probabilityOfSatisfiedV2VList = []
+
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env-name', default="HalfCheetah-v2",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
@@ -30,39 +56,22 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metav
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
+parser.add_argument('--batch_size', type=int, default=256, metavar='N',
+                    help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
+parser.add_argument('--hidden_size', type=int, default=500, metavar='N',
                     help='hidden size (default: 500)')
-parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
+parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-
-
+parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
+                    help='Steps sampling random actions (default: 10000)')
+parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
+                    help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
-
-#테스트 관련 하이퍼파라미터==============================================================
-parser.add_argument('--cuda', action="store_true",default=False,
+parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
-
-#Q target update 간격 batch size * 지정수
-parser.add_argument('--target_update_interval', type=int, default=3, metavar='N', # 1
-                    help='Value target update per no. of updates per step (default: 1)')
-
-parser.add_argument('--batch_size', type=int, default=512, metavar='N', # 256
-                    help='batch size (default: 256)')
-
-#처음에 랜덤 선택하는 횟수를 지정함
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
-                    help='Steps sampling random actions (default: 10000)')
-
-parser.add_argument('--train_step', type=int, default=1000000, metavar='N',  # 40000
-                    help='Set train step (default: 40000)')
-
-parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
-                    help='Set test interval step (default: 2000)')
-#======================================================================================
-
 args = parser.parse_args()
 
 # Environment
@@ -96,8 +105,9 @@ np.random.seed(args.seed)
 
 # Agent
 statespaceSize = 82
+actionRange = [0.0, 19123.0]
 action_space = spaces.Box(
-    np.array([0,0.0]), np.array([19,23.0]), dtype=np.float32)
+    np.array([0.0]), np.array([19123.0]), dtype=np.float32)
 
 agent = SAC(statespaceSize, action_space, args, env)
 
@@ -106,9 +116,54 @@ agent = SAC(statespaceSize, action_space, args, env)
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
 
-#agent.train()
-agent.train_from_replaData('H:/Projects/MS_v0/5G V2X prepare paper/Codes/6. SAC Action space 확장, Environment 재수정, power 범위 재조정(0.0~23.0), DQN의 Replay memory 로 update 테스트(1. SAC)/traindata')
 
+#agent.train()
+
+arrayOfVeh = [20,40,60,80,100]
+actor_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_actor_V2X_Model_'
+critic_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_critic_V2X_Model_'
+for nVeh in arrayOfVeh:      
+      Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
+      Env.new_random_game()
+      
+      agent = SAC(statespaceSize, action_space, args, Env)
+              
+      #학습 
+      v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+        
+      sumrateV2IList.append(v2i_Sumrate)
+      sumrateV2VList.append(v2v_Sumrate)
+        
+      probabilityOfSatisfiedV2VList.append(probability)
+               
+
+
+sumrateV2IListnpList = np.array(sumrateV2IList)
+sumrateV2VListnpList = np.array(sumrateV2VList)
+sumrateV2V_V2IListnpList = sumrateV2IListnpList + sumrateV2VListnpList
+probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
+  
+print('V2I sumrate')
+print(sumrateV2IListnpList)
+print('V2V sumrate')
+print(sumrateV2VListnpList)
+print('V2V + V2I rate')
+print(sumrateV2IListnpList + sumrateV2VListnpList)
+print('Outage probability')
+print(probabilityOfSatisfiedV2VnpList)
+
+allData=[]
+allData.append(sumrateV2IListnpList)
+allData.append(sumrateV2VListnpList)
+allData.append(sumrateV2V_V2IListnpList)
+allData.append(probabilityOfSatisfiedV2VnpList)
+allData = np.transpose(allData)
+  
+folderPath = './ResultData'
+csvFileName = 'ResultData.csv'
+createFolder(folderPath)
+MakeCSVFile(folderPath, csvFileName, allData)
+  
 """
 # Training Loop
 total_numsteps = 0
