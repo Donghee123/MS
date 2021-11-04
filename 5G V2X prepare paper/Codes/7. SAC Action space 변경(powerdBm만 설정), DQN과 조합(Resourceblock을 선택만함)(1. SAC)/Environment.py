@@ -756,8 +756,10 @@ class Environ:
         #time_limit이 0보다 같거나 작은 것이 있는 경우...??
         self.individual_time_limit [np.add(self.individual_time_limit <= 0,  self.demand < 0)] = self.V2V_limit
         self.demand[self.demand < 0] = self.demand_amount
+        
         if self.test_time_count == 0:
             self.test_time_count = 10
+            
         return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
 
     def Compute_Interference(self, actions):
