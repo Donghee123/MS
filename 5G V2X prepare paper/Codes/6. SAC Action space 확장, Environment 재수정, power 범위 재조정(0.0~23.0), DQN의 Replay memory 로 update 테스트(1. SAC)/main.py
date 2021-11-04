@@ -56,7 +56,7 @@ parser.add_argument('--batch_size', type=int, default=512, metavar='N', # 256
 parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
                     help='Steps sampling random actions (default: 10000)')
 
-parser.add_argument('--train_step', type=int, default=10, metavar='N',  # 40000
+parser.add_argument('--train_step', type=int, default=1000000, metavar='N',  # 40000
                     help='Set train step (default: 40000)')
 
 parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000

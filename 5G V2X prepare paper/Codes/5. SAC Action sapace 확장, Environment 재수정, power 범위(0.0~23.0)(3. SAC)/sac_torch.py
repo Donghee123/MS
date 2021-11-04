@@ -107,6 +107,7 @@ class Agent():
         
         actor_loss = log_probs - critic_value
         actor_loss = T.mean(actor_loss)
+        print(actor_loss)
         self.actor.optimizer.zero_grad()
         actor_loss.backward(retain_graph=True)
         self.actor.optimizer.step()
