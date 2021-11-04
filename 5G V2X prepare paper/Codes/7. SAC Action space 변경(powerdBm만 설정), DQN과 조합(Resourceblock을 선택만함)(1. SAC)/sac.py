@@ -1,16 +1,18 @@
 import os
 import torch
 import torch.nn.functional as F
-from torch.optim import Adam
-from utils import soft_update, hard_update
-from model import GaussianPolicy, QNetwork, DeterministicPolicy
-from dqnagent import Agent
 import numpy as np
-from replay_memory import ReplayMemory
+from torch.optim import Adam
 import random
 import pandas as pd
 import csv
-import os
+import matplotlib.pyplot as plt
+
+from utils import soft_update, hard_update
+from model import GaussianPolicy, QNetwork, DeterministicPolicy
+from dqnagent import Agent
+from replay_memory import ReplayMemory
+
 
 #File 유틸 함수들    
 def createFolder(directory):
@@ -34,7 +36,8 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     
 class SAC(object):
     def __init__(self, dqnagent, num_inputs, action_space, args, env):
-
+        
+        self.train_graph_step = args.train_graph_step
         self.dqnagent = dqnagent
         self.env = env
         self.train_step = args.train_step
@@ -354,7 +357,11 @@ class SAC(object):
         alphas = []
         rewardloggingData = []
         
-             
+        #for train show
+        train_selectPowerList = []
+        train_selectRBList = []
+        
+            
         for self.step in (range(0, self.train_step)): # need more configuration #40000
         
             if self.step == 0:                   # initialize set some varibles
@@ -409,6 +416,9 @@ class SAC(object):
                             action = self.select_action(state_old)
                             #print('selcted greedy action : ', action)
                         
+                        train_selectPowerList.append(action[0])
+                        train_selectRBList.append(selectedResourceblock)
+                        
                         # 업데이트 
                         if len(self.memory) > self.args.batch_size:
                             # Number of updates per step in environment
@@ -440,6 +450,8 @@ class SAC(object):
                         #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
                         self.action_all_with_power_training[i, j, 1] = selected_powerdB # PowerdBm을 저장함.
                         
+                        #print(self.action_all_with_power_training)
+                        
                         #선택한 power level과 resource block을 기반으로 reward를 계산함.
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
                         
@@ -460,6 +472,12 @@ class SAC(object):
                         
                         self.memory.push(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([1])) # Append transition to memory
             
+            if self.step % self.train_graph_step == 0:
+                plt.hist(train_selectPowerList, bins=100, density=True, alpha=0.7, histtype='step')
+                plt.hist(train_selectRBList, bins=100, density=True, alpha=0.7, histtype='step')            
+                plt.title('train')
+                plt.show()
+           
             print(reward_sum)
             critic_1_losses.append(np.mean(temp_critic_1_losses))
             critic_2_losses.append( np.mean(temp_critic_2_losses))
@@ -479,6 +497,11 @@ class SAC(object):
                 V2I_Rate_list = np.zeros(number_of_game)
                 V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
+                
+                #for show
+                selectPowerList = []
+                selectRBList = []
+                
                 for game_idx in range(number_of_game):
                     self.env.new_random_game(self.num_vehicle)
                     test_sample = 200
@@ -496,10 +519,12 @@ class SAC(object):
                                 selectedRB = selectedRB % self.RB_number 
                                 state_old = list(state_old)
                                 state_old.append(selectedRB)
+                                
                                 state_old = np.array(state_old)                               
                                 selectedPowerdBm = self.select_action(state_old, evaluate=True)
                                 selectedPowerdBm = self.ClipAction(selectedPowerdBm)
-                                
+                                selectPowerList.append(selectedPowerdBm)
+                                selectRBList.append(selectedRB)
                                 action = np.array([selectedRB, selectedPowerdBm])                                
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
@@ -513,7 +538,14 @@ class SAC(object):
                     Fail_percent_list[game_idx] = percent
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
+                    
+                    plt.hist(selectRBList, bins=230, density=True, alpha=0.7, histtype='step')
+                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='step')
+                    plt.title('play')
+                    plt.show()
                     #print('action is that', action_temp[0,:])
+                    
+                    
                     
                 
                 
