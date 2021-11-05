@@ -9,50 +9,33 @@ from sac import SAC
 from Environment import *
 #from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
-import random
-import tensorflow as tf
-from dqnagent import Agent
-import pandas as pd
-import csv
-import os
 
 
-def calc_gpu_fraction(fraction_string):
-  idx, num = fraction_string.split('/')
-  idx, num = float(idx), float(num)
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
+sumrateV2IList = []
+sumrateV2VList = []
 
-  fraction = 1 / (num - idx + 1)
-  print(" [*] GPU : %.4f" % fraction)
-  return fraction
+probabilityOfSatisfiedV2VList = []
 
-
-flags = tf.app.flags
-
-#======================DQN=====================================================
-# Model
-flags.DEFINE_string('model', 'm1', 'Type of model')
-flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
-flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
-
-# Environment
-flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
-flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
-
-# Etc
-flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
-flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
-flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
-flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
-flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
-
-FLAGS = flags.FLAGS
-
-# Set random seed
-tf.set_random_seed(FLAGS.random_seed)
-random.seed(FLAGS.random_seed)
-#======================DQN=====================================================
-
-#======================SAC=====================================================
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env-name', default="HalfCheetah-v2",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
@@ -70,52 +53,25 @@ parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
-                    help='Automaically adjust α (default: True)')
+                    help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
-                    help='maximum number of steps (default: 1000001)')
-parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
-                    help='hidden size (default: 512)')
-parser.add_argument('--replay_size', type=int, default=10000000, metavar='N',
-                    help='size of replay buffer (default: 10000000)')
-#테스트 관련 하이퍼파라미터==============================================================
-
-#cuda 사용 유무
-parser.add_argument('--cuda', action="store_true",default=True,
-                    help='run on CUDA (default: False)')
-
-#critic target update 주기
-parser.add_argument('--target_update_interval', type=int, default=1, metavar='N', # 1
-                    help='Value target update per no. of updates per step (default: 1)')
-
-#replay memory로 부터 데이터를 가져오는 갯수
-parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256                    
+parser.add_argument('--batch_size', type=int, default=256, metavar='N',
                     help='batch size (default: 256)')
-
-#학습 스탭당 actor, critic이 학습하는 횟수를 지정
-parser.add_argument('--updates_per_step', type=int, default=15, metavar='N', 
+parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
+                    help='maximum number of steps (default: 1000000)')
+parser.add_argument('--hidden_size', type=int, default=500, metavar='N',
+                    help='hidden size (default: 500)')
+parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-
-#초기 랜덤 선택하는 수
-parser.add_argument('--start_steps', type=int, default=1000, metavar='N',  # 10000
+parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-
-#총 학습 스탭, 1번의 스탭당 (차량 수(20) * 인접 차량 수(3) = 60)번 선택함 
-parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
-                    help='Set train step (default: 40000)')
-
-#학습 스탭에 따른 테스트 시뮬레이션 주기 
-parser.add_argument('--test_step', type=int, default=100, metavar='N',  # 2000
-                    help='Set test interval step (default: 2000)')
-
-#학습 스탭에 따른 테스트 그래프 주기 
-parser.add_argument('--train_graph_step', type=int, default=50, metavar='N',  # 2000
-                    help='Set test interval step (default: 2000)')
-#======================================================================================
-#======================SAC=====================================================
-
-
+parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
+                    help='Value target update per no. of updates per step (default: 1)')
+parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
+                    help='size of replay buffer (default: 10000000)')
+parser.add_argument('--cuda', action="store_true",
+                    help='run on CUDA (default: False)')
 args = parser.parse_args()
 
 # Environment
@@ -139,32 +95,75 @@ env = Environ(down_lanes, up_lanes, left_lanes,
               right_lanes, width, height, nVeh)  # V2X 환경 생성
 
 
+# Start 초기화 부분
+# env.seed(args.seed) 초기화 부분
+# env.action_space.seed(args.seed) 초기화 부분
+
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 # End 초기화 부분
 
-# SAC Agent state state 83 , DQN Agent state 82
-statespaceSize = 83
-
+# Agent
+statespaceSize = 82
+actionRange = [0.0, 19123.0]
 action_space = spaces.Box(
-    np.array([0.0]), np.array([23.0]), dtype=np.float32)
+    np.array([0.0]), np.array([19123.0]), dtype=np.float32)
 
-gpu_options = tf.GPUOptions(
-per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-    
-with tf.Session(config=config) as sess:
-    config = []
-    dqnagent = Agent(config, env, sess)        
-    sacagent = SAC(dqnagent, statespaceSize, action_space, args, env)
-    sacagent.train_with_dqn()
-    
-    
+agent = SAC(statespaceSize, action_space, args, env)
+
+# Tesnorboard
+#writer = SummaryWriter('runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), args.env_name, args.policy, "autotune" if args.automatic_entropy_tuning else ""))
+# Memory
+memory = ReplayMemory(args.replay_size, args.seed)
 
 
+#agent.train()
+
+arrayOfVeh = [20,40,60,80,100]
+actor_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_actor_V2X_Model_'
+critic_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_critic_V2X_Model_'
+for nVeh in arrayOfVeh:      
+      Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
+      Env.new_random_game()
+      
+      agent = SAC(statespaceSize, action_space, args, Env)
+              
+      #학습 
+      v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+        
+      sumrateV2IList.append(v2i_Sumrate)
+      sumrateV2VList.append(v2v_Sumrate)
+        
+      probabilityOfSatisfiedV2VList.append(probability)
+               
 
 
+sumrateV2IListnpList = np.array(sumrateV2IList)
+sumrateV2VListnpList = np.array(sumrateV2VList)
+sumrateV2V_V2IListnpList = sumrateV2IListnpList + sumrateV2VListnpList
+probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
+  
+print('V2I sumrate')
+print(sumrateV2IListnpList)
+print('V2V sumrate')
+print(sumrateV2VListnpList)
+print('V2V + V2I rate')
+print(sumrateV2IListnpList + sumrateV2VListnpList)
+print('Outage probability')
+print(probabilityOfSatisfiedV2VnpList)
+
+allData=[]
+allData.append(sumrateV2IListnpList)
+allData.append(sumrateV2VListnpList)
+allData.append(sumrateV2V_V2IListnpList)
+allData.append(probabilityOfSatisfiedV2VnpList)
+allData = np.transpose(allData)
+  
+folderPath = './ResultData'
+csvFileName = 'ResultData.csv'
+createFolder(folderPath)
+MakeCSVFile(folderPath, csvFileName, allData)
+  
 """
 # Training Loop
 total_numsteps = 0

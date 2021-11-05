@@ -1,22 +1,15 @@
 import os
-import csv
-import random
-
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
-
-import numpy as np
-
-import pandas as pd
-
-import matplotlib.pyplot as plt
-
 from utils import soft_update, hard_update
 from model import GaussianPolicy, QNetwork, DeterministicPolicy
-from dqnagent import Agent
+import numpy as np
 from replay_memory import ReplayMemory
-
+import random
+import pandas as pd
+import csv
+import os
 
 #File 유틸 함수들    
 def createFolder(directory):
@@ -39,10 +32,8 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     f.close()
     
 class SAC(object):
-    def __init__(self, dqnagent, num_inputs, action_space, args, env):
-        
-        self.train_graph_step = args.train_graph_step
-        self.dqnagent = dqnagent
+    def __init__(self, num_inputs, action_space, args, env):
+
         self.env = env
         self.train_step = args.train_step
         self.test_step = args.test_step
@@ -148,7 +139,7 @@ class SAC(object):
 
     # Save model parameters
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
-        if not os.path.exists('samodels/'):
+        if not os.path.exists('models/'):
             os.makedirs('models/')
 
         if actor_path is None:
@@ -247,21 +238,28 @@ class SAC(object):
     Clip 기능 추가 2021/10/31
     """
     
-    def ClipAction(self, action : np.array):              
-        selected_powerdB = action
+    def ClipAction(self, action : np.array):
+        
+        selected_resourceBlock = int(action[0])
+        
+        if selected_resourceBlock < 0:
+            selected_resourceBlock = 0
+        elif selected_resourceBlock > 19:
+            selected_resourceBlock = 19
+         
+        selected_powerdB = action[1]
         
         if selected_powerdB < 0.0:
             selected_powerdB = 0.0
         elif selected_powerdB > 23.0:
             selected_powerdB = 23.0
         
-        return selected_powerdB
+        return selected_resourceBlock, selected_powerdB
     
     def merge_action(self, idx, action):
-        select_ResourceBlock = action[0]
-        select_PowerdBm = self.ClipAction(action[1]) 
+        select_ResourceBlock, select_PowerdB = self.ClipAction(action) 
         self.action_all_with_power[idx[0], idx[1], 0] = int(select_ResourceBlock)
-        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdBm 
+        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB 
         
     def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
         
@@ -330,237 +328,6 @@ class SAC(object):
         # print('Test Reward is ', np.mean(test_result))
         
         return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
-    
-    def train_with_dqn(self): 
-        
-        random_choice = False      
-        updates = 0
-        total_numsteps = 0
-        self.env.new_random_game(20)      
-        updateloggingDataHeader = ['critic_1_loss', 'critic_2_loss', 'policy_loss', 'ent_loss', 'alpha'] 
-        rewardloggingDataHeader = ['reward']
-        
-        critic_1_losses = []
-        critic_2_losses = []
-        policy_losses = []
-        ent_losses = []
-        alphas = []
-        rewardloggingData = []
-        
-        #for train show
-        train_selectPowerList = []  
-             
-        for self.step in (range(0, self.train_step)): # need more configuration #40000
-                                                 
-            if (self.step % 2000 == 1):
-                self.env.new_random_game(20)
-                train_selectPowerList.clear()
-                
-            print(self.step)
-            self.training = True
-            reward_sum = 0
-            
-            temp_critic_1_losses = []
-            temp_critic_2_losses = []
-            temp_policy_losses = []
-            temp_ent_losses = []
-            temp_alphas = []
-            
-            #현재 상태에서 모든 차량이 선택을 수행함.
-            for k in range(1):
-                #i번째 송신 차량
-                for i in range(len(self.env.vehicles)):
-                    #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
-                    for j in range(3): 
-                        
-                        # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
-                        state_old = self.get_state([i,j]) 
-                        
-                        #dqn agent가 resource block을 우선 선택함.
-                        action = self.dqnagent.predict(state_old, 0, True, random_choice = random_choice)
-                        
-                        #self.merge_action([i,j], action)   
-                        selectedResourceblock = action % self.RB_number 
-                        
-                        state_old = list(state_old)
-                        state_old.append(selectedResourceblock)
-                        state_old = np.array(state_old)
-                        
-                        #state를 보고 action을 정함
-                        #action은 선택한 power level, 선택한 resource block 정보를 가짐
-                        # 랜덤 선택
-                        if self.args.start_steps > total_numsteps:                            
-                            powerdBm = random.uniform(0.0, 23.0)
-                            action = np.array([powerdBm])
-                        else:
-                            action = self.select_action(state_old)
-                            #print('selcted greedy action : ', action)
-                        
-                        train_selectPowerList.append(action[0])
-                        
-                        print('select RB : ',selectedResourceblock, ' PowerdBm : ', action[0])
-                        
-                        # 업데이트 
-                        if len(self.memory) > self.args.batch_size:
-                            # Number of updates per step in environment
-                            for z in range(self.args.updates_per_step):
-                                # Update parameters of all the networks
-                                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = self.update_parameters(self.memory, self.args.batch_size, updates)
-                                updates += 1                          
-                                temp_critic_1_losses.append(critic_1_loss)
-                                temp_critic_2_losses.append(critic_2_loss)
-                                temp_policy_losses.append(policy_loss)
-                                temp_ent_losses.append(ent_loss)
-                                temp_alphas.append(alpha)
-  
-                          
-
-                        total_numsteps+=1
-                        #self.merge_action([i,j], action)   
-                        
-                        #선택 selected_resourceBlock, selected_powerdB                 
-                        selected_powerdB = self.ClipAction(action)
-                         
-                        #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
-                        self.action_all_with_power_training[i, j, 0] = selectedResourceblock  # 선택한 Resourceblock을 저장함. 
-    
-                        #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
-                        self.action_all_with_power_training[i, j, 1] = selected_powerdB # PowerdBm을 저장함.
-                        
-                        #print(self.action_all_with_power_training)
-                        
-                        #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                        reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
-                        
-                        reward_sum += reward_train
-                        
-                        state_new = self.get_state([i,j]) 
-                        
-                        #dqn agent가 resource block을 우선 선택함.
-                        next_action = self.dqnagent.predict(state_new, 0, True, random_choice = random_choice)
-                        
-                        #self.merge_action([i,j], action)   
-                        next_selectedResourceblock = next_action % self.RB_number 
-                        
-                        state_new = list(state_new)
-                        state_new.append(next_selectedResourceblock)
-                        state_new = np.array(state_new)                 
-                        #self.observe(state_old, state_new, reward_train, action)
-                        
-                        self.memory.push(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([1])) # Append transition to memory
-                    
-                    
-            
-            
-            if self.step % self.train_graph_step == 0:
-                plt.hist(train_selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')                       
-                plt.title('train')
-                plt.show()
-                        
-            print(reward_sum)
-            critic_1_losses.append(np.mean(temp_critic_1_losses))
-            critic_2_losses.append( np.mean(temp_critic_2_losses))
-            policy_losses.append(np.mean(temp_policy_losses))
-            ent_losses.append(np.mean(temp_ent_losses))
-            alphas.append(np.mean(temp_alphas)   )                                                         
-            rewardloggingData.append(reward_sum/60.0)
-            
-            if (self.step % self.test_step == 0) and (self.step > 0):
-                # testing 
-                self.training = False
-                number_of_game = 10
-                if (self.step % 10000 == 0) and (self.step > 0):
-                    number_of_game = 50 
-                if (self.step == 38000):
-                    number_of_game = 100               
-                V2I_Rate_list = np.zeros(number_of_game)
-                V2V_Rate_list = np.zeros(number_of_game)
-                Fail_percent_list = np.zeros(number_of_game)
-                
-                #for show
-                selectPowerList = []
-
-                
-                for game_idx in range(number_of_game):
-                    self.env.new_random_game(self.num_vehicle)
-                    test_sample = 200
-                    V2IRate_list = []
-                    V2VRate_list = []
-                    print('test game idx:', game_idx)
-                    for k in range(test_sample):
-                        action_temp = self.action_all_with_power.copy()
-                        for i in range(len(self.env.vehicles)):
-                            self.action_all_with_power[i,:,0] = -1
-                            sorted_idx = np.argsort(self.env.individual_time_limit[i,:])          
-                            for j in sorted_idx:                   
-                                state_old = self.get_state([i,j])
-                                selectedRB = self.dqnagent.predict(state_old, 0, True, random_choice = random_choice)
-                                selectedRB = selectedRB % self.RB_number 
-                                state_old = list(state_old)
-                                state_old.append(selectedRB)
-                                
-                                state_old = np.array(state_old)                               
-                                selectedPowerdBm = self.select_action(state_old, evaluate=True)
-                                selectedPowerdBm = self.ClipAction(selectedPowerdBm)
-                                selectPowerList.append(selectedPowerdBm)
-
-                                action = np.array([selectedRB, selectedPowerdBm.item()])                                
-                                self.merge_action([i,j], action)
-                            if i % (len(self.env.vehicles)/10) == 1:
-                                action_temp = self.action_all_with_power.copy()
-                                V2IRate, V2VRate, percent = self.env.act_asyn(action_temp) #self.action_all)            
-                                V2IRate_list.append(np.sum(V2IRate))
-                                V2VRate_list.append(np.sum(V2VRate))
-                        #print("actions", self.action_all_with_power)
-                    V2I_Rate_list[game_idx] = np.mean(np.asarray(V2IRate_list))
-                    V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
-                    Fail_percent_list[game_idx] = percent
-                    #print("action is", self.action_all_with_power)
-                    print('failure probability is, ', percent)
-                    
-                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')
-                    plt.title('play')
-                    plt.show()
-                    #print('action is that', action_temp[0,:])
-                    
-                    
-                    
-                
-                
-                #2000번 트레이닝 할때 마다 모델 저장.
-                self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
-                print ('The number of vehicle is ', len(self.env.vehicles))
-                print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
-                print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
-                print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
-                print('Mean of Fail percent is that ', np.mean(Fail_percent_list))    
-                
-
-                
-        
-           
-                                
-        allTrainLogingData=[]
-        allTrainLogingData.append(np.array(critic_1_losses))
-        allTrainLogingData.append(np.array(critic_2_losses))
-        allTrainLogingData.append(np.array(policy_losses))
-        allTrainLogingData.append(np.array(ent_losses))
-        allTrainLogingData = np.transpose(allTrainLogingData)
-  
-        allTrainRewardLogingData=[]
-        allTrainRewardLogingData.append(np.array(rewardloggingData))
-        allTrainRewardLogingData = np.transpose(allTrainRewardLogingData)
-            
-        folderPath = './ResultTrainData'
-        csvFileName = 'ResultTrainData.csv'
-        csvrewardFileName = 'ResultRewardTrainData.csv'
-            
-        createFolder(folderPath)
-        MakeCSVFile(folderPath, csvFileName, updateloggingDataHeader, allTrainLogingData)
-        MakeCSVFile(folderPath, csvrewardFileName, rewardloggingDataHeader, allTrainRewardLogingData)
-        
-        self.save_model('V2X_Model')
-        
     def train(self): 
         
         updateloggingData = []
@@ -604,7 +371,7 @@ class SAC(object):
             if (self.step % 2000 == 1):
                 self.env.new_random_game(20)
                 
-            print('testsetp : ', self.step)
+            print(self.step)
             state_old = self.get_state([0,0])
             #print("state", state_old)
             self.training = True
