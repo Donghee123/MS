@@ -46,21 +46,28 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
         for k in range(1):
             #i번째 송신 차량
             for i in range(len(env.vehicles)):
-                #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
-                observation = env.get_state(idx = [i,0], isTraining = False, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)
-                agent.reset_state(observation)
                 
-                for j in range(1,3):                     
-                    # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
+                
+                for j in range(0,3): 
                     
+                    # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
+                    #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
+                    observation = env.get_state(idx = [i,j], isTraining = False, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                    
+                    
+                    observation = deepcopy(observation)                     
+                    agent.reset_state(observation)
+                        
                     #state를 보고 action을 정함
                     #action은 선택한 power level, 선택한 resource block 정보를 가짐
                     # 랜덤 선택
                     if selectStep <= args.warmup:
+                        print('random')
                         action = agent.random_action()
                     else:
+                        print('policy')
                         action = agent.select_action(observation, decay_epsilon=True)
                     
+                    print('sel RB, PowerdBm : ', action)
                     selectStep += 1
                                                                                      
                     #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
@@ -88,7 +95,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                     if selectStep > args.warmup :
                         agent.update_policy()
 
-                    observation = deepcopy(observation2)
+                    #observation = deepcopy(observation2)
         
         step += 1
         
