@@ -1,11 +1,15 @@
 import os
+import csv
+import random
+
 import torch
 import torch.nn.functional as F
-import numpy as np
 from torch.optim import Adam
-import random
+
+import numpy as np
+
 import pandas as pd
-import csv
+
 import matplotlib.pyplot as plt
 
 from utils import soft_update, hard_update
@@ -254,9 +258,10 @@ class SAC(object):
         return selected_powerdB
     
     def merge_action(self, idx, action):
-        select_ResourceBlock, select_PowerdB = self.ClipAction(action) 
+        select_ResourceBlock = action[0]
+        select_PowerdBm = self.ClipAction(action[1]) 
         self.action_all_with_power[idx[0], idx[1], 0] = int(select_ResourceBlock)
-        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdB 
+        self.action_all_with_power[idx[0], idx[1], 1] = select_PowerdBm 
         
     def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
         
@@ -328,25 +333,10 @@ class SAC(object):
     
     def train_with_dqn(self): 
         
-        random_choice = False
-        updateloggingData = []
-        updateloggingDataHeader = ['critic_1_loss', 'critic_2_loss', 'policy_loss', 'ent_loss', 'alpha']
-        
-        trainloggingData = []
-        trainloggingDataHeader = ['reward']
-        
+        random_choice = False      
         updates = 0
-        num_game, self.update_count, ep_reward = 0, 0, 0.
-        total_reward, self.total_loss, self.total_q = 0.,0.,0.
-        max_avg_ep_reward = 0
-        ep_reward, actions = [], []        
-        mean_big = 0
-        number_big = 0
-        mean_not_big = 0
-        number_not_big = 0
         total_numsteps = 0
-        self.env.new_random_game(20)
-        
+        self.env.new_random_game(20)      
         updateloggingDataHeader = ['critic_1_loss', 'critic_2_loss', 'policy_loss', 'ent_loss', 'alpha'] 
         rewardloggingDataHeader = ['reward']
         
@@ -358,24 +348,15 @@ class SAC(object):
         rewardloggingData = []
         
         #for train show
-        train_selectPowerList = []
-        train_selectRBList = []
-        
-            
+        train_selectPowerList = []  
+             
         for self.step in (range(0, self.train_step)): # need more configuration #40000
-        
-            if self.step == 0:                   # initialize set some varibles
-                num_game, self.update_count,ep_reward = 0, 0, 0.
-                total_reward, self.total_loss, self.total_q = 0., 0., 0.
-                ep_reward, actions = [], []               
-                
-            # prediction
-            # action = self.predict(self.history.get())
+                                                 
             if (self.step % 2000 == 1):
                 self.env.new_random_game(20)
+                train_selectPowerList.clear()
                 
             print(self.step)
-            #print("state", state_old)
             self.training = True
             reward_sum = 0
             
@@ -408,8 +389,7 @@ class SAC(object):
                         #state를 보고 action을 정함
                         #action은 선택한 power level, 선택한 resource block 정보를 가짐
                         # 랜덤 선택
-                        if self.args.start_steps > total_numsteps:
-                            
+                        if self.args.start_steps > total_numsteps:                            
                             powerdBm = random.uniform(0.0, 23.0)
                             action = np.array([powerdBm])
                         else:
@@ -417,7 +397,8 @@ class SAC(object):
                             #print('selcted greedy action : ', action)
                         
                         train_selectPowerList.append(action[0])
-                        train_selectRBList.append(selectedResourceblock)
+                        
+                        print('select RB : ',selectedResourceblock, ' PowerdBm : ', action[0])
                         
                         # 업데이트 
                         if len(self.memory) > self.args.batch_size:
@@ -425,17 +406,13 @@ class SAC(object):
                             for z in range(self.args.updates_per_step):
                                 # Update parameters of all the networks
                                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = self.update_parameters(self.memory, self.args.batch_size, updates)
-                                updates += 1
-                                #print('parameter update count : ', updates)                              
+                                updates += 1                          
                                 temp_critic_1_losses.append(critic_1_loss)
                                 temp_critic_2_losses.append(critic_2_loss)
                                 temp_policy_losses.append(policy_loss)
                                 temp_ent_losses.append(ent_loss)
                                 temp_alphas.append(alpha)
-                                #print('policy loss : ', policy_loss)
-                                #print('critic1 loss : ', critic_1_loss)
-                                #print('critic2 loss : ', critic_2_loss)
-                                #print('entropy loss : ',ent_loss)
+  
                           
 
                         total_numsteps+=1
@@ -471,13 +448,15 @@ class SAC(object):
                         #self.observe(state_old, state_new, reward_train, action)
                         
                         self.memory.push(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([1])) # Append transition to memory
+                    
+                    
+            
             
             if self.step % self.train_graph_step == 0:
-                plt.hist(train_selectPowerList, bins=100, density=True, alpha=0.7, histtype='step')
-                plt.hist(train_selectRBList, bins=100, density=True, alpha=0.7, histtype='step')            
+                plt.hist(train_selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')                       
                 plt.title('train')
                 plt.show()
-           
+                        
             print(reward_sum)
             critic_1_losses.append(np.mean(temp_critic_1_losses))
             critic_2_losses.append( np.mean(temp_critic_2_losses))
@@ -500,7 +479,7 @@ class SAC(object):
                 
                 #for show
                 selectPowerList = []
-                selectRBList = []
+
                 
                 for game_idx in range(number_of_game):
                     self.env.new_random_game(self.num_vehicle)
@@ -524,8 +503,8 @@ class SAC(object):
                                 selectedPowerdBm = self.select_action(state_old, evaluate=True)
                                 selectedPowerdBm = self.ClipAction(selectedPowerdBm)
                                 selectPowerList.append(selectedPowerdBm)
-                                selectRBList.append(selectedRB)
-                                action = np.array([selectedRB, selectedPowerdBm])                                
+
+                                action = np.array([selectedRB, selectedPowerdBm.item()])                                
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
                                 action_temp = self.action_all_with_power.copy()
@@ -539,8 +518,7 @@ class SAC(object):
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     
-                    plt.hist(selectRBList, bins=230, density=True, alpha=0.7, histtype='step')
-                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='step')
+                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')
                     plt.title('play')
                     plt.show()
                     #print('action is that', action_temp[0,:])
