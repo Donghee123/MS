@@ -389,7 +389,7 @@ class Agent():
                 self.save_models()
                 
                 #2000번 트레이닝 할때 마다 모델 저장.
-                self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
+                #self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print ('The number of vehicle is ', len(self.env.vehicles))
                 print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
                 print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
@@ -407,8 +407,8 @@ class Agent():
             
         createFolder(folderPath)
         MakeCSVFile(folderPath, csvrewardFileName, rewardloggingDataHeader, allTrainRewardLogingData)
-        
-        self.save_model('V2X_Model')
+        self.save_models()
+        #self.save_model('V2X_Model')
         
     def learn(self):
         if self.memory.mem_cntr < self.batch_size:
