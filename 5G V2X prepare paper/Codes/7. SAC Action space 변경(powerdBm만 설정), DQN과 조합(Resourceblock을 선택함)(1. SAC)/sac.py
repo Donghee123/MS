@@ -518,7 +518,7 @@ class SAC(object):
                                 selectedPowerdBm = self.ClipAction(selectedPowerdBm)
                                 selectPowerList.append(selectedPowerdBm)
 
-                                action = np.array([selectedRB, selectedPowerdBm])                                
+                                action = np.array([selectedRB, selectedPowerdBm.item()])                                
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
                                 action_temp = self.action_all_with_power.copy()
