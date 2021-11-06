@@ -266,21 +266,6 @@ class Agent():
                         
                         # 업데이트 
                         self.learn()
-                        
-                        """
-                        if len(self.memory) > self.args.batch_size:
-                            # Number of updates per step in environment
-                            for z in range(self.args.updates_per_step):
-                                # Update parameters of all the networks
-                                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = self.update_parameters(self.memory, self.args.batch_size, updates)
-                                updates += 1                          
-                                temp_critic_1_losses.append(critic_1_loss)
-                                temp_critic_2_losses.append(critic_2_loss)
-                                temp_policy_losses.append(policy_loss)
-                                temp_ent_losses.append(ent_loss)
-                                temp_alphas.append(alpha)
-  
-                        """  
 
                         total_numsteps+=1
                         #self.merge_action([i,j], action)   
@@ -313,7 +298,7 @@ class Agent():
                         state_new.append(next_selectedResourceblock)
                         state_new = np.array(state_new)                 
                         #self.observe(state_old, state_new, reward_train, action)
-                        self.remember(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([1])) # Append transition to memory
+                        self.remember(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([False])) # Append transition to memory
                     
                     
             
@@ -379,9 +364,9 @@ class Agent():
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     
-                    plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')
-                    plt.title('play')
-                    plt.show()
+                    #plt.hist(selectPowerList, bins=230, density=True, alpha=0.7, histtype='stepfilled')
+                    #plt.title('play')
+                    #plt.show()
                     #print('action is that', action_temp[0,:])
                     
                     
