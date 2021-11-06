@@ -298,7 +298,7 @@ class Agent():
                         state_new.append(next_selectedResourceblock)
                         state_new = np.array(state_new)                 
                         #self.observe(state_old, state_new, reward_train, action)
-                        self.remember(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([False])) # Append transition to memory
+                        self.remember(state_old.reshape(83), action, np.array([reward_train]), state_new.reshape(83),np.array([0])) # Append transition to memory
                     
                     
             
