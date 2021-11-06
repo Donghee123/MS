@@ -59,7 +59,10 @@ class DDPG(object):
         self.s_t = None # Most recent state
         self.a_t = None # Most recent action
         self.is_training = True
-
+        
+        USE_CUDA = torch.cuda.is_available()
+        
+        print('test will be processed by cuda : ', USE_CUDA)
         # 
         if USE_CUDA: self.cuda()
 
