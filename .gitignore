@@ -1,6 +1,12 @@
 # ignore wandb
 wandb/
 
+# ignore data
+*.csv
+
+# model
+*.pkl
+
 # ignore pycharm cashe
 .idea/
 
