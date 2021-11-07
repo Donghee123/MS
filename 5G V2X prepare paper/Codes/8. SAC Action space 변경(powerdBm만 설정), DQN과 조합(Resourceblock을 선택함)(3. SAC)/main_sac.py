@@ -157,7 +157,7 @@ action_space = spaces.Box(
 gpu_options = tf.GPUOptions(
 per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
 config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
+config.gpu_options.allow_growth = False
 
 with tf.Session(config=config) as sess:
     config = []
