@@ -264,8 +264,9 @@ class Agent():
                         
                         #print('select RB : ',selectedResourceblock, ' PowerdBm : ', action[0])
                         
-                        # 업데이트 
-                        self.learn()
+                        if total_numsteps % 50 == 0:
+                            # 업데이트 
+                            self.learn()
 
                         total_numsteps+=1
                         #self.merge_action([i,j], action)   
@@ -349,7 +350,7 @@ class Agent():
                                 selectedPowerdBm = self.select_action(state_old)                               
                                 selectedPowerdBm = self.ClipAction(selectedPowerdBm)
                                 selectPowerList.append(selectedPowerdBm)
-                                print(action)
+                                #print(action)
                                 action = np.array([selectedRB, selectedPowerdBm.item()])                                
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:

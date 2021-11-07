@@ -68,6 +68,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                         action = agent.select_action(observation, decay_epsilon=True)
                     
                     print('sel RB, PowerdBm : ', action)
+                    
                     selectStep += 1
                                                                                      
                     #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
