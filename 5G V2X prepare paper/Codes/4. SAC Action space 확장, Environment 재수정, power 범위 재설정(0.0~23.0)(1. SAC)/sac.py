@@ -410,17 +410,13 @@ class SAC(object):
                             for z in range(self.args.updates_per_step):
                                 # Update parameters of all the networks
                                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = self.update_parameters(self.memory, self.args.batch_size, updates)
-                                updates += 1
-                                #print('parameter update count : ', updates)                              
+                                updates += 1                            
                                 temp_critic_1_losses.append(critic_1_loss)
                                 temp_critic_2_losses.append(critic_2_loss)
                                 temp_policy_losses.append(policy_loss)
                                 temp_ent_losses.append(ent_loss)
                                 temp_alphas.append(alpha)
-                                #print('policy loss : ', policy_loss)
-                                #print('critic1 loss : ', critic_1_loss)
-                                #print('critic2 loss : ', critic_2_loss)
-                                #print('entropy loss : ',ent_loss)
+
                           
 
                         total_numsteps+=1
@@ -441,9 +437,7 @@ class SAC(object):
                         reward_sum += reward_train
                         
                         state_new = self.get_state([i,j]) 
-                        
-                        #self.observe(state_old, state_new, reward_train, action)
-                        
+                                              
                         self.memory.push(state_old.reshape(82), action, np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
             
             print(reward_sum)
