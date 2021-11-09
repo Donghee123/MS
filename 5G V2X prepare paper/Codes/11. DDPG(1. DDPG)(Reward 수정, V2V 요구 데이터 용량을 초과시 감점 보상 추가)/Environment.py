@@ -146,7 +146,7 @@ class Environ:
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = np.linspace(-100.0, 23.0, 1230)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
+        self.V2V_power_dB_List = np.linspace(-10.0, 23.0, 330)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
@@ -786,13 +786,13 @@ class Environ:
                     for col in range(len(afterServicedataRemain[row])):
                         #데이터가 초과된 상황
                         if afterServicedataRemain[row][col] <= -1 :
-                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]) / 3)
+                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]) / 2)
                         #데이터를 알맞게 전달한 상황
                         elif (0 >= afterServicedataRemain[row][col] and afterServicedataRemain[row][col] > -1):
                             afterServicedataRemain[row][col] = 0
                         #데이터가 부족한 상황                 
                         else:
-                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]) * 2)
+                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]))
                 
                 
                 Deficit_list[i,power_idx] = 0 - 1 * np.sum(afterServicedataRemain) 

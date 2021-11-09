@@ -128,7 +128,7 @@ class DDPG(object):
     def random_action(self):
         action = np.zeros(2)
         action[0] = np.random.uniform(0.,19.9)
-        action[1] = np.random.uniform(-100.,23.0)        
+        action[1] = np.random.uniform(-10.,23.0)        
         self.a_t = action
         return action
 
