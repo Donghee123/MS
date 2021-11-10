@@ -783,16 +783,13 @@ class Environ:
                 
                 #print(afterServicedataRemain)
                 for row in range(len(afterServicedataRemain)):
-                    for col in range(len(afterServicedataRemain[row])):
-                        #데이터가 초과된 상황
-                        if afterServicedataRemain[row][col] <= -1 :
-                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]) / 2)
+                    for col in range(len(afterServicedataRemain[row])):                       
                         #데이터를 알맞게 전달한 상황
-                        elif (0 >= afterServicedataRemain[row][col] and afterServicedataRemain[row][col] > -1):
-                            afterServicedataRemain[row][col] = 0
-                        #데이터가 부족한 상황                 
+                        if (0 >= afterServicedataRemain[row][col] and afterServicedataRemain[row][col] > -10):
+                            afterServicedataRemain[row][col] = -1000
+                        #데이터가 부족하거나 초과된 상황           
                         else:
-                            afterServicedataRemain[row][col] = (abs(afterServicedataRemain[row][col]))
+                            afterServicedataRemain[row][col] = (afterServicedataRemain[row][col] * afterServicedataRemain[row][col])
                 
                 
                 Deficit_list[i,power_idx] = 0 - 1 * np.sum(afterServicedataRemain) 
@@ -908,9 +905,8 @@ class Environ:
         lambdda = 0.1
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         
-        #t = lambdda * V2I_reward + (1-lambdda) * V2V_reward #Reward 수정 전
+        t = lambdda * V2I_reward + (1-lambdda) * V2V_reward #Reward 수정 전
         
-        t = V2V_reward#Reward 수정 후
         
         #print("time left", time_left)
         #return t

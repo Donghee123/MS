@@ -132,14 +132,20 @@ class DDPG(object):
         self.a_t = action
         return action
 
-    def select_action(self, s_t, decay_epsilon=True):
+    def select_action(self, s_t, decay_epsilon=True, isTrain = True):
+    
         action = to_numpy(
             self.actor(to_tensor(np.array([s_t])))
         ).squeeze(0)
+        
         action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
         
-        action[0] = np.clip(action[0], 0., 19.9)
-        action[1] = np.clip(action[1], -100.0, 23.0)
+        if np.random.uniform(0.0,1.0) < self.epsilon and isTrain:
+            action[0] = np.random.uniform(0.,19.9)
+        else:
+            action[0] = np.clip(action[0], 0., 19.9)
+            
+        action[1] = np.clip(action[1], -10.0, 23.0)
         
         if decay_epsilon:
             self.epsilon -= self.depsilon

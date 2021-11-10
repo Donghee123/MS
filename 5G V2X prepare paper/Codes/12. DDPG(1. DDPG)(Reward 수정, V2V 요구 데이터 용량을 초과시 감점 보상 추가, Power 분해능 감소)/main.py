@@ -128,7 +128,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                             sorted_idx = np.argsort(env.individual_time_limit[i,:])          
                             for j in sorted_idx:                   
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
-                                action = agent.select_action(observation, decay_epsilon=False)
+                                action = agent.select_action(observation, decay_epsilon=False, isTrain=False)
                                 
                                 
                                 selRBRateList.append(int(action[0]))
