@@ -12,16 +12,21 @@ import matplotlib.pyplot as plt
 class Agent(BaseModel):
     def __init__(self, config, environment, sess):
         self.sess = sess
-        self.weight_dir = 'weight'        
+        self.weight_dir = 'dqnweight'        
         self.env = environment
         #self.history = History(self.config)
         model_dir = './Model/a.model'
         self.memory = ReplayMemory(model_dir) 
+        self.isCollectMemory = True
         self.max_step = 100000 
+        
+        self.replay_memory_size = self.memory.memory_size
+        
         self.RB_number = 20
+        self.dqn_V2V_power_dB_List = [23, 10, 5]          
         self.num_vehicle = len(self.env.vehicles)
         self.action_all_with_power = np.zeros([self.num_vehicle, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
-        self.action_all_with_power_training = np.zeros([self.env.n_Veh, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
+        self.action_all_with_power_training = np.zeros([20, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
         self.reward = []
         self.learning_rate = 0.01
         self.learning_rate_minimum = 0.0001
@@ -34,18 +39,32 @@ class Agent(BaseModel):
         self.V2V_number = 3 * len(self.env.vehicles)    # every vehicle need to communicate with 3 neighbors  
         self.training = True
         #self.actions_all = np.zeros([len(self.env.vehicles),3], dtype = 'int32')
+        
     def merge_action(self, idx, action):
+        selPowerIndex = int(np.floor(action/self.RB_number))        
+        selPowerdBm = self.dqn_V2V_power_dB_List[selPowerIndex]
+
         self.action_all_with_power[idx[0], idx[1], 0] = action % self.RB_number
-        self.action_all_with_power[idx[0], idx[1], 1] = int(np.floor(action/self.RB_number))
+        self.action_all_with_power[idx[0], idx[1], 1] = selPowerdBm
+        
     def get_state(self, idx):
     # ===============
     #  Get State from the environment
     # =============
         vehicle_number = len(self.env.vehicles)
+        
+        #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
         V2V_channel = (self.env.V2V_channels_with_fastfading[idx[0],self.env.vehicles[idx[0]].destinations[idx[1]],:] - 80)/60
+        
+        #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         V2I_channel = (self.env.V2I_channels_with_fastfading[idx[0], :] - 80)/60
+        
+        #이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
         V2V_interference = (-self.env.V2V_Interference_all[idx[0],idx[1],:] - 60)/60
+        #선택한 resource block
         NeiSelection = np.zeros(self.RB_number)
+        
+        #인접한 차량에게 전송할 power 선정
         for i in range(3):
             for j in range(3):
                 if self.training:
@@ -62,21 +81,34 @@ class Agent(BaseModel):
             else:
                 if self.action_all_with_power[idx[0],i,0] >= 0:
                     NeiSelection[self.action_all_with_power[idx[0],i,0]] = 1
+                    
         time_remaining = np.asarray([self.env.demand[idx[0],idx[1]] / self.env.demand_amount])
         load_remaining = np.asarray([self.env.individual_time_limit[idx[0],idx[1]] / self.env.V2V_limit])
         #print('shapes', time_remaining.shape,load_remaining.shape)
+        # V2I_channel : #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
+        # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 볼 수 있는 Interference
+        # V2V_channel : #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
+        # 근접한 차량이 선택한 리소스 블록 상태
+        # 남은 시간
+        # 걸린 시간
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
-    def predict(self, s_t,  step, test_ep = False):
+        
+    def predict(self, s_t,  step, test_ep = False, random_choice = False):
         # ==========================
         #  Select actions
         # ======================
-        ep = 1/(step/1000000 + 1)
-        if random.random() < ep and test_ep == False:   # epsion to balance the exporation and exploition
+        if random_choice == True:
             action = np.random.randint(60)
-        else:          
-            action =  self.q_action.eval({self.s_t:[s_t]})[0] 
-        return action
+            return action
+        else:
+            ep = 1/(step/1000000 + 1)
+            if random.random() < ep and test_ep == False:   # epsion to balance the exporation and exploition
+                action = np.random.randint(60)
+            else:          
+                action =  self.q_action.eval({self.s_t:[s_t]})[0] 
+            return action
+        
     def observe(self, prestate, state, reward, action):
         # -----------
         # Collect Data for Training 
@@ -91,7 +123,9 @@ class Agent(BaseModel):
             if self.step % self.target_q_update_step == self.target_q_update_step - 1:
                 #print("Update Target Q network:")
                 self.update_target_q_network()           # ?? what is the meaning ??
-    def train(self):        
+    
+    
+    def train(self):  
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0.,0.,0.
         max_avg_ep_reward = 0
@@ -100,8 +134,7 @@ class Agent(BaseModel):
         number_big = 0
         mean_not_big = 0
         number_not_big = 0
-        n_Vehicle = 40
-        self.env.new_random_game(self.env.n_Veh)
+        self.env.new_random_game(20)
         for self.step in (range(0, 40000)): # need more configuration
             if self.step == 0:                   # initialize set some varibles
                 num_game, self.update_count,ep_reward = 0, 0, 0.
@@ -111,22 +144,43 @@ class Agent(BaseModel):
             # prediction
             # action = self.predict(self.history.get())
             if (self.step % 2000 == 1):
-                self.env.new_random_game(self.env.n_Veh)
+                self.env.new_random_game(20)
+                
+            
+                
             print(self.step)
             state_old = self.get_state([0,0])
             #print("state", state_old)
             self.training = True
             for k in range(1):
-                for i in range(len(self.env.vehicles)):              
+                #i번째 송신 차량
+                for i in range(len(self.env.vehicles)):
+                    #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
                     for j in range(3): 
+                        # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
                         state_old = self.get_state([i,j]) 
+                        
+                        #state를 보고 action을 정함
+                        #action은 선택한 power level, 선택한 resource block 정보를 가짐
                         action = self.predict(state_old, self.step)                    
                         #self.merge_action([i,j], action)   
-                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number
-                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number))                                                    
+                        
+                        #선택한 resource block을 넣어줌
+                        self.action_all_with_power_training[i, j, 0] = action % self.RB_number 
+                        
+                        #선택한 power level을 넣어줌
+                        self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number))  
+                                         
+                        #선택한 power level과 resource block을 기반으로 reward를 계산함.
                         reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
+                        
                         state_new = self.get_state([i,j]) 
+                        
                         self.observe(state_old, state_new, reward_train, action)
+                        
+                        if self.memory.addCount % self.replay_memory_size == 0:
+                            self.memory.save('train')
+                        
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 
                 self.training = False
@@ -135,12 +189,16 @@ class Agent(BaseModel):
                     number_of_game = 50 
                 if (self.step == 38000):
                     number_of_game = 100               
+                V2I_V2X_Rate_list = np.zeros(number_of_game)
                 V2I_Rate_list = np.zeros(number_of_game)
+                V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
                 for game_idx in range(number_of_game):
-                    self.env.new_random_game(self.env.n_Veh)
+                    self.env.new_random_game(self.num_vehicle)
                     test_sample = 200
                     Rate_list = []
+                    temp_V2V_Rate_list = []
+                    temp_V2I_Rate_list = []
                     print('test game idx:', game_idx)
                     for k in range(test_sample):
                         action_temp = self.action_all_with_power.copy()
@@ -152,21 +210,28 @@ class Agent(BaseModel):
                                 action = self.predict(state_old, self.step, True)
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
-                                action_temp = self.action_all_with_power.copy()
-                                reward, percent = self.env.act_asyn(action_temp) #self.action_all)            
-                                Rate_list.append(np.sum(reward))
+                                action_temp = self.action_all_with_power.copy()                                
+                                returnV2IReward, returnV2VReward, percent = self.env.act_asyn(action_temp) #self.action_all)            
+                                Rate_list.append(np.sum(returnV2IReward) + np.sum(returnV2VReward))
+                                temp_V2I_Rate_list.append(np.sum(returnV2IReward))
+                                temp_V2V_Rate_list.append(np.sum(returnV2VReward))
                         #print("actions", self.action_all_with_power)
-                    V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
+                    V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
                     Fail_percent_list[game_idx] = percent
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
                 self.save_weight_to_pkl()
                 print ('The number of vehicle is ', len(self.env.vehicles))
+                print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
                 print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
                 print('Mean of Fail percent is that ', np.mean(Fail_percent_list))                   
                 #print('Test Reward is ', np.mean(test_result))
-             
+        
+        self.memory.save('train')    
                   
                     
             
@@ -206,7 +271,7 @@ class Agent(BaseModel):
         n_hidden_2 = 250
         n_hidden_3 = 120
         n_input = 82
-        n_output = 100
+        n_output = 60
         def encoder(x):
             weights = {                    
                 'encoder_h1': tf.Variable(tf.truncated_normal([n_input, n_hidden_1],stddev=0.1)),
@@ -284,59 +349,65 @@ class Agent(BaseModel):
             self.w_assign_op[name].eval({self.w_input[name]:load_pkl(os.path.join(self.weight_dir, "%s.pkl" % name))})
         self.update_target_q_network()   
       
-    def play(self, n_step = 100, n_episode = 100, test_ep = None, render = False):
-        number_of_game = 100
+    def play(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+        
+        number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
+        V2V_Rate_list = np.zeros(number_of_game)
         Fail_percent_list = np.zeros(number_of_game)
+        
         self.load_weight_from_pkl()
+        
         self.training = False
-
 
         for game_idx in range(number_of_game):
             self.env.new_random_game(self.num_vehicle)
-            test_sample = 200
+            test_sample = n_step
             Rate_list = []
+            Rate_list_V2V = []
+            
             print('test game idx:', game_idx)
             print('The number of vehicle is ', len(self.env.vehicles))
-            time_left_list = []
             
+            time_left_list = []
             power_select_list_0 = []
             power_select_list_1 = []
             power_select_list_2 = []
-            power_select_list_3 = []
-            power_select_list_4 = []
-            
+
             for k in range(test_sample):
                 action_temp = self.action_all_with_power.copy()
                 for i in range(len(self.env.vehicles)):
                     self.action_all_with_power[i, :, 0] = -1
                     sorted_idx = np.argsort(self.env.individual_time_limit[i, :])
                     for j in sorted_idx:
+                        
                         state_old = self.get_state([i, j])
                         time_left_list.append(state_old[-1])
-                        action = self.predict(state_old, 0, True)
+                        
+                        action = self.predict(state_old, 0, True, random_choice = random_choice)
                         
                         if state_old[-1] <=0:
                             continue
+                        
                         power_selection = int(np.floor(action/self.RB_number))
                         
                         if power_selection == 0:
                             power_select_list_0.append(state_old[-1])
+
                         if power_selection == 1:
                             power_select_list_1.append(state_old[-1])
                         if power_selection == 2:
                             power_select_list_2.append(state_old[-1])
-                        if power_selection == 3:
-                            power_select_list_3.append(state_old[-1])
-                        if power_selection == 4:
-                            power_select_list_4.append(state_old[-1])
-                            
                         
                         self.merge_action([i, j], action)
+                    
+                    #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
-                        reward, percent = self.env.act_asyn(action_temp)  # self.action_all)
-                        Rate_list.append(np.sum(reward))
+                        rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
+                        Rate_list.append(np.sum(rewardOfV2I))
+                        Rate_list_V2V.append(np.sum(rewardOfV2V))
+                        
                 # print("actions", self.action_all_with_power)
             
             
@@ -346,22 +417,14 @@ class Agent(BaseModel):
 
             number_2, bin_edges = np.histogram(power_select_list_2, bins = 10)
 
-            number_3, bin_edges = np.histogram(power_select_list_3, bins = 10)
 
-            number_4, bin_edges = np.histogram(power_select_list_4, bins = 10)
-            
+            p_0 = number_0 / (number_0 + number_1 + number_2)
+            p_1 = number_1 / (number_0 + number_1 + number_2)
+            p_2 = number_2 / (number_0 + number_1 + number_2)
 
-            p_0 = number_0 / (number_0 + number_1 + number_2 + number_3 + number_4)
-            p_1 = number_1 / (number_0 + number_1 + number_2 + number_3 + number_4)
-            p_2 = number_2 / (number_0 + number_1 + number_2 + number_3 + number_4)           
-            p_3 = number_3 / (number_0 + number_1 + number_2 + number_3 + number_4)
-            p_4 = number_4 / (number_0 + number_1 + number_2 + number_3 + number_4)  
-            
             plt.plot(bin_edges[:-1]*0.1 + 0.01, p_0, 'b*-', label='Power Level 23 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_1, 'rs-', label='Power Level 17.25 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_2, 'go-', label='Power Level 11.5 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_3, 'm*-', label='Power Level 5.75 dB')
-            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_4, 'k*-', label='Power Level 0 dB')
+            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_1, 'rs-', label='Power Level 10 dB')
+            plt.plot(bin_edges[:-1]*0.1 + 0.01, p_2, 'go-', label='Power Level 5 dB')
             
             plt.xlim([0,0.12])
             plt.xlabel("Time left for V2V transmission (s)")
@@ -371,18 +434,20 @@ class Agent(BaseModel):
             plt.show()
             
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+            V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
+            
             Fail_percent_list[game_idx] = percent
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
+            print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
             print('Mean of Fail percent is that ',percent, np.mean(Fail_percent_list[0:game_idx]))
             # print('action is that', action_temp[0,:])
 
         print('The number of vehicle is ', len(self.env.vehicles))
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+        print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
         # print('Test Reward is ', np.mean(test_result))
-	
-
-
-
+        
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
 
