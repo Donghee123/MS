@@ -66,13 +66,8 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                     else:
                         print('policy')
                         action = agent.select_action(observation, decay_epsilon=True)
-                        
                     
-                    
-        
-        
                     print('sel RB, PowerdBm : ', action)
-                    
                     selectStep += 1
                                                                                      
                     #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
@@ -135,11 +130,6 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
                                 action = agent.select_action(observation, decay_epsilon=False)
                                 
-                                action[0] = action[0] + 1
-                                action[1] = action[1] + 1
-        
-                                action[0] = action[0] * 10.0
-                                action[1] = action[0] * 11.5
                                 
                                 selRBRateList.append(int(action[0]))
                                 selPowerRateList.append(action[1])
@@ -205,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
     
     parser.add_argument('--discount', default=0.99, type=float, help='')
-    parser.add_argument('--bsize', default=64, type=int, help='minibatch size') # 64
+    parser.add_argument('--bsize', default=64, type=int, help='minibatch size')
     parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
     parser.add_argument('--window_length', default=1, type=int, help='')
     parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')

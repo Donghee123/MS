@@ -3,7 +3,7 @@ import numpy as np
 import time
 import random
 import math
-from copy import deepcopy
+
 
 
     
@@ -657,7 +657,7 @@ class Environ:
         
         return returnV2IReward, returnV2VReward, fail_percent
 
-    def Compute_Performance_Reward_Batch(self, actions_power, idx, DDPGTrain = False):    # add the power dimension to the action selection
+    def Compute_Performance_Reward_Batch(self, actions_power, idx):    # add the power dimension to the action selection
         # ==================================================
         # ------------- Used for Training ----------------
         # ==================================================
@@ -798,36 +798,21 @@ class Environ:
                 V2I_Interference_temp[i] += 10**((self.V2V_power_dB_List[j] - self.V2I_channels_with_fastfading[idx[0], i] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
                 V2I_Rate_list[i, j] = np.sum(np.log2(1 + np.divide(10**((self.V2I_power_dB + self.vehAntGain + self.bsAntGain \
                 - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
+                     
+        self.demand -= V2V_Rate * self.update_time_train * 1500
+        self.test_time_count -= self.update_time_train
         
-                    
-                    
+        #각기 다른 차량들의 time_limit을 1사이클만큼 시간이 지남을 의미       
+        self.individual_time_limit -= self.update_time_train
         
-        # DDPG Train을 위해 reward를 비교하기 위함.
-        if(DDPGTrain == True):
-            demand_temp = deepcopy(self.demand - V2V_Rate * self.update_time_train * 1500)
-            test_time_count_temp = deepcopy(self.test_time_count - self.update_time_train)
+        #time_limit이 0보다 같거나 작은 것이 있는 경우...??
+        self.individual_time_limit [np.add(self.individual_time_limit <= 0,  self.demand < 0)] = self.V2V_limit
+        self.demand[self.demand < 0] = self.demand_amount
         
-        
-            individual_time_limit_temp = deepcopy(self.individual_time_limit - self.update_time_train)       
-            individual_time_limit_temp[np.add(individual_time_limit_temp <= 0,  demand_temp < 0)] = self.V2V_limit
-            demand_temp[demand_temp < 0] = self.demand_amount
+        if self.test_time_count == 0:
+            self.test_time_count = 10
             
-            return V2I_Rate_list, Deficit_list, individual_time_limit_temp[idx[0], idx[1]]
-        else:        
-            self.demand -= V2V_Rate * self.update_time_train * 1500
-            self.test_time_count -= self.update_time_train
-            
-            #각기 다른 차량들의 time_limit을 1사이클만큼 시간이 지남을 의미       
-            self.individual_time_limit -= self.update_time_train
-            
-            #time_limit이 0보다 같거나 작은 것이 있는 경우...??
-            self.individual_time_limit [np.add(self.individual_time_limit <= 0,  self.demand < 0)] = self.V2V_limit
-            self.demand[self.demand < 0] = self.demand_amount
-            
-            if self.test_time_count == 0:
-                self.test_time_count = 10
-                
-            return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
+        return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
 
     def Compute_Interference(self, actions):
         # ====================================================
@@ -858,15 +843,8 @@ class Environ:
         # generate a new demand of a V2V
         self.demand = self.demand_amount*np.ones((self.n_RB,3))
         self.time_limit = 10
-    
-    def act_for_ddpg_training(self, actions, idx, ddpgaction):
-        preReward = self.act_for_training(actions,idx, True)       
-        actions[idx[0]][idx[1]][1] += ddpgaction.item() #ddpg 값 적
-        afterReward = self.act_for_training(actions,idx, False)
-        return -afterReward + preReward 
         
-            
-    def act_for_training(self, actions, idx, DDPGTrain = False):
+    def act_for_training(self, actions, idx):
         # =============================================
         # This function gives rewards for training
         # idx : 송신 차량, 수신 차량 정보를 가짐.
@@ -884,13 +862,12 @@ class Environ:
         self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
         
         #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
-        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx, DDPGTrain)
+        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
         
-        if(DDPGTrain == False):
-            self.renew_positions()
-            self.renew_channels_fastfading()
-            self.Compute_Interference(actions) 
-            
+        
+        self.renew_positions()
+        self.renew_channels_fastfading()
+        self.Compute_Interference(actions) 
         rewards_list = rewards_list.T.reshape([-1])
         V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
         V2V_rewardlist = V2V_rewardlist.T.reshape([-1])

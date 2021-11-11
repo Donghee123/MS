@@ -41,6 +41,7 @@ class DDPG(object):
         hard_update(self.critic_target, self.critic)
         
         self.num_vehicle = num_vehicle
+        
         self.action_all_with_power = np.zeros([self.num_vehicle, 3, 2],dtype = 'float')   # this is actions that taken by V2V links with power
         self.action_all_with_power_training = np.zeros([20, 3, 2],dtype = 'float')   # this is actions that taken by V2V links with power
         
@@ -124,9 +125,8 @@ class DDPG(object):
             self.s_t = s_t1
 
     def random_action(self):
-        action = np.zeros(2)
-        action[0] = np.random.uniform(0.,19.9)
-        action[1] = np.random.uniform(0.,23.0)        
+        action = np.zeros(1)
+        action[0] = np.random.uniform(-15.,0.)       
         self.a_t = action
         return action
 
@@ -137,12 +137,14 @@ class DDPG(object):
         action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
         
         action[0] = action[0] + 1
-        action[1] = action[1] + 1        
-        action[0] = action[0] * 10.0
-        action[1] = action[1] * 11.5
-                        
-        action[0] = np.clip(action[0], 0., 19.9)
-        action[1] = np.clip(action[1], 0., 23.0)
+        action[0] = (action[0] * 10) - 10
+        
+        if action[0] < -10.0:
+            action[0] = -10.0
+        
+        if action[0] > 10.0:
+            action[0] = 10.0
+            
         
         if decay_epsilon:
             self.epsilon -= self.depsilon

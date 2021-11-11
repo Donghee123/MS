@@ -33,8 +33,7 @@ class Actor(nn.Module):
         out = self.fc2(out)
         out = self.relu(out)
         out = self.fc3(out)
-        out = self.tanh(out)
-        
+        #out = self.tanh(out)
         return out
 
 class Critic(nn.Module):

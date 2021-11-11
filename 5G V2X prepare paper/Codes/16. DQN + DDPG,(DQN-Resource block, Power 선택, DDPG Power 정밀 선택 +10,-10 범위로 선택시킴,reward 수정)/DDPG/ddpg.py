@@ -136,11 +136,6 @@ class DDPG(object):
         ).squeeze(0)
         action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
         
-        action[0] = action[0] + 1
-        action[1] = action[1] + 1        
-        action[0] = action[0] * 10.0
-        action[1] = action[1] * 11.5
-                        
         action[0] = np.clip(action[0], 0., 19.9)
         action[1] = np.clip(action[1], 0., 23.0)
         
