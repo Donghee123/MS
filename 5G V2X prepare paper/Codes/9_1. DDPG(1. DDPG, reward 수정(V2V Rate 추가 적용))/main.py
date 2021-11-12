@@ -135,7 +135,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
                                 action = agent.select_action(observation, decay_epsilon=False)
                                 
-   
+                               
                                 selRBRateList.append(int(action[0]))
                                 selPowerRateList.append(action[1])
                                 
