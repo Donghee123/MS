@@ -144,14 +144,14 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 V2VRate_list.append(np.sum(V2VRate))
                     
                     
-                    plt.subplot(211)
-                    plt.hist(selRBRateList, histtype='step')
-                    plt.title('Left : RB Rate, Right : Power Rate')
-                    plt.subplot(212)
-                    plt.hist(selPowerRateList, histtype='step')
+                   # plt.subplot(211)
+                    #plt.hist(selRBRateList, histtype='step')
+                    #plt.title('Left : RB Rate, Right : Power Rate')
+                    #plt.subplot(212)
+                    #plt.hist(selPowerRateList, histtype='step')
                     
                     
-                    plt.show()
+                    #plt.show()
                     
                     V2I_Rate_list[game_idx] = np.mean(np.asarray(V2IRate_list))
                     V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
