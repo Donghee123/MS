@@ -448,7 +448,7 @@ class SAC(object):
             critic_2_losses.append( np.mean(temp_critic_2_losses))
             policy_losses.append(np.mean(temp_policy_losses))
             ent_losses.append(np.mean(temp_ent_losses))
-            alphas.append(np.mean(temp_alphas)   )                                                         
+            alphas.append(np.mean(temp_alphas))                                                         
             rewardloggingData.append(reward_sum/60.0)
             
             if (self.step % self.test_step == 0) and (self.step > 0):

@@ -848,13 +848,14 @@ class Environ:
         
         
         #print ("Reward", V2I_reward, V2V_reward, time_left)
-        t = lambdda_v2irate * V2I_reward + lambdda_v2vrate * V2V_reward + lambdda_v2vQos * V2V_rewardlist
+        t = lambdda_v2irate * V2I_reward + lambdda_v2vrate * V2V_reward + lambdda_v2vQos * V2V_reward
         #print("time left", time_left)
         #return t
 
         rewardSum = t - (self.V2V_limit - time_left)/self.V2V_limit
         datas = {'V2I Rate': [V2I_reward], 'V2V Rate': [V2VRate_list],'V2V Qos': [V2V_reward], 'Reward Sum' : [rewardSum]}    
         self.wrie_log(datas)  
+        
         return rewardSum
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
