@@ -8,7 +8,30 @@ import os
 import sys
 import argparse
 from ddpg import DDPG
+import pandas as pd
+import csv
+import os
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
 class Agent(object):
     def __init__(self, DDPGAgent):
         self.DDPGAgent = DDPGAgent
@@ -22,6 +45,9 @@ class Agent(object):
     
     def observe(self, r_t, s_t):
         self.DDPGAgent.observe(r_t, s_t, False)
+    
+    def update_policy(self):
+        return self.DDPGAgent.update_policy()
         
     def reset_state(self, s_t):
         self.DDPGAgent.reset_state(s_t)
@@ -42,8 +68,6 @@ height = 1298/2
 IS_TRAIN = 1
 IS_TEST = 1-IS_TRAIN
 
-label = 'marl_model'
-
 n_veh = 4
 n_neighbor = 1
 n_RB = n_veh
@@ -51,7 +75,7 @@ n_RB = n_veh
 env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, width, height, n_veh, n_neighbor)
 env.new_random_game()  # initialize parameters in env
 
-n_episode = 3000
+n_episode = 50
 n_step_per_episode = int(env.time_slow/env.time_fast)
 epsi_final = 0.02
 epsi_anneal_length = int(0.8*n_episode)
@@ -127,9 +151,7 @@ index 별 agent 저장 구현 완료
 """
 def save_models(agent, model_path, agentindex, performanceInfo):
     """ Save models to the current directory with the name filename """
-
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    model_path = os.path.join(current_dir, "model/" + model_path)     
+  
     saveFileName = str(agentindex) + '_' + performanceInfo
     agent.save_model(model_path, saveFileName)
     
@@ -251,7 +273,6 @@ if IS_TRAIN:
                     state_old = state_old_all[n_neighbor * i + j]
                     action = action_all[n_neighbor * i + j]
                     state_new = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
-                    #agents[i * n_neighbor + j].memory.add(state_old, state_new, train_reward, action)  # add entry to this agent's memory
                     
                     agents[i*n_neighbor+j].reset_state(state_old) #state 저장                   
                     agents[i*n_neighbor+j].observe(train_reward, state_new) #action, reward, next state 모두 저장.
@@ -265,30 +286,49 @@ if IS_TRAIN:
                         if i == 0 and j == 0:
                             print('step:', time_step, 'agent',i*n_neighbor+j, 'loss', loss_val_batch)
                             
-                    #if time_step % target_update_step == target_update_step-1:
-                        #update_target_q_network(sesses[i*n_neighbor+j])
-                        #if i == 0 and j == 0:
-                          #  print('Update target Q network...')
 
     print('Training Done. Saving models...')
     
     """
-    agent 개별 저
+    agent 개별 저장
     """
+    print('model save 시작')
+    
+    
+    totalModelPath = './marl_model'
+    totalModelPath_agent0 = './marl_model/agent_0'
+    totalModelPath_agent1 = './marl_model/agent_1'
+    totalModelPath_agent2 = './marl_model/agent_2'
+    totalModelPath_agent3 = './marl_model/agent_3'
+    
+    createFolder(totalModelPath)
+    createFolder(totalModelPath_agent0)
+    createFolder(totalModelPath_agent1)
+    createFolder(totalModelPath_agent2)
+    createFolder(totalModelPath_agent3)
+    
     for i in range(n_veh):
         for j in range(n_neighbor):
-            model_path = label + '/agent_' + str(i * n_neighbor + j)
+            model_path = './marl_model/agent_' + str(i * n_neighbor + j)
             save_models(agents[i*n_neighbor+j], model_path, i*n_neighbor+j, str(i_episode))
             
+    print('model save 완료')
     
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    reward_path = os.path.join(current_dir, "model/" + label + '/reward.mat')
-    scipy.io.savemat(reward_path, {'reward': record_reward})
-
-    record_loss = np.asarray(record_loss).reshape((-1, n_veh*n_neighbor))
-    loss_path = os.path.join(current_dir, "model/" + label + '/train_loss.mat')
-    scipy.io.savemat(loss_path, {'train_loss': record_loss})
-
+    print('log save 시작')
+    
+    current_dir = './'
+    
+    record_reward = np.asarray(record_reward).reshape((-1, n_veh*n_neighbor))    
+    reward_path = current_dir + 'marl_model/reward.mat'    
+    scipy.io.savemat(reward_path, {'reward': record_reward})   
+    MakeCSVFile(totalModelPath, 'reward.csv', ['reward0','reward1','reward2','reward3'],record_reward)
+      
+    record_value_loss = np.asarray(record_value_loss).reshape((-1, n_veh*n_neighbor))    
+    loss_path = current_dir + 'marl_model/train_value_loss.mat'   
+    scipy.io.savemat(loss_path, {'train_value_loss': record_value_loss})
+    MakeCSVFile(totalModelPath, 'train_value_loss.csv', ['loss0','loss1','loss2','loss3'],record_value_loss)
+    print('log save 완료')
+    
 """
 # -------------- Testing --------------
 if IS_TEST:
