@@ -22,6 +22,9 @@ class Agent(object):
         self.memory_entry_size = memory_entry_size
         self.memory = ReplayMemory(self.memory_entry_size)
 
+def predict_ddpg(agent, s_t, ep, test_ep = False, decay_epsilon = True):
+    pred_action = agent.select_action(s_t, decay_epsilon=decay_epsilon)
+    return pred_action
 
 # ################## SETTINGS ######################
 up_lanes = [i/2.0 for i in [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]]
@@ -96,6 +99,26 @@ def get_state_sarl(env, idx=(0,0), ind_episode=1., epsi=0.02):
 
     load_remaining = np.asarray([env.demand_sarl[idx[0], idx[1]] / env.demand_size])
     time_remaining = np.asarray([env.individual_time_limit_sarl[idx[0], idx[1]] / env.time_slow])
+
+    # return np.concatenate((np.reshape(V2V_channel, -1), V2V_interference, V2I_abs, V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
+    return np.concatenate((V2I_fast, np.reshape(V2V_fast, -1), V2V_interference, np.asarray([V2I_abs]), V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
+
+def get_state_ddpg(env, idx=(0,0), ind_episode=1., epsi=0.02):
+    """ Get state from the environment """
+
+    # V2I_channel = (env.V2I_channels_with_fastfading[idx[0], :] - 80) / 60
+    V2I_fast = (env.V2I_channels_with_fastfading[idx[0], :] - env.V2I_channels_abs[idx[0]] + 10)/35
+
+    # V2V_channel = (env.V2V_channels_with_fastfading[:, env.vehicles[idx[0]].destinations[idx[1]], :] - 80) / 60
+    V2V_fast = (env.V2V_channels_with_fastfading[:, env.vehicles[idx[0]].destinations[idx[1]], :] - env.V2V_channels_abs[:, env.vehicles[idx[0]].destinations[idx[1]]] + 10)/35
+
+    V2V_interference = (-env.V2V_Interference_all_ddpg[idx[0], idx[1], :] - 60) / 60
+
+    V2I_abs = (env.V2I_channels_abs[idx[0]] - 80) / 60.0
+    V2V_abs = (env.V2V_channels_abs[:, env.vehicles[idx[0]].destinations[idx[1]]] - 80)/60.0
+
+    load_remaining = np.asarray([env.demand_ddpg[idx[0], idx[1]] / env.demand_size])
+    time_remaining = np.asarray([env.individual_time_limit_ddpg[idx[0], idx[1]] / env.time_slow])
 
     # return np.concatenate((np.reshape(V2V_channel, -1), V2V_interference, V2I_abs, V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
     return np.concatenate((V2I_fast, np.reshape(V2V_fast, -1), V2V_interference, np.asarray([V2I_abs]), V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
@@ -329,6 +352,9 @@ if IS_TEST:
     V2I_rate_list = []
     V2V_success_list = []
 
+    V2I_rate_list_ddpg = []
+    V2V_success_list_ddpg = []
+
     V2I_rate_list_rand = []
     V2V_success_list_rand = []
 
@@ -339,12 +365,17 @@ if IS_TEST:
     V2V_success_list_dpra = []
 
     rate_marl = np.zeros([n_episode_test, n_step_per_episode, n_veh, n_neighbor])
+    rate_ddpg = np.zeros([n_episode_test, n_step_per_episode, n_veh, n_neighbor])
     rate_rand = np.zeros([n_episode_test, n_step_per_episode, n_veh, n_neighbor])
+    
     demand_marl = env.demand_size * np.ones([n_episode_test, n_step_per_episode+1, n_veh, n_neighbor])
+    demand_ddpg = env.demand_size * np.ones([n_episode_test, n_step_per_episode+1, n_veh, n_neighbor])
     demand_rand = env.demand_size * np.ones([n_episode_test, n_step_per_episode+1, n_veh, n_neighbor])
 
+    action_all_testing_ddpg = np.zeros([n_veh, n_neighbor, 2], dtype='float')
     action_all_testing_sarl = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
     action_all_testing_dpra = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
+    
     for idx_episode in range(n_episode_test):
         print('----- Episode', idx_episode, '-----')
 
@@ -356,6 +387,10 @@ if IS_TEST:
         env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
         env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
         env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
+
+        env.demand_ddpg = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
+        env.individual_time_limit_ddpg = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
+        env.active_links_ddpg = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
 
         env.demand_rand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
         env.individual_time_limit_rand = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
@@ -370,11 +405,13 @@ if IS_TEST:
         env.active_links_dpra = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
 
         V2I_rate_per_episode = []
+        V2I_rate_per_episode_ddpg = []
         V2I_rate_per_episode_rand = []
         V2I_rate_per_episode_sarl = []
         V2I_rate_per_episode_dpra = []
 
         for test_step in range(n_step_per_episode):
+            
             # trained models
             action_all_testing = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
             for i in range(n_veh):
@@ -391,6 +428,25 @@ if IS_TEST:
             rate_marl[idx_episode, test_step,:,:] = V2V_rate
             demand_marl[idx_episode, test_step+1,:,:] = env.demand
 
+            # trained DDPG models
+            action_all_testing_ddpg = np.zeros([n_veh, n_neighbor, 2], dtype='float')
+            
+            for i in range(n_veh):
+                for j in range(n_neighbor):
+                    state_old = get_state_ddpg(env, [i, j], 1, epsi_final)
+                    action =  predict_ddpg(ddpg_agents[i*n_neighbor+j], state_old, ep = epsi_final ,test_ep = True,decay_epsilon = False )
+                    action_all_testing_ddpg[i, j, 0] = action[0]
+                    action_all_testing_ddpg[i, j, 1] = action[1]
+                    
+            
+            action_temp_ddpg = action_all_testing_ddpg.copy()
+            V2I_rate_ddpg, V2V_success_ddpg, V2V_rate_ddpg = env.act_for_testing_ddpg(action_temp_ddpg)
+            V2I_rate_per_episode_ddpg.append(np.sum(V2I_rate_ddpg))  # sum V2I rate in bps
+            
+            rate_ddpg[idx_episode, test_step,:,:] = V2V_rate_ddpg
+            demand_ddpg[idx_episode, test_step+1,:,:] = env.demand_ddpg
+            
+            
             # random baseline
             action_rand = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
             action_rand[:, :, 0] = np.random.randint(0, n_RB, [n_veh, n_neighbor]) # band
@@ -400,6 +456,7 @@ if IS_TEST:
 
             rate_rand[idx_episode, test_step, :, :] = V2V_rate_rand
             demand_rand[idx_episode, test_step+1,:,:] = env.demand_rand
+            
 
             # SARL
             remainder = test_step % (n_veh * n_neighbor)
@@ -482,6 +539,7 @@ if IS_TEST:
             # update the environment and compute interference
             env.renew_channels_fastfading()
             env.Compute_Interference(action_temp)
+            env.Compute_Interference_ddpg(action_temp_ddpg)
             env.Compute_Interference_sarl(action_temp_sarl)
             env.Compute_Interference_dpra(action_temp_dpra)
 
@@ -490,15 +548,23 @@ if IS_TEST:
                 V2V_success_list_rand.append(V2V_success_rand)
                 V2V_success_list_sarl.append(V2V_success_sarl)
                 V2V_success_list_dpra.append(V2V_success_dpra)
-
+                V2V_success_list_ddpg.append(V2V_success_ddpg)
+                
+            
         V2I_rate_list.append(np.mean(V2I_rate_per_episode))
         V2I_rate_list_rand.append(np.mean(V2I_rate_per_episode_rand))
         V2I_rate_list_sarl.append(np.mean(V2I_rate_per_episode_sarl))
         V2I_rate_list_dpra.append(np.mean(V2I_rate_per_episode_dpra))
+        V2I_rate_list_ddpg.append(np.mean(V2I_rate_per_episode_ddpg))  
+        
+        print('ddpg', round(np.average(V2I_rate_per_episode_ddpg), 2),'marl', round(np.average(V2I_rate_per_episode), 2), 'sarl', round(np.average(V2I_rate_per_episode_sarl), 2), 'dpra', round(np.average(V2I_rate_per_episode_dpra), 2))
+        print('ddpg', V2V_success_list_ddpg[idx_episode],'marl', V2V_success_list[idx_episode], 'sarl', V2V_success_list_sarl[idx_episode], 'dpra', V2V_success_list_dpra[idx_episode])
 
-        print('marl', round(np.average(V2I_rate_per_episode), 2), 'sarl', round(np.average(V2I_rate_per_episode_sarl), 2), 'rand', round(np.average(V2I_rate_per_episode_rand), 2), 'dpra', round(np.average(V2I_rate_per_episode_dpra), 2))
-        print('marl', V2V_success_list[idx_episode], 'sarl', V2V_success_list_sarl[idx_episode], 'rand', V2V_success_list_rand[idx_episode], 'dpra', V2V_success_list_dpra[idx_episode])
-
+    print('-------- ddpg -------------')
+    print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
+    print('Sum V2I rate:', round(np.average(V2I_rate_list_ddpg), 2), 'Mbps')
+    print('Pr(V2V success):', round(np.average(V2V_success_list_ddpg), 4))
+    
     print('-------- marl -------------')
     print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
     print('Sum V2I rate:', round(np.average(V2I_rate_list), 2), 'Mbps')
@@ -508,12 +574,12 @@ if IS_TEST:
     print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
     print('Sum V2I rate:', round(np.average(V2I_rate_list_sarl), 2), 'Mbps')
     print('Pr(V2V success):', round(np.average(V2V_success_list_sarl), 4))
-
+    """
     print('-------- random -------------')
     print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
     print('Sum V2I rate:', round(np.average(V2I_rate_list_rand), 2), 'Mbps')
     print('Pr(V2V success):', round(np.average(V2V_success_list_rand), 4))
-
+    """
     print('-------- DPRA -------------')
     print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
     print('Sum V2I rate:', round(np.average(V2I_rate_list_dpra), 2), 'Mbps')
@@ -522,6 +588,10 @@ if IS_TEST:
 # The name "DPRA" is used for historical reasons. Not really the case...
 
     with open("Data.txt", "a") as f:
+        f.write('-------- ddpg, ' + label + '------\n')
+        f.write('n_veh: ' + str(n_veh) + ', n_neighbor: ' + str(n_neighbor) + '\n')
+        f.write('Sum V2I rate: ' + str(round(np.average(V2I_rate_list_ddpg), 5)) + ' Mbps\n')
+        f.write('Pr(V2V): ' + str(round(np.average(V2V_success_list_ddpg), 5)) + '\n')       
         f.write('-------- marl, ' + label + '------\n')
         f.write('n_veh: ' + str(n_veh) + ', n_neighbor: ' + str(n_neighbor) + '\n')
         f.write('Sum V2I rate: ' + str(round(np.average(V2I_rate_list), 5)) + ' Mbps\n')

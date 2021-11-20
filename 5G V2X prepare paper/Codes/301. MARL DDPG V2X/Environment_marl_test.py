@@ -125,6 +125,7 @@ class Environ:
         # self.demand_size = 20
 
         self.V2V_Interference_all = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
+        self.V2V_Interference_all_ddpg = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
         self.V2V_Interference_all_sarl = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
         self.V2V_Interference_all_dpra = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
 
@@ -317,8 +318,9 @@ class Environ:
     def Compute_Performance_Reward_Train(self, actions_power):
 
         actions = actions_power[:, :, 0]  # the channel_selection_part
+        
         power_selection = actions_power[:, :, 1]  # power selection
-
+       
         # ------------ Compute V2I rate --------------------
         V2I_Rate = np.zeros(self.n_RB)
         V2I_Interference = np.zeros(self.n_RB)  # V2I interference
@@ -366,6 +368,57 @@ class Environ:
         self.active_links[np.multiply(self.active_links, self.demand <= 0)] = 0 # transmission finished, turned to "inactive"
 
         return V2I_Rate, V2V_Rate, reward_elements
+
+    def Compute_Performance_Reward_Test_DDPG(self, actions_power):
+    
+        actions = actions_power[:, :, 0]  # the channel_selection_part
+        actions = actions.astype('int32')
+        power_selection = actions_power[:, :, 1]  # power selection
+    
+        # ------------ Compute V2I rate --------------------
+        V2I_Rate = np.zeros(self.n_RB)
+        V2I_Interference = np.zeros(self.n_RB)  # V2I interference
+        for i in range(len(self.vehicles)):
+            for j in range(self.n_neighbor):
+                if not self.active_links_ddpg[i, j]:
+                    continue
+                V2I_Interference[actions[i][j]] += 10 ** ((power_selection[i, j] - self.V2I_channels_with_fastfading[i, actions[i, j]]
+                                                           + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure) / 10)
+        self.V2I_Interference_ddpg = V2I_Interference + self.sig2
+        V2I_Signals = 10 ** ((self.V2I_power_dB - self.V2I_channels_with_fastfading.diagonal() + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure) / 10)
+        V2I_Rate = np.log2(1 + np.divide(V2I_Signals, self.V2I_Interference_ddpg))
+    
+        # ------------ Compute V2V rate -------------------------
+        V2V_Interference = np.zeros((len(self.vehicles), self.n_neighbor))
+        V2V_Signal = np.zeros((len(self.vehicles), self.n_neighbor))
+        actions[(np.logical_not(self.active_links_ddpg))] = -1 # inactive links will not transmit regardless of selected power levels
+        for i in range(self.n_RB):  # scanning all bands
+            indexes = np.argwhere(actions == i)  # find spectrum-sharing V2Vs
+            for j in range(len(indexes)):
+                receiver_j = self.vehicles[indexes[j, 0]].destinations[indexes[j, 1]]
+                V2V_Signal[indexes[j, 0], indexes[j, 1]] = 10 ** ((power_selection[indexes[j, 0], indexes[j, 1]] - self.V2V_channels_with_fastfading[indexes[j][0], receiver_j, i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+                # V2I links interference to V2V links
+                V2V_Interference[indexes[j, 0], indexes[j, 1]] += 10 ** ((self.V2I_power_dB - self.V2V_channels_with_fastfading[i, receiver_j, i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+    
+                #  V2V interference
+                for k in range(j + 1, len(indexes)):  # spectrum-sharing V2Vs
+                    receiver_k = self.vehicles[indexes[k][0]].destinations[indexes[k][1]]
+                    V2V_Interference[indexes[j, 0], indexes[j, 1]] += 10 ** ((power_selection[indexes[k, 0], indexes[k, 1]] - self.V2V_channels_with_fastfading[indexes[k][0]][receiver_j][i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+                    V2V_Interference[indexes[k, 0], indexes[k, 1]] += 10 ** ((power_selection[indexes[j, 0], indexes[j, 1]] - self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+        self.V2V_Interference_ddpg = V2V_Interference + self.sig2
+        V2V_Rate = np.log2(1 + np.divide(V2V_Signal, self.V2V_Interference_ddpg))
+    
+        self.demand_ddpg -= V2V_Rate * self.time_fast * self.bandwidth
+        self.demand_ddpg[self.demand_ddpg < 0] = 0 # eliminate negative demands
+    
+        self.individual_time_limit_ddpg -= self.time_fast
+    
+        #reward_elements = V2V_Rate/10
+        #reward_elements[self.demand_ddpg <= 0] = 1
+    
+        self.active_links_ddpg[np.multiply(self.active_links_ddpg, self.demand_ddpg <= 0)] = 0 # transmission finished, turned to "inactive"
+    
+        return V2I_Rate, V2V_Rate
 
     def Compute_Performance_Reward_Test_rand(self, actions_power):
         """ for random baseline computation """
@@ -563,7 +616,7 @@ class Environ:
 
     def Compute_Interference(self, actions):
         V2V_Interference = np.zeros((len(self.vehicles), self.n_neighbor, self.n_RB)) + self.sig2
-
+        
         channel_selection = actions.copy()[:, :, 0]
         power_selection = actions.copy()[:, :, 1]
         channel_selection[np.logical_not(self.active_links)] = -1
@@ -585,6 +638,34 @@ class Environ:
                         V2V_Interference[k, m, channel_selection[i, j]] += 10 ** ((self.V2V_power_dB_List[power_selection[i, j]]
                                                                                    - self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][channel_selection[i,j]] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
         self.V2V_Interference_all = 10 * np.log10(V2V_Interference)
+
+
+    def Compute_Interference_ddpg(self, actions):
+         V2V_Interference = np.zeros((len(self.vehicles), self.n_neighbor, self.n_RB)) + self.sig2
+         
+         channel_selection = actions.copy()[:, :, 0]
+         channel_selection = channel_selection.astype('int32')
+         
+         power_selection = actions.copy()[:, :, 1]
+         channel_selection[np.logical_not(self.active_links_ddpg)] = -1
+
+         # interference from V2I links
+         for i in range(self.n_RB):
+             for k in range(len(self.vehicles)):
+                 for m in range(len(channel_selection[k, :])):
+                     V2V_Interference[k, m, i] += 10 ** ((self.V2I_power_dB - self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][i] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+
+         # interference from peer V2V links
+         for i in range(len(self.vehicles)):
+             for j in range(len(channel_selection[i, :])):
+                 for k in range(len(self.vehicles)):
+                     for m in range(len(channel_selection[k, :])):
+                         # if i == k or channel_selection[i,j] >= 0:
+                         if i == k and j == m or channel_selection[i, j] < 0:
+                             continue
+                         V2V_Interference[k, m, channel_selection[i, j]] += 10 ** ((power_selection[i, j]
+                                                                                    - self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][channel_selection[i,j]] + 2 * self.vehAntGain - self.vehNoiseFigure) / 10)
+         self.V2V_Interference_all_ddpg = 10 * np.log10(V2V_Interference)
 
 
     def Compute_Interference_sarl(self, actions):
@@ -657,6 +738,14 @@ class Environ:
 
         return V2I_Rate, V2V_success, V2V_Rate
 
+    def act_for_testing_ddpg(self, actions):
+
+         action_temp = actions.copy()
+         V2I_Rate, V2V_Rate = self.Compute_Performance_Reward_Test_DDPG(action_temp)
+         V2V_success = 1 - np.sum(self.active_links_ddpg) / (self.n_Veh * self.n_neighbor)  # V2V success rates
+    
+         return V2I_Rate, V2V_success, V2V_Rate
+ 
     def act_for_testing_rand(self, actions):
 
         action_temp = actions.copy()
@@ -696,6 +785,11 @@ class Environ:
         self.demand = self.demand_size * np.ones((self.n_Veh, self.n_neighbor))
         self.individual_time_limit = self.time_slow * np.ones((self.n_Veh, self.n_neighbor))
         self.active_links = np.ones((self.n_Veh, self.n_neighbor), dtype='bool')
+
+        # test ddpg
+        self.demand_ddpg = self.demand_size * np.ones((self.n_Veh, self.n_neighbor))
+        self.individual_time_limit_ddpg = self.time_slow * np.ones((self.n_Veh, self.n_neighbor))
+        self.active_links_ddpg = np.ones((self.n_Veh, self.n_neighbor), dtype='bool')
 
         # random baseline
         self.demand_rand = self.demand_size * np.ones((self.n_Veh, self.n_neighbor))

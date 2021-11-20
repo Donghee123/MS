@@ -125,12 +125,12 @@ n_RB = n_veh
 def predict(agent, s_t, ep, test_ep = False, decay_epsilon = True):
 
     n_power_levels = len(env.V2V_power_dB_List)
-    print('epsilon-greedy : ', ep)
+    #print('epsilon-greedy : ', ep)
     if np.random.rand() < ep and not test_ep:
-        print('random select')
+        #print('random select')
         pred_action = agent.random_action()
     else:
-        print('policy select')
+        #print('policy select')
         pred_action = agent.select_action(s_t, decay_epsilon=decay_epsilon)
         
     return pred_action
