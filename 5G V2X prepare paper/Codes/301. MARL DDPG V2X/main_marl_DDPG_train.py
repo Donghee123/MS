@@ -75,14 +75,6 @@ n_RB = n_veh
 env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, width, height, n_veh, n_neighbor)
 env.new_random_game()  # initialize parameters in env
 
-n_episode = 50
-n_step_per_episode = int(env.time_slow/env.time_fast)
-epsi_final = 0.02
-epsi_anneal_length = int(0.8*n_episode)
-mini_batch_step = n_step_per_episode
-target_update_step = n_step_per_episode*4
-
-n_episode_test = 100  # test episodes
 
 ######################################################
 
@@ -130,9 +122,12 @@ n_RB = n_veh
 def predict(agent, s_t, ep, test_ep = False, decay_epsilon = True):
 
     n_power_levels = len(env.V2V_power_dB_List)
+    print('epsilon-greedy : ', ep)
     if np.random.rand() < ep and not test_ep:
+        print('random select')
         pred_action = agent.random_action()
     else:
+        print('policy select')
         pred_action = agent.select_action(s_t, decay_epsilon=decay_epsilon)
         
     return pred_action
@@ -178,7 +173,7 @@ parser.add_argument('--rate', default=0.001, type=float, help='learning rate')
 parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
     
 parser.add_argument('--discount', default=0.99, type=float, help='')
-parser.add_argument('--bsize', default=64, type=int, help='minibatch size') # 64
+parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 
 parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
 parser.add_argument('--window_length', default=1, type=int, help='')
 parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
@@ -194,7 +189,7 @@ parser.add_argument('--debug', dest='debug', action='store_true')
 parser.add_argument('--init_w', default=0.003, type=float, help='') 
 parser.add_argument('--warmup', default=10000, type=int, help='time without training but only filling the replay memory') # 10000
 parser.add_argument('--validate_steps', default=2000, type=int, help='how many steps to perform a validate experiment') # 2000
-parser.add_argument('--train_iter', default=20000, type=int, help='train iters each timestep') # 200000
+parser.add_argument('--train_iter', default=3000, type=int, help='train iters each timestep') # 200000
 parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
 parser.add_argument('--seed', default=-1, type=int, help='')
 parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
@@ -203,6 +198,17 @@ nb_states = len(get_state(env=env))
 nb_actions = 2
 
 args = parser.parse_args()
+
+warmup_step = args.warmup
+n_episode = args.train_iter
+n_step_per_episode = int(env.time_slow/env.time_fast)
+epsi_final = 0.02
+epsi_anneal_length = int(0.8*n_episode)
+mini_batch_step = n_step_per_episode
+target_update_step = n_step_per_episode*4
+
+n_episode_test = 100  # test episodes
+
 
     
 # --------------------------------------------------------------
