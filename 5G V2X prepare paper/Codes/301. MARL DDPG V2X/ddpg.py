@@ -170,7 +170,16 @@ class DDPG(object):
             torch.load('{}/critic.pkl'.format(output))
         )
 
+    def load_weights(self, actor_path, critic_path):
+        
+        self.actor.load_state_dict(
+            torch.load(actor_path)
+        )
 
+        self.critic.load_state_dict(
+            torch.load(critic_path)
+        )
+        
     def save_model(self,output, performance):
         
         savePath = output
