@@ -43,6 +43,9 @@ class Agent(object):
     def random_action(self):
         return self.DDPGAgent.random_action()
     
+    def load_model(self, actor_path, critic_path):
+        return self.DDPGAgent.load_weights(actor_path, critic_path)
+    
     def observe(self, r_t, s_t):
         self.DDPGAgent.observe(r_t, s_t, False)
     
@@ -75,6 +78,7 @@ n_RB = n_veh
 env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, width, height, n_veh, n_neighbor)
 env.new_random_game()  # initialize parameters in env
 
+<<<<<<< HEAD
 n_episode = 40000
 n_step_per_episode = int(env.time_slow/env.time_fast)
 epsi_final = 0.02
@@ -83,6 +87,8 @@ mini_batch_step = n_step_per_episode
 target_update_step = n_step_per_episode*4
 
 n_episode_test = 100  # test episodes
+=======
+>>>>>>> 641ad29383c816e2b8a59798802aba976cb9c1fc
 
 ######################################################
 
@@ -130,9 +136,12 @@ n_RB = n_veh
 def predict(agent, s_t, ep, test_ep = False, decay_epsilon = True):
 
     n_power_levels = len(env.V2V_power_dB_List)
+    #print('epsilon-greedy : ', ep)
     if np.random.rand() < ep and not test_ep:
+        #print('random select')
         pred_action = agent.random_action()
     else:
+        #print('policy select')
         pred_action = agent.select_action(s_t, decay_epsilon=decay_epsilon)
         
     return pred_action
@@ -169,165 +178,10 @@ def load_models(sess, model_path):
 """
 
 
-parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
-parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
-parser.add_argument('--hidden1', default=512, type=int, help='hidden num of first fully connect layer')
-parser.add_argument('--hidden2', default=256, type=int, help='hidden num of second fully connect layer')
-parser.add_argument('--rate', default=0.001, type=float, help='learning rate')
-parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
-    
-parser.add_argument('--discount', default=0.99, type=float, help='')
-parser.add_argument('--bsize', default=64, type=int, help='minibatch size') # 64
-parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
-parser.add_argument('--window_length', default=1, type=int, help='')
-parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
-parser.add_argument('--ou_theta', default=0.15, type=float, help='noise theta')
-parser.add_argument('--ou_sigma', default=0.2, type=float, help='noise sigma') 
-parser.add_argument('--ou_mu', default=0.0, type=float, help='noise mu') 
-parser.add_argument('--validate_episodes', default=20, type=int, help='how many episode to perform during validate experiment')
-parser.add_argument('--max_episode_length', default=500, type=int, help='')
 
-parser.add_argument('--output', default='output', type=str, help='')
-parser.add_argument('--debug', dest='debug', action='store_true')
-    
-parser.add_argument('--init_w', default=0.003, type=float, help='') 
-parser.add_argument('--warmup', default=10000, type=int, help='time without training but only filling the replay memory') # 10000
-parser.add_argument('--validate_steps', default=2000, type=int, help='how many steps to perform a validate experiment') # 2000
-parser.add_argument('--train_iter', default=20000, type=int, help='train iters each timestep') # 200000
-parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
-parser.add_argument('--seed', default=-1, type=int, help='')
-parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
-    
-nb_states = len(get_state(env=env))
-nb_actions = 2
-
-args = parser.parse_args()
-
-    
-# --------------------------------------------------------------
-agents = []
-
-for ind_agent in range(n_veh * n_neighbor):  # initialize agents
-    print("Initializing agent", ind_agent)
-    DDPGModel = DDPG(nb_states, nb_actions, args, n_veh)
-    agent = Agent(DDPGModel)
-    agents.append(agent)
-
-# ------------------------- Training -----------------------------
-record_reward = np.zeros([n_episode*n_step_per_episode, 1])
-record_value_loss = []
-record_policy_loss = []
-record_loss = []
-
-if IS_TRAIN:
-    for i_episode in range(n_episode):
-        print("-------------------------")
-        print('Episode:', i_episode)
-        if i_episode < epsi_anneal_length:
-            epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode
-        else:
-            epsi = epsi_final
-            
-        if i_episode%100 == 0:
-            env.renew_positions() # update vehicle position
-            env.renew_neighbor()
-            env.renew_channel() # update channel slow fading
-            env.renew_channels_fastfading() # update channel fast fading
-
-        env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
-        env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
-        env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
-
-        for i_step in range(n_step_per_episode):
-            time_step = i_episode*n_step_per_episode + i_step
-            state_old_all = []
-            action_all = []
-            action_all_training = np.zeros([n_veh, n_neighbor, 2], dtype='float')
-            
-            for i in range(n_veh):
-                for j in range(n_neighbor):
-                    state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)      
-                    state_old_all.append(state)
-                    action = predict(agents[i*n_neighbor+j], state, epsi) #agent에 action도 저
-                    action_all.append(action)
-                    action_all_training[i, j, 0] = action[0]  # chosen RB
-                    action_all_training[i, j, 1] = action[1]  # power level
-
-            # All agents take actions simultaneously, obtain shared reward, and update the environment.
-            action_temp = action_all_training.copy()
-            train_reward = env.act_for_training(action_temp)
-            record_reward[time_step] = train_reward
-
-            env.renew_channels_fastfading()
-            env.Compute_Interference(action_temp)
-            
-            """
-            모든 agent가 state, action, reward, next_state 저장
-            """
-           
-                    
-                    
-            for i in range(n_veh):
-                for j in range(n_neighbor):
-                    state_old = state_old_all[n_neighbor * i + j]
-                    action = action_all[n_neighbor * i + j]
-                    state_new = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
-                    
-                    agents[i*n_neighbor+j].reset_state(state_old) #state 저장                   
-                    agents[i*n_neighbor+j].observe(train_reward, state_new) #action, reward, next state 모두 저장.
-                    
-                    # training this agent
-                    if time_step % mini_batch_step == mini_batch_step-1:
-                        loss_val_batch, loss_policy_batch = DDPG_agent_learning(agents[i*n_neighbor+j])
-                        record_value_loss.append(loss_val_batch)
-                        record_policy_loss.append(loss_policy_batch)
-                        
-                        if i == 0 and j == 0:
-                            print('step:', time_step, 'agent',i*n_neighbor+j, 'loss', loss_val_batch)
                             
 
-    print('Training Done. Saving models...')
-    
-    """
-    agent 개별 저장
-    """
-    print('model save 시작')
-    
-    
-    totalModelPath = './marl_model'
-    totalModelPath_agent0 = './marl_model/agent_0'
-    totalModelPath_agent1 = './marl_model/agent_1'
-    totalModelPath_agent2 = './marl_model/agent_2'
-    totalModelPath_agent3 = './marl_model/agent_3'
-    
-    createFolder(totalModelPath)
-    createFolder(totalModelPath_agent0)
-    createFolder(totalModelPath_agent1)
-    createFolder(totalModelPath_agent2)
-    createFolder(totalModelPath_agent3)
-    
-    for i in range(n_veh):
-        for j in range(n_neighbor):
-            model_path = './marl_model/agent_' + str(i * n_neighbor + j)
-            save_models(agents[i*n_neighbor+j], model_path, i*n_neighbor+j, str(i_episode))
-            
-    print('model save 완료')
-    
-    print('log save 시작')
-    
-    current_dir = './'
-    
-    record_reward = np.asarray(record_reward).reshape((-1, n_veh*n_neighbor))    
-    reward_path = current_dir + 'marl_model/reward.mat'    
-    scipy.io.savemat(reward_path, {'reward': record_reward})   
-    MakeCSVFile(totalModelPath, 'reward.csv', ['reward0','reward1','reward2','reward3'],record_reward)
-      
-    record_value_loss = np.asarray(record_value_loss).reshape((-1, n_veh*n_neighbor))    
-    loss_path = current_dir + 'marl_model/train_value_loss.mat'   
-    scipy.io.savemat(loss_path, {'train_value_loss': record_value_loss})
-    MakeCSVFile(totalModelPath, 'train_value_loss.csv', ['loss0','loss1','loss2','loss3'],record_value_loss)
-    print('log save 완료')
     
 """
 # -------------- Testing --------------
@@ -446,8 +300,176 @@ if IS_TEST:
 # close sessions
 for sess in sesses:
     sess.close()
-
-
-# if __name__ == '__main__':
-#     tf.app.run()
 """
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
+
+    parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
+    parser.add_argument('--hidden1', default=512, type=int, help='hidden num of first fully connect layer')
+    parser.add_argument('--hidden2', default=256, type=int, help='hidden num of second fully connect layer')
+    parser.add_argument('--rate', default=0.001, type=float, help='learning rate')
+    parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
+        
+    parser.add_argument('--discount', default=0.99, type=float, help='')
+    parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 
+    parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
+    parser.add_argument('--window_length', default=1, type=int, help='')
+    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
+    parser.add_argument('--ou_theta', default=0.15, type=float, help='noise theta')
+    parser.add_argument('--ou_sigma', default=0.2, type=float, help='noise sigma') 
+    parser.add_argument('--ou_mu', default=0.0, type=float, help='noise mu') 
+    parser.add_argument('--validate_episodes', default=20, type=int, help='how many episode to perform during validate experiment')
+    parser.add_argument('--max_episode_length', default=500, type=int, help='')
+
+    parser.add_argument('--output', default='output', type=str, help='')
+    parser.add_argument('--debug', dest='debug', action='store_true')
+        
+    parser.add_argument('--init_w', default=0.003, type=float, help='') 
+    parser.add_argument('--warmup', default=10000, type=int, help='time without training but only filling the replay memory') # 10000
+    parser.add_argument('--validate_steps', default=2000, type=int, help='how many steps to perform a validate experiment') # 2000
+    parser.add_argument('--train_iter', default=3000, type=int, help='train iters each timestep') # 200000
+    parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
+    parser.add_argument('--seed', default=-1, type=int, help='')
+    parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
+        
+    nb_states = len(get_state(env=env))
+    nb_actions = 2
+
+    args = parser.parse_args()
+
+    warmup_step = args.warmup
+    n_episode = args.train_iter
+    n_step_per_episode = int(env.time_slow/env.time_fast)
+    epsi_final = 0.02
+    epsi_anneal_length = int(0.8*n_episode)
+    mini_batch_step = n_step_per_episode
+    target_update_step = n_step_per_episode*4
+
+    n_episode_test = 100  # test episodes
+
+
+        
+    # --------------------------------------------------------------
+    agents = []
+
+    for ind_agent in range(n_veh * n_neighbor):  # initialize agents
+        print("Initializing agent", ind_agent)
+        DDPGModel = DDPG(nb_states, nb_actions, args, n_veh)
+        agent = Agent(DDPGModel)
+        agents.append(agent)
+
+    # ------------------------- Training -----------------------------
+    record_reward = np.zeros([n_episode*n_step_per_episode, 1])
+    record_value_loss = []
+    record_policy_loss = []
+    record_loss = []
+
+    if IS_TRAIN:
+        for i_episode in range(n_episode):
+            print("-------------------------")
+            print('Episode:', i_episode)
+            if i_episode < epsi_anneal_length:
+                epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode
+            else:
+                epsi = epsi_final
+                
+            if i_episode%100 == 0:
+                env.renew_positions() # update vehicle position
+                env.renew_neighbor()
+                env.renew_channel() # update channel slow fading
+                env.renew_channels_fastfading() # update channel fast fading
+
+            env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
+            env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
+            env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
+
+            for i_step in range(n_step_per_episode):
+                time_step = i_episode*n_step_per_episode + i_step
+                state_old_all = []
+                action_all = []
+                action_all_training = np.zeros([n_veh, n_neighbor, 2], dtype='float')
+                
+                for i in range(n_veh):
+                    for j in range(n_neighbor):
+                        state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)      
+                        state_old_all.append(state)
+                        action = predict(agents[i*n_neighbor+j], state, epsi) #agent에 action도 저
+                        action_all.append(action)
+                        action_all_training[i, j, 0] = action[0]  # chosen RB
+                        action_all_training[i, j, 1] = action[1]  # power level
+
+                # All agents take actions simultaneously, obtain shared reward, and update the environment.
+                action_temp = action_all_training.copy()
+                train_reward = env.act_for_training(action_temp)
+                record_reward[time_step] = train_reward
+
+                env.renew_channels_fastfading()
+                env.Compute_Interference(action_temp)
+                
+                """
+                모든 agent가 state, action, reward, next_state 저장
+                """
+               
+                        
+                        
+                for i in range(n_veh):
+                    for j in range(n_neighbor):
+                        state_old = state_old_all[n_neighbor * i + j]
+                        action = action_all[n_neighbor * i + j]
+                        state_new = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
+                        
+                        agents[i*n_neighbor+j].reset_state(state_old) #state 저장                   
+                        agents[i*n_neighbor+j].observe(train_reward, state_new) #action, reward, next state 모두 저장.
+                        
+                        # training this agent
+                        if time_step % mini_batch_step == mini_batch_step-1:
+                            loss_val_batch, loss_policy_batch = DDPG_agent_learning(agents[i*n_neighbor+j])
+                            record_value_loss.append(loss_val_batch)
+                            record_policy_loss.append(loss_policy_batch)
+                            
+                            if i == 0 and j == 0:
+                                print('step:', time_step, 'agent',i*n_neighbor+j, 'loss', loss_val_batch)
+                                
+    
+        print('Training Done. Saving models...')
+        
+        """
+        agent 개별 저장
+        """
+        print('model save 시작')
+        
+        
+        totalModelPath = './marl_model'
+        totalModelPath_agent0 = './marl_model/agent_0'
+        totalModelPath_agent1 = './marl_model/agent_1'
+        totalModelPath_agent2 = './marl_model/agent_2'
+        totalModelPath_agent3 = './marl_model/agent_3'
+        
+        createFolder(totalModelPath)
+        createFolder(totalModelPath_agent0)
+        createFolder(totalModelPath_agent1)
+        createFolder(totalModelPath_agent2)
+        createFolder(totalModelPath_agent3)
+        
+        for i in range(n_veh):
+            for j in range(n_neighbor):
+                model_path = './marl_model/agent_' + str(i * n_neighbor + j)
+                save_models(agents[i*n_neighbor+j], model_path, i*n_neighbor+j, str(i_episode))
+                
+        print('model save 완료')
+        
+        print('log save 시작')
+        
+        current_dir = './'
+        
+        record_reward = np.asarray(record_reward).reshape((-1, n_veh*n_neighbor))    
+        reward_path = current_dir + 'marl_model/reward.mat'    
+        scipy.io.savemat(reward_path, {'reward': record_reward})   
+        MakeCSVFile(totalModelPath, 'reward.csv', ['reward0','reward1','reward2','reward3'],record_reward)
+          
+        record_value_loss = np.asarray(record_value_loss).reshape((-1, n_veh*n_neighbor))    
+        loss_path = current_dir + 'marl_model/train_value_loss.mat'   
+        scipy.io.savemat(loss_path, {'train_value_loss': record_value_loss})
+        MakeCSVFile(totalModelPath, 'train_value_loss.csv', ['loss0','loss1','loss2','loss3'],record_value_loss)
+        print('log save 완료')
