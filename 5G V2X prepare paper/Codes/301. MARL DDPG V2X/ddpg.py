@@ -36,7 +36,10 @@ class DDPG(object):
         self.critic = Critic(self.nb_states, self.nb_actions, **net_cfg)
         self.critic_target = Critic(self.nb_states, self.nb_actions, **net_cfg)
         self.critic_optim  = Adam(self.critic.parameters(), lr=args.rate)
-
+        
+        self.target_update_step = args.target_update_step
+        self.update_count = 0
+        
         hard_update(self.actor_target, self.actor) # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)
         
@@ -66,7 +69,7 @@ class DDPG(object):
         # 
         if USE_CUDA: self.cuda()
 
-    def update_policy(self):
+    def update_policy(self, isHardupdate = False):
         # Sample batch
         state_batch, action_batch, reward_batch, \
         next_state_batch, terminal_batch = self.memory.sample_and_split(self.batch_size)
@@ -76,8 +79,9 @@ class DDPG(object):
             to_tensor(next_state_batch, volatile=True),
             self.actor_target(to_tensor(next_state_batch, volatile=True)),
         ])
+        
         next_q_values.volatile=False
-
+        
         target_q_batch = to_tensor(reward_batch) + \
             self.discount*to_tensor(terminal_batch.astype(np.float))*next_q_values
 
@@ -102,9 +106,17 @@ class DDPG(object):
         policy_loss.backward()
         self.actor_optim.step()
 
+        self.update_count += 1 
         # Target update
-        soft_update(self.actor_target, self.actor, self.tau)
-        soft_update(self.critic_target, self.critic, self.tau)
+        if isHardupdate == True and self.update_count % self.target_update_step == 0:
+            print('hard update..')
+            hard_update(self.actor_target, self.actor) # Make sure target is with the same weigh
+            hard_update(self.critic_target, self.critic)
+        else:
+            print('soft update..')
+            soft_update(self.actor_target, self.actor, self.tau)
+            soft_update(self.critic_target, self.critic, self.tau)
+        
         return value_loss, policy_loss
 
     def eval(self):
@@ -154,6 +166,9 @@ class DDPG(object):
 
     def reset(self, obs):
         self.s_t = obs
+        self.random_process.reset_states()
+     
+    def reset_random_process(self):
         self.random_process.reset_states()
         
     def reset_state(self, obs):

@@ -8,7 +8,29 @@ import Environment_marl
 import os
 from replay_memory import ReplayMemory
 import sys
+import csv
+import os
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
 my_config = tf.ConfigProto()
 my_config.gpu_options.allow_growth=True
 
@@ -42,6 +64,7 @@ env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, wi
 env.new_random_game()  # initialize parameters in env
 
 n_episode = 3000
+
 n_step_per_episode = int(env.time_slow/env.time_fast)
 epsi_final = 0.02
 epsi_anneal_length = int(0.8*n_episode)
@@ -297,7 +320,11 @@ if IS_TRAIN:
     current_dir = os.path.dirname(os.path.realpath(__file__))
     reward_path = os.path.join(current_dir, "model/" + label + '/reward.mat')
     scipy.io.savemat(reward_path, {'reward': record_reward})
-
+    
+    totalModelPath = './marl_model'
+    record_reward = np.asarray(record_reward).reshape((-1, n_veh*n_neighbor))      
+    MakeCSVFile(totalModelPath, 'reward.csv', ['reward0','reward1','reward2','reward3'],record_reward)
+    
     record_loss = np.asarray(record_loss).reshape((-1, n_veh*n_neighbor))
     loss_path = os.path.join(current_dir, "model/" + label + '/train_loss.mat')
     scipy.io.savemat(loss_path, {'train_loss': record_loss})

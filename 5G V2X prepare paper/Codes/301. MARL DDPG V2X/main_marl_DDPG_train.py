@@ -8,6 +8,7 @@ import os
 import sys
 import argparse
 from ddpg import DDPG
+from ddpgagent import Agent
 import pandas as pd
 import csv
 import os
@@ -32,32 +33,6 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     
     f.close()
     
-class Agent(object):
-    def __init__(self, DDPGAgent):
-        self.DDPGAgent = DDPGAgent
-        self.memory = DDPGAgent.memory
-        
-    def select_action(self, s_t, decay_epsilon=True):
-        return self.DDPGAgent.select_action(s_t, decay_epsilon=True)
-    
-    def random_action(self):
-        return self.DDPGAgent.random_action()
-    
-    def load_model(self, actor_path, critic_path):
-        return self.DDPGAgent.load_weights(actor_path, critic_path)
-    
-    def observe(self, r_t, s_t):
-        self.DDPGAgent.observe(r_t, s_t, False)
-    
-    def update_policy(self):
-        return self.DDPGAgent.update_policy()
-        
-    def reset_state(self, s_t):
-        self.DDPGAgent.reset_state(s_t)
-          
-    def save_model(self, model_path, saveFileName):
-    #def 
-        self.DDPGAgent.save_model(model_path, saveFileName)
 
 # ################## SETTINGS ######################
 up_lanes = [i/2.0 for i in [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]]
@@ -78,17 +53,6 @@ n_RB = n_veh
 env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, width, height, n_veh, n_neighbor)
 env.new_random_game()  # initialize parameters in env
 
-<<<<<<< HEAD
-n_episode = 40000
-n_step_per_episode = int(env.time_slow/env.time_fast)
-epsi_final = 0.02
-epsi_anneal_length = int(0.8*n_episode)
-mini_batch_step = n_step_per_episode
-target_update_step = n_step_per_episode*4
-
-n_episode_test = 100  # test episodes
-=======
->>>>>>> 641ad29383c816e2b8a59798802aba976cb9c1fc
 
 ######################################################
 
@@ -146,12 +110,26 @@ def predict(agent, s_t, ep, test_ep = False, decay_epsilon = True):
         
     return pred_action
 
+def predict_using_warmup(agent, s_t, warmup_step, test_ep = False, decay_epsilon = True):
+
+    n_power_levels = len(env.V2V_power_dB_List)
+    
+    if agent.select_step < warmup_step and not test_ep:
+        #print('random select')
+        pred_action = agent.random_action()
+    else:
+        #print('policy select')
+        pred_action = agent.select_action(s_t, decay_epsilon=decay_epsilon)
+        
+    return pred_action
+
+
 
 """
 DDPG update
 """
-def DDPG_agent_learning(current_agent):   
-    value_loss, policy_loss = current_agent.update_policy()
+def DDPG_agent_learning(current_agent, isHardUpdate = False):   
+    value_loss, policy_loss = current_agent.update_policy(isHardUpdate)
     return value_loss, policy_loss
 
 
@@ -311,21 +289,23 @@ if __name__ == '__main__':
     parser.add_argument('--rate', default=0.001, type=float, help='learning rate')
     parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
         
-    parser.add_argument('--discount', default=0.99, type=float, help='')
-    parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 
+    parser.add_argument('--discount', default=0.9, type=float, help='')
+    parser.add_argument('--bsize', default=512, type=int, help='minibatch size') # 
     parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
     parser.add_argument('--window_length', default=1, type=int, help='')
-    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
+    parser.add_argument('--tau', default=0.003, type=float, help='moving average for target network')
     parser.add_argument('--ou_theta', default=0.15, type=float, help='noise theta')
     parser.add_argument('--ou_sigma', default=0.2, type=float, help='noise sigma') 
     parser.add_argument('--ou_mu', default=0.0, type=float, help='noise mu') 
+    parser.add_argument('--target_update_step', default=20, type=int, help='target update step') 
+    parser.add_argument('--useHardupdate', default=0, type=int, help='0 : use hard update, 1 : use soft update')     
     parser.add_argument('--validate_episodes', default=20, type=int, help='how many episode to perform during validate experiment')
     parser.add_argument('--max_episode_length', default=500, type=int, help='')
 
     parser.add_argument('--output', default='output', type=str, help='')
     parser.add_argument('--debug', dest='debug', action='store_true')
         
-    parser.add_argument('--init_w', default=0.003, type=float, help='') 
+    parser.add_argument('--init_w', default=0.001, type=float, help='') 
     parser.add_argument('--warmup', default=10000, type=int, help='time without training but only filling the replay memory') # 10000
     parser.add_argument('--validate_steps', default=2000, type=int, help='how many steps to perform a validate experiment') # 2000
     parser.add_argument('--train_iter', default=3000, type=int, help='train iters each timestep') # 200000
@@ -345,11 +325,16 @@ if __name__ == '__main__':
     epsi_anneal_length = int(0.8*n_episode)
     mini_batch_step = n_step_per_episode
     target_update_step = n_step_per_episode*4
-
-    n_episode_test = 100  # test episodes
-
-
-        
+    
+    isHardUpdate = False
+    
+    if args.useHardupdate == 1:
+        isHardUpdate = True
+    
+    print('use update mode 0 : soft, 1: hard -> ', args.useHardupdate)
+    print('use warmupstep -> ', warmup_step)
+    print('train iter -> ', n_episode)
+           
     # --------------------------------------------------------------
     agents = []
 
@@ -369,6 +354,7 @@ if __name__ == '__main__':
         for i_episode in range(n_episode):
             print("-------------------------")
             print('Episode:', i_episode)
+            
             if i_episode < epsi_anneal_length:
                 epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode
             else:
@@ -379,7 +365,12 @@ if __name__ == '__main__':
                 env.renew_neighbor()
                 env.renew_channel() # update channel slow fading
                 env.renew_channels_fastfading() # update channel fast fading
-
+                
+                for i in range(n_veh):
+                    for j in range(n_neighbor):                       
+                        agents[i*n_neighbor+j].reset()
+                        
+                        
             env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
             env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
             env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
@@ -394,7 +385,7 @@ if __name__ == '__main__':
                     for j in range(n_neighbor):
                         state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)      
                         state_old_all.append(state)
-                        action = predict(agents[i*n_neighbor+j], state, epsi) #agent에 action도 저
+                        action = predict_using_warmup(agents[i*n_neighbor+j], state, warmup_step, epsi) 
                         action_all.append(action)
                         action_all_training[i, j, 0] = action[0]  # chosen RB
                         action_all_training[i, j, 1] = action[1]  # power level
@@ -410,9 +401,7 @@ if __name__ == '__main__':
                 """
                 모든 agent가 state, action, reward, next_state 저장
                 """
-               
-                        
-                        
+                                                            
                 for i in range(n_veh):
                     for j in range(n_neighbor):
                         state_old = state_old_all[n_neighbor * i + j]
@@ -424,7 +413,8 @@ if __name__ == '__main__':
                         
                         # training this agent
                         if time_step % mini_batch_step == mini_batch_step-1:
-                            loss_val_batch, loss_policy_batch = DDPG_agent_learning(agents[i*n_neighbor+j])
+                            loss_val_batch, loss_policy_batch = DDPG_agent_learning(agents[i*n_neighbor+j], isHardUpdate=isHardUpdate)
+                            
                             record_value_loss.append(loss_val_batch)
                             record_policy_loss.append(loss_policy_batch)
                             

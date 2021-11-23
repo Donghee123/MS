@@ -288,6 +288,9 @@ if IS_TEST:
 
     action_all_testing_sarl = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
     action_all_testing_dpra = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
+    
+    sel_power = [0,0,0,0]
+    sel_rb = [0,0,0,0]
     for idx_episode in range(n_episode_test):
         print('----- Episode', idx_episode, '-----')
 
@@ -317,6 +320,7 @@ if IS_TEST:
         V2I_rate_per_episode_sarl = []
         V2I_rate_per_episode_dpra = []
 
+        
         for test_step in range(n_step_per_episode):
             # trained models
             action_all_testing = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
@@ -324,6 +328,9 @@ if IS_TEST:
                 for j in range(n_neighbor):
                     state_old = get_state(env, [i, j], 1, epsi_final)
                     action = predict(sesses[i*n_neighbor+j], state_old, epsi_final, True)
+                    sel_rb[int(action % n_RB)] =  sel_rb[int(action % n_RB)] + 1
+                    sel_power[int(np.floor(action / n_RB))] = sel_power[int(np.floor(action / n_RB))] + 1
+                    
                     action_all_testing[i, j, 0] = action % n_RB  # chosen RB
                     action_all_testing[i, j, 1] = int(np.floor(action / n_RB))  # power level
 
@@ -461,7 +468,9 @@ if IS_TEST:
     print('n_veh:', n_veh, ', n_neighbor:', n_neighbor)
     print('Sum V2I rate:', round(np.average(V2I_rate_list_dpra), 2), 'Mbps')
     print('Pr(V2V success):', round(np.average(V2V_success_list_dpra), 4))
-
+    
+    print(sel_power)
+    print(sel_rb)
 # The name "DPRA" is used for historical reasons. Not really the case...
 
     with open("Data.txt", "a") as f:
