@@ -49,6 +49,7 @@ class MultiLayerPerceptron(nn.Module):
     def forward(self, xs):
         for layer in self.layers:
             xs = layer(xs)
+            
         return xs
 
 

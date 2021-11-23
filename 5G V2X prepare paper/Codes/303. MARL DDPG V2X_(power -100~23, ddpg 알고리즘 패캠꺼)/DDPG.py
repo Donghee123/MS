@@ -1,6 +1,10 @@
 import numpy as np
+
 import torch
 import torch.nn as nn
+from torch.optim import Adam
+from common.train_utils import to_tensor
+
 
 from MLP import MultiLayerPerceptron as MLP
 
@@ -133,7 +137,7 @@ class DDPG(nn.Module):
             
         critic_loss = self.criteria(self.critic(s, a), critic_target)
 
-        #critic 업데이트
+        #critic 업데이트 정확한 Q value 계산을 위함.
         self.critic_opt.zero_grad()
         critic_loss.backward()
         self.critic_opt.step()
@@ -141,8 +145,9 @@ class DDPG(nn.Module):
         #actor 업데이트
         # compute actor loss and update the actor parameters
         
-        actor_loss = -self.critic(s, self.actor(s)).mean()  # !!!! Impressively simple
-        
+        actor_loss = -self.critic(s,self.actor(s))
+        actor_loss = actor_loss.mean()
+
         self.actor_opt.zero_grad()
         actor_loss.backward()#해결못함
         
