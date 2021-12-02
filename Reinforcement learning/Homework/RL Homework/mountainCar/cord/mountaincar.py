@@ -214,7 +214,7 @@ class ValueFunction:
             costs.append(self.value(position, velocity, action))
         return -np.max(costs)
 
-# get action at @position and @velocity based on epsilon greedy policy and @valueFunction
+# get action at @position and @velocity based on epsilon greedy policy and @
 def get_action(position, velocity, value_function):
     
     #액션은 Epsilon greedy 확률로 Random or greedy
