@@ -15,6 +15,7 @@ class Agent():
         self.batch_size = batch_size
         self.n_actions = n_actions
 
+   
         self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions,
                     name='actor', max_action=env.action_space.high)
         self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions,
