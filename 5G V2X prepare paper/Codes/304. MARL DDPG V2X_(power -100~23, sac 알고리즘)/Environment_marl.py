@@ -450,9 +450,9 @@ class Environ:
         action_temp = actions.copy()
         V2I_Rate, V2V_Rate, reward_elements = self.Compute_Performance_Reward_Train(action_temp)
 
-        lambdda = 0.
-        reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor)
-
+        lambdda = 0.3
+        #reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
+        reward = np.sum(V2V_Rate)
         return reward
 
     def act_for_testing(self, actions):

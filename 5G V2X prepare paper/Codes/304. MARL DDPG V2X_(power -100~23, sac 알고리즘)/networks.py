@@ -109,7 +109,7 @@ class ActorNetwork(nn.Module):
         prob = F.relu(prob)
         prob = self.fc2(prob)
         prob = F.relu(prob)
-
+        
         mu = self.mu(prob)
         sigma = self.sigma(prob)
 

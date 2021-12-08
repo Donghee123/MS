@@ -160,6 +160,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', dest='debug', action='store_true')
 
     parser.add_argument('--train_iter', default=6000, type=int, help='train iters each timestep') # 200000
+    parser.add_argument('--warmup', default=2000, type=int, help='train iters each timestep') # 200000
     parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
@@ -183,9 +184,13 @@ if __name__ == '__main__':
     
     #DDPG 학습은 시간이 매우 오래 걸림
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    DEVICE = 'cpu'
-
+    print(DEVICE)
     n_episode = args.train_iter
+    warmup = args.warmup
+    
+    n_episode = 50
+    warmup = 0
+    
     n_step_per_episode = int(env.time_slow/env.time_fast)
     epsi_final = 0.02
     epsi_anneal_length = int(0.8*n_episode)
@@ -220,6 +225,7 @@ if __name__ == '__main__':
     all_select_rb = np.zeros([n_episode*n_step_per_episode, 1])
     all_select_power = np.zeros([n_episode*n_step_per_episode, 1])
 
+    selectStepCount = 0
     if IS_TRAIN:
         for i_episode in range(n_episode):
             print("-------------------------")
@@ -240,9 +246,12 @@ if __name__ == '__main__':
             env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
             env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
             env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
-
+            
+            
+            
+            
             for i_step in range(n_step_per_episode):
-                
+                selectStepCount += 1
                 time_step = i_episode*n_step_per_episode + i_step
                 state_old_all = []
                 action_all = []
@@ -255,8 +264,16 @@ if __name__ == '__main__':
                         state_old_all.append(state)
                        #state = to_tensor(state, size=(1,33)).to(DEVICE)
                         
-                        action = predict_SAC(agents[agentIndex], state, epsi) 
-                        
+                        #랜덤 선택 횟수를 만족했으면
+                        if warmup <= selectStepCount:
+                            action = predict_SAC(agents[agentIndex], state, epsi) 
+                        else:
+                            mu, sigma = 10.0, 25.0                           
+                            power = np.random.normal(mu, sigma, 1)
+                            power = np.clip(power, -100, 23.0)
+                            rb = random.uniform(0, 3.99)
+                            action= np.array([rb, power[0]])
+                            
                         action_all.append(action)
                         action_all_training[i, j, 0] = action[0]  # chosen RB
                         action_all_training[i, j, 1] = action[1]  # power level

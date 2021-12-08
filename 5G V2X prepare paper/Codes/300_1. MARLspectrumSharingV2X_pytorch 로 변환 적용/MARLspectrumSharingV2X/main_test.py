@@ -122,9 +122,6 @@ def get_state_sarl(env, idx=(0,0), ind_episode=1., epsi=0.02):
 
 # -----------------------------------------------------------
 
-
-
-
 def predict(agent, s_t, ep, test_ep = False):
 
     n_power_levels = len(env.V2V_power_dB_List)
