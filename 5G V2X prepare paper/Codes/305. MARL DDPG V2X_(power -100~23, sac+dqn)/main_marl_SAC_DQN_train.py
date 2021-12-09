@@ -220,7 +220,7 @@ if __name__ == '__main__':
     total_eps = 3000
     eps_max = 0.08
     eps_min = 0.01 
-    target_update_interval = 10
+    target_update_interval = 110
     #
     
     #SAC
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     batch_size = args.bsize
     memory_size = args.rmsize
     
-    tau = 0.001 # 소프트 업데이트의 타우
+    tau = 0.002 # 소프트 업데이트의 타우
        
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     
     n_step_per_episode = int(env.time_slow/env.time_fast)
     epsi_final = 0.02
-    epsi_anneal_length = int(0.8*n_episode)
+    epsi_anneal_length = int(0.65*n_episode)
     mini_batch_step = n_step_per_episode
     target_update_step = n_step_per_episode*4
     #
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         print("Initializing agent", ind_agent)
         
         #for SAC
-        agent = Agent_sac(input_dims=nb_states_sac, env=env,
+        agent = Agent_sac(input_dims=nb_states_sac, env=env,layer1_size=n_hidden_1, layer2_size=n_hidden_2, batch_size=n_hidden_3,
             n_actions=nb_actions_sac)
         
         sac_agents.append(agent)  
