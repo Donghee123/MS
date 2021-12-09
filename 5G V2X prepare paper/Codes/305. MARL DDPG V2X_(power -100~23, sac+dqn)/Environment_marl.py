@@ -360,8 +360,8 @@ class Environ:
         self.individual_time_limit -= self.time_fast
 
         reward_elements = V2V_Rate/10
-        reward_elements[self.demand <= 0] = 1
-
+        reward_elements[self.demand <= 0] = 1 
+        reward_elements[self.demand > 0] = -1 #HDH 추가 충족 못하면 -1 reward를 줌.
         self.active_links[np.multiply(self.active_links, self.demand <= 0)] = 0 # transmission finished, turned to "inactive"
 
         return V2I_Rate, V2V_Rate, reward_elements
@@ -451,8 +451,8 @@ class Environ:
         V2I_Rate, V2V_Rate, reward_elements = self.Compute_Performance_Reward_Train(action_temp)
 
         lambdda = 0.3
-        #reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
-        reward = np.sum(V2V_Rate)
+        reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
+        #reward = np.sum(V2V_Rate)
         return reward
 
     def act_for_testing(self, actions):

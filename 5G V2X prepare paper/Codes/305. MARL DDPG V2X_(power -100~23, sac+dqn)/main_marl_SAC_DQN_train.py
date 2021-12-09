@@ -198,6 +198,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', dest='debug', action='store_true')
 
     parser.add_argument('--train_iter', default=6000, type=int, help='train iters each timestep') # 200000
+    parser.add_argument('--lr', default=0.001, type=float, help='train iters each timestep') # 200000
     parser.add_argument('--warmup', default=2000, type=int, help='train iters each timestep') # 200000
     parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
     parser.add_argument('--seed', default=-1, type=int, help='')
@@ -214,20 +215,20 @@ if __name__ == '__main__':
     nb_states_dqn = len(get_state(env=env))
     nb_actions_dqn = 1
     sampling_only_util = 2000
-    lr = 1e-4 * 1.3
+    lr = args.lr
 
     total_eps = 3000
     eps_max = 0.08
     eps_min = 0.01 
-    target_update_interval = 15
+    target_update_interval = 10
     #
     
     #SAC
     nb_states_sac = nb_states_dqn + 1
     nb_actions_sac = 1
     
-    lr_actor = 0.005
-    lr_critic = 0.001
+    lr_actor = args.lr
+    lr_critic = args.lr
     gamma = args.discount
     
     batch_size = args.bsize
@@ -407,12 +408,7 @@ if __name__ == '__main__':
                             dqn_agents[i*n_neighbor+j].update(*sampled_exps)
                                 
                         #qnet의 파라미터를 하이퍼 파라미터 수만큼 업데이트 했다면 target qnet에 qnet의 파라미터를 업데이트함
-                        if i_step % target_update_interval == 0:
-                            
-                            #if i == 0 and j == 0:
-                               #print('Update target Q network...')
-                                #print('step:', time_step, 'agent',i*n_neighbor+j, 'reward', train_reward)
-                                
+                        if i_step % target_update_interval == 0: 
                             dqn_agents[i*n_neighbor+j].qnet_target.load_state_dict( dqn_agents[i*n_neighbor+j].qnet.state_dict() )
                                 
     
