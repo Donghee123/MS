@@ -106,7 +106,7 @@ class Environ:
         self.V2I_channels_abs = []
 
         self.V2I_power_dB = 23  # dBm
-        self.V2V_power_dB_List = [23, 15, 5, -100]  # the power levels
+        #self.V2V_power_dB_List = [23, 15, 5, -100]  # the power levels
         self.sig2_dB = -114
         self.bsAntGain = 8
         self.bsNoiseFigure = 5
@@ -361,7 +361,7 @@ class Environ:
 
         reward_elements = V2V_Rate/10
         reward_elements[self.demand <= 0] = 1 
-        reward_elements[self.demand > 0] = -1 #HDH 추가 충족 못하면 -1 reward를 줌.
+        
         self.active_links[np.multiply(self.active_links, self.demand <= 0)] = 0 # transmission finished, turned to "inactive"
 
         return V2I_Rate, V2V_Rate, reward_elements
@@ -450,7 +450,7 @@ class Environ:
         action_temp = actions.copy()
         V2I_Rate, V2V_Rate, reward_elements = self.Compute_Performance_Reward_Train(action_temp)
 
-        lambdda = 0.3
+        lambdda = 0.01
         reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
         #reward = np.sum(V2V_Rate)
         return reward
