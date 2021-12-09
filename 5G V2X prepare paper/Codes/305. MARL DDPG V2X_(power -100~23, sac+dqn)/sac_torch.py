@@ -19,13 +19,13 @@ class Agent():
         min_action = np.array([-100.0])
         
         self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions,
-                    name='actor', max_action=max_action, min_action=min_action)
+                    name='actor', max_action=max_action, min_action=min_action, fc1_dims=layer1_size, fc2_dims=layer2_size)
         self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_1')
+                    name='critic_1', fc1_dims=layer1_size, fc2_dims=layer2_size)
         self.critic_2 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_2')
-        self.value = ValueNetwork(beta, input_dims, name='value')
-        self.target_value = ValueNetwork(beta, input_dims, name='target_value')
+                    name='critic_2',fc1_dims=layer1_size, fc2_dims=layer2_size)
+        self.value = ValueNetwork(beta, input_dims, name='value',fc1_dims=layer1_size, fc2_dims=layer2_size)
+        self.target_value = ValueNetwork(beta, input_dims, name='target_value',fc1_dims=layer1_size, fc2_dims=layer2_size)
 
         self.scale = reward_scale
         self.update_network_parameters(tau=1)
@@ -87,7 +87,7 @@ class Agent():
 
         value = self.value(state).view(-1)
         value_ = self.target_value(state_).view(-1)
-        value_[done] = 0.0
+        #value_[done] = 0.0
 
         actions, log_probs = self.actor.sample_normal(state, reparameterize=False)
         log_probs = log_probs.view(-1)

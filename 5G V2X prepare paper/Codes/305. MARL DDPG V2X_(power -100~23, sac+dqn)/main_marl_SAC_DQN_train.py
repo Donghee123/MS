@@ -107,6 +107,26 @@ def get_state(env, idx=(0,0), ind_episode=1., epsi=0.02):
     # return np.concatenate((np.reshape(V2V_channel, -1), V2V_interference, V2I_abs, V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
     return np.concatenate((V2I_fast, np.reshape(V2V_fast, -1), V2V_interference, np.asarray([V2I_abs]), V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
 
+def get_state_scaling(env, idx=(0,0), ind_episode=1., epsi=0.02):
+    """ Get state from the environment """
+
+    # V2I_channel = (env.V2I_channels_with_fastfading[idx[0], :] - 80) / 60
+    V2I_fast = (env.V2I_channels_with_fastfading[idx[0], :] - env.V2I_channels_abs[idx[0]] + 10)
+
+    # V2V_channel = (env.V2V_channels_with_fastfading[:, env.vehicles[idx[0]].destinations[idx[1]], :] - 80) / 60
+    V2V_fast = (env.V2V_channels_with_fastfading[:, env.vehicles[idx[0]].destinations[idx[1]], :] - env.V2V_channels_abs[:, env.vehicles[idx[0]].destinations[idx[1]]] + 10)
+
+    V2V_interference = (-env.V2V_Interference_all[idx[0], idx[1], :] - 60)
+
+    V2I_abs = (env.V2I_channels_abs[idx[0]] - 80)
+    V2V_abs = (env.V2V_channels_abs[:, env.vehicles[idx[0]].destinations[idx[1]]] - 80)
+
+    load_remaining = np.asarray([env.demand[idx[0], idx[1]] / env.demand_size])
+    time_remaining = np.asarray([env.individual_time_limit[idx[0], idx[1]] / env.time_slow])
+
+    # return np.concatenate((np.reshape(V2V_channel, -1), V2V_interference, V2I_abs, V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
+    return np.concatenate((V2I_fast, np.reshape(V2V_fast, -1), V2V_interference, np.asarray([V2I_abs]), V2V_abs, time_remaining, load_remaining, np.asarray([ind_episode, epsi])))
+
 
 # -----------------------------------------------------------
 
@@ -207,14 +227,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
    
-    n_hidden_1 = 500
-    n_hidden_2 = 250
-    n_hidden_3 = 120   
+    n_hidden_1 = 800
+    n_hidden_2 = 450   
+    
+    batch_size = args.bsize
+    memory_size = args.rmsize
     
     #DQN
-    nb_states_dqn = len(get_state(env=env))
+    #nb_states_dqn = len(get_state(env=env)) #HDH
+    nb_states_dqn = len(get_state_scaling(env=env))#HDH
     nb_actions_dqn = 1
-    sampling_only_util = 2000
+    sampling_only_util = batch_size + 2
     lr = args.lr
 
     total_eps = 3000
@@ -231,8 +254,7 @@ if __name__ == '__main__':
     lr_critic = args.lr
     gamma = args.discount
     
-    batch_size = args.bsize
-    memory_size = args.rmsize
+    
     
     tau = 0.002 # 소프트 업데이트의 타우
        
@@ -265,14 +287,14 @@ if __name__ == '__main__':
         print("Initializing agent", ind_agent)
         
         #for SAC
-        agent = Agent_sac(input_dims=nb_states_sac, env=env,layer1_size=n_hidden_1, layer2_size=n_hidden_2, batch_size=n_hidden_3,
+        agent = Agent_sac(input_dims=nb_states_sac, env=env,layer1_size=n_hidden_1, layer2_size=n_hidden_2, batch_size=batch_size,
             n_actions=nb_actions_sac)
         
         sac_agents.append(agent)  
         
         #for DQN
-        qnet = MLP(nb_states_dqn,nb_actions_dqn, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
-        qnet_target = MLP(nb_states_dqn, nb_actions_dqn, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
+        qnet = MLP(nb_states_dqn,nb_actions_dqn, num_neurons=[n_hidden_1, n_hidden_2])
+        qnet_target = MLP(nb_states_dqn, nb_actions_dqn, num_neurons=[n_hidden_1, n_hidden_2])
         qnet_target.load_state_dict(qnet.state_dict())
         dqn_agent = DQN(nb_states_dqn, nb_actions_dqn, qnet = qnet, qnet_target = qnet_target, lr=lr, gamma=gamma, epsilon=1.0)
         dqn_agents.append(dqn_agent)
@@ -320,8 +342,8 @@ if __name__ == '__main__':
                 for i in range(n_veh):
                     for j in range(n_neighbor):
                         agentIndex = i*n_neighbor+j
-                        state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)  
-                                                
+                        #state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)  
+                        state = get_state_scaling(env, [i, j], i_episode/(n_episode-1), epsi)#HDH                        
                         #DQN action
                         state_dqn = to_tensor(state, size=(1, nb_states_dqn))
                         action_dqn = predict_dqn(dqn_agents[agentIndex], state_dqn, epsi)
@@ -363,7 +385,9 @@ if __name__ == '__main__':
                         #DQN 
                         state_old_dqn = state_old_all[agentIndex]
                         action_dqn = action_all[agentIndex][0]
-                        state_new_dqn = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
+                        state_new_dqn = get_state(env, [i, j], i_episode/(n_episode-1), epsi)#HDH
+                        state_new_dqn = get_state_scaling(env, [i, j], i_episode/(n_episode-1), epsi)#HDH
+                        
                         #state_new_dqn = to_tensor(state_new_dqn, size=(1, nb_states_dqn))
                         
                         #1개의 경험 튜플
@@ -381,7 +405,8 @@ if __name__ == '__main__':
                         state_old_sac = np.append(state_old_sac, np.array([action_all[agentIndex][0]]))
                         action_sac = action_all[agentIndex][1]
                         train_reward_temp = train_reward
-                        state_new_dqn = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
+                        state_new_dqn = get_state(env, [i, j], i_episode/(n_episode-1), epsi)#HDH
+                        state_new_dqn = get_state_scaling(env, [i, j], i_episode/(n_episode-1), epsi)#HDH
                         
                         state_new_dqn = to_tensor(state, size=(1, nb_states_dqn))
                         
