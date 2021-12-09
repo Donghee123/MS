@@ -220,7 +220,7 @@ if __name__ == '__main__':
     total_eps = 3000
     eps_max = 0.08
     eps_min = 0.01 
-    target_update_interval = 10
+    target_update_interval = 110
     #
     
     #SAC
