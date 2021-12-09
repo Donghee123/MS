@@ -8,10 +8,32 @@ import Environment_marl_test
 import os
 from replay_memory import ReplayMemory
 import sys
+import pandas as pd
+import csv
 
 my_config = tf.ConfigProto()
 my_config.gpu_options.allow_growth=True
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
+    
 class Agent(object):
     def __init__(self, memory_entry_size):
         self.discount = 1
@@ -288,6 +310,9 @@ if IS_TEST:
 
     action_all_testing_sarl = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
     action_all_testing_dpra = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
+    
+    
+    
     for idx_episode in range(n_episode_test):
         print('----- Episode', idx_episode, '-----')
 
@@ -316,18 +341,41 @@ if IS_TEST:
         V2I_rate_per_episode_rand = []
         V2I_rate_per_episode_sarl = []
         V2I_rate_per_episode_dpra = []
-
-        for test_step in range(n_step_per_episode):
+        
+        state_history = []#HDH Test
+        action_history = []#HDH Test
+    
+        for test_step in range(n_step_per_episode): #1ms 씩 100번 수행. 100ms 동안을 1episode로 봄.
+            #1번의 루프당 1ms 씩 시간이 지나감.
             # trained models
             action_all_testing = np.zeros([n_veh, n_neighbor, 2], dtype='int32')
+            
             for i in range(n_veh):
                 for j in range(n_neighbor):
                     state_old = get_state(env, [i, j], 1, epsi_final)
+                    
+                    if i == 0 and j == 0:
+                        state_history.append(list(state_old))
+                    
                     action = predict(sesses[i*n_neighbor+j], state_old, epsi_final, True)
                     action_all_testing[i, j, 0] = action % n_RB  # chosen RB
                     action_all_testing[i, j, 1] = int(np.floor(action / n_RB))  # power level
-
+            
+           
+            
             action_temp = action_all_testing.copy()
+            sumPowers = [0,0,0,0]#HDH Test
+            V2V_power_dB_List = [23, 15, 5, -100]#HDH Test
+            
+            for i in range(len(action_temp)):#HDH Test
+                rb = action_temp[i][0][0]#HDH Test
+                power= V2V_power_dB_List[action_temp[i][0][1]]#HDH Test
+                
+                if power > -100:#HDH Test
+                    sumPowers[rb] += power#HDH Test
+            
+            action_history.append(sumPowers)#HDH Test
+            
             V2I_rate, V2V_success, V2V_rate = env.act_for_testing(action_temp)
             V2I_rate_per_episode.append(np.sum(V2I_rate))  # sum V2I rate in bps
 
@@ -439,6 +487,17 @@ if IS_TEST:
         V2I_rate_list_sarl.append(np.mean(V2I_rate_per_episode_sarl))
         V2I_rate_list_dpra.append(np.mean(V2I_rate_per_episode_dpra))
 
+        
+        concatenateHistorys = [] #HDH Test
+        
+        for i in range(len(state_history)):#HDH Test
+            concatenateHistorys.append(state_history[i] + action_history[i])#HDH Test
+   
+        totalModelPath = './state_action_history'
+        concatenateHistorys = np.array(concatenateHistorys)
+        MakeCSVFile(totalModelPath, 'state_action_history.csv', ['agent0_sel_RB','agent1_selRB','agent2_selRB','agent3_selRB'],concatenateHistorys)
+        
+        
         print('marl', round(np.average(V2I_rate_per_episode), 2), 'sarl', round(np.average(V2I_rate_per_episode_sarl), 2), 'rand', round(np.average(V2I_rate_per_episode_rand), 2), 'dpra', round(np.average(V2I_rate_per_episode_dpra), 2))
         print('marl', V2V_success_list[idx_episode], 'sarl', V2V_success_list_sarl[idx_episode], 'rand', V2V_success_list_rand[idx_episode], 'dpra', V2V_success_list_dpra[idx_episode])
 
