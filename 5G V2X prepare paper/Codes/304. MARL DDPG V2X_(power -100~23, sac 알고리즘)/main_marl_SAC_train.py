@@ -187,8 +187,7 @@ if __name__ == '__main__':
     print(DEVICE)
     n_episode = args.train_iter
     warmup = args.warmup
-    
-    n_episode = 50
+
     warmup = 0
     
     n_step_per_episode = int(env.time_slow/env.time_fast)
