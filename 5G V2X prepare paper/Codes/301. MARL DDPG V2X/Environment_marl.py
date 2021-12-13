@@ -3,6 +3,8 @@ import numpy as np
 import time
 import random
 import math
+import pandas as pd
+import csv
 
 
 np.random.seed(1234)
@@ -125,7 +127,9 @@ class Environ:
         # self.demand_size = 20
 
         self.V2V_Interference_all = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
+        
 
+        
     def add_new_vehicles(self, start_position, start_direction, start_velocity):
         self.vehicles.append(Vehicle(start_position, start_direction, start_velocity))
 

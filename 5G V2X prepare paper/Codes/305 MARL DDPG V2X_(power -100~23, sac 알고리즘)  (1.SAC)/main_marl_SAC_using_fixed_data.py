@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec 13 18:44:45 2021
+
+@author: Hyewon Lee
+"""
+
 from __future__ import division, print_function
 import random
 import scipy
@@ -114,13 +121,7 @@ def save_models(agent, model_path, agentindex, performanceInfo):
     saveActorFileName = model_path+'agent' + str(agentindex) + '_actor' 
     saveCriticFileName = model_path+'agent' + str(agentindex) + '_critic' 
     agent.save_model(saveActorFileName, saveCriticFileName)
-
-def load_models(agent, model_path, agentindex, performanceInfo):
-    """ Save models to the current directory with the name filename """
-      
-    saveActorFileName = model_path+'agent' + str(agentindex) + '_actor' 
-    saveCriticFileName = model_path+'agent' + str(agentindex) + '_critic' 
-    agent.save_model(saveActorFileName, saveCriticFileName)
+    
 
 
 if __name__ == '__main__':
@@ -165,8 +166,8 @@ if __name__ == '__main__':
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
     
     parser.add_argument('--train_iter', default=6000, type=int, help='train iters each timestep') # 6000
-    parser.add_argument('--warmup', default=0, type=int, help='train iters each timestep') # 5000
-    parser.add_argument('--updates_per_step', default=1, type=int, help='update per step') #
+    parser.add_argument('--warmup', default=5000, type=int, help='train iters each timestep') # 5000
+    parser.add_argument('--updates_per_step', default=3, type=int, help='update per step') #
     parser.add_argument('--target_update_step', default=100, type=int, help='target network update step') # 100
     
     args = parser.parse_args()
@@ -194,18 +195,12 @@ if __name__ == '__main__':
            
     # --------------------------------------------------------------
     agents = []
-    modelPaths = ['./marl_model/agent_0/','./marl_model/agent_1/' ,'./marl_model/agent_2/','./marl_model/agent_3/']
-
+   
     for ind_agent in range(n_veh * n_neighbor):  # initialize agents
         print("Initializing agent", ind_agent)
               
         agent = SAC(nb_states, action_space, args, env)
-        actor_path = modelPaths[ind_agent] + 'agent' + str(ind_agent) + '_actor'
-        critc_path = modelPaths[ind_agent] + 'agent' + str(ind_agent) + '_critic'
-        
-        print('Load agent', ind_agent)
-        agent.load_model(actor_path, critc_path)
-        
+              
         agents.append(agent)        
 
     # ------------------------- Training -----------------------------
@@ -219,103 +214,107 @@ if __name__ == '__main__':
 
     selectStepCount = 0
     
+    env.load_position_data('position/vehiclePosition.csv')
+    
     if IS_TRAIN:
         for i_episode in range(n_episode):
-            updates = [0,0,0,0]
-            print("-------------------------")
-            print('Episode:', i_episode)
             
-            if i_episode < epsi_anneal_length:
-                epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode
-            else:
-                epsi = epsi_final
+            #읽어온 데이터 에피소드.
+            for i_preFixedpositionIndex in range(len(env.preFixedPositionDatas)):
+                updates = [0,0,0,0]
+                print("-------------------------")
+                print('Episode:', i_episode)
                 
-            if i_episode%100 == 0:
-                env.renew_positions() # update vehicle position
-                env.renew_neighbor()
-                env.renew_channel() # update channel slow fading
-                env.renew_channels_fastfading() # update channel fast fading
-                     
-                        
-            env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
-            env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
-            env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
-            
-            for i_step in range(n_step_per_episode):
-                selectStepCount += 1
-                time_step = i_episode*n_step_per_episode + i_step
-                state_old_all = []
-                action_all = []
-                action_all_training = np.zeros([n_veh, n_neighbor, 2], dtype='float')
+                if i_episode < epsi_anneal_length:
+                    epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode
+                else:
+                    epsi = epsi_final
+                   
+                if i_episode%100 == 0:
+                    env.renew_positions_using_fixed_data() # update vehicle position using prefixedposition
+                    env.renew_neighbor()
+                    env.renew_channel() # update channel slow fading
+                    env.renew_channels_fastfading() # update channel fast fading
+                         
+                env.demand = env.demand_size * np.ones((env.n_Veh, env.n_neighbor))
+                env.individual_time_limit = env.time_slow * np.ones((env.n_Veh, env.n_neighbor))
+                env.active_links = np.ones((env.n_Veh, env.n_neighbor), dtype='bool')
                 
-                for i in range(n_veh):
-                    for j in range(n_neighbor):
-                        agentIndex = i*n_neighbor+j
-                        state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)      
-                        state_old_all.append(state)
-                       #state = to_tensor(state, size=(1,33)).to(DEVICE)
-                        
-                        #랜덤 선택 횟수를 만족했으면
-                        if warmup <= selectStepCount:
-                            action = predict_SAC(agents[agentIndex], state, epsi) 
+                for i_step in range(n_step_per_episode):
+                    selectStepCount += 1
+                    time_step = i_episode*n_step_per_episode + i_step
+                    state_old_all = []
+                    action_all = []
+                    action_all_training = np.zeros([n_veh, n_neighbor, 2], dtype='float')
+                    
+                    for i in range(n_veh):
+                        for j in range(n_neighbor):
+                            agentIndex = i*n_neighbor+j
+                            state = get_state(env, [i, j], i_episode/(n_episode-1), epsi)      
+                            state_old_all.append(state)
+                           #state = to_tensor(state, size=(1,33)).to(DEVICE)
                             
-                            if np.isnan(action[0]) == True or np.isnan(action[1]) == True:
-                                print(state)
-                                print("print nan")
+                            #랜덤 선택 횟수를 만족했으면
+                            if warmup <= selectStepCount:
+                                action = predict_SAC(agents[agentIndex], state, epsi) 
+                                
+                                if np.isnan(action[0]) == True or np.isnan(action[1]) == True:
+                                    print(state)
+                                    print("print nan")
+                                    mu, sigma = 10.0, 25.0                           
+                                    power = np.random.normal(mu, sigma, 1)
+                                    power = np.clip(power, -100, 23.0)
+                                    rb = random.uniform(0, 3.99)
+                                    action= np.array([rb, power[0]])
+                                    
+                            else:
                                 mu, sigma = 10.0, 25.0                           
                                 power = np.random.normal(mu, sigma, 1)
                                 power = np.clip(power, -100, 23.0)
                                 rb = random.uniform(0, 3.99)
                                 action= np.array([rb, power[0]])
                                 
-                        else:
-                            mu, sigma = 10.0, 25.0                           
-                            power = np.random.normal(mu, sigma, 1)
-                            power = np.clip(power, -100, 23.0)
-                            rb = random.uniform(0, 3.99)
-                            action= np.array([rb, power[0]])
+                            action_all.append(action)
+                            action_all_training[i, j, 0] = action[0]  # chosen RB
+                            action_all_training[i, j, 1] = action[1]  # power level
                             
-                        action_all.append(action)
-                        action_all_training[i, j, 0] = action[0]  # chosen RB
-                        action_all_training[i, j, 1] = action[1]  # power level
+                            all_select_rb[time_step] = action[0]
+                            all_select_power[time_step] = action[1]
                         
-                        all_select_rb[time_step] = action[0]
-                        all_select_power[time_step] = action[1]
+    
+                    # All agents take actions simultaneously, obtain shared reward, and update the environment.
                     
-
-                # All agents take actions simultaneously, obtain shared reward, and update the environment.
-                
-                action_temp = action_all_training.copy()
-                train_reward = env.act_for_training(action_temp)
-                record_reward[time_step] = train_reward
-
-                env.renew_channels_fastfading()
-                env.Compute_Interference(action_temp)
-                
-                """
-                모든 agent가 state, action, reward, next_state 저장
-                """
-                                                            
-                for i in range(n_veh):
-                    for j in range(n_neighbor):
-                        
-                        agentIndex = i*n_neighbor+j
-                        
-                        state_old = state_old_all[agentIndex]
-                        action = action_all[agentIndex]
-                        train_reward_temp = train_reward
-                        state_new = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
-                                                                    
-                        agents[agentIndex].memory.push(state_old, action, 
-                                       [train_reward_temp], state_new, [1])
-                        
-                        # training this agent
-                        if len(agents[agentIndex].memory.buffer) > args.batch_size:
-                            #train agent
-                            for z in range(args.updates_per_step):
-                                # Update parameters of all the networks
-                                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agents[agentIndex].update_parameters(agents[agentIndex].memory, agents[agentIndex].args.batch_size, updates[agentIndex])
-                                updates[agentIndex] += 1                           
+                    action_temp = action_all_training.copy()
+                    train_reward = env.act_for_training(action_temp)
+                    record_reward[time_step] = train_reward
+    
+                    env.renew_channels_fastfading()
+                    env.Compute_Interference(action_temp)
+                    
+                    """
+                    모든 agent가 state, action, reward, next_state 저장
+                    """
+                                                                
+                    for i in range(n_veh):
+                        for j in range(n_neighbor):
+                            
+                            agentIndex = i*n_neighbor+j
+                            
+                            state_old = state_old_all[agentIndex]
+                            action = action_all[agentIndex]
+                            train_reward_temp = train_reward
+                            state_new = get_state(env, [i, j], i_episode/(n_episode-1), epsi)
+                                                                        
+                            agents[agentIndex].memory.push(state_old, action, 
+                                           [train_reward_temp], state_new, [1])
+                            
+                            # training this agent
+                            if len(agents[agentIndex].memory.buffer) > args.batch_size:
+                                #train agent
+                                for z in range(args.updates_per_step):
+                                    # Update parameters of all the networks
+                                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agents[agentIndex].update_parameters(agents[agentIndex].memory, agents[agentIndex].args.batch_size, updates[agentIndex])
+                                    updates[agentIndex] += 1                           
 
                   
                         

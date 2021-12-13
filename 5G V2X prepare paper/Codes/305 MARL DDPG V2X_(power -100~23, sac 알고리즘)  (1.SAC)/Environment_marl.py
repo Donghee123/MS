@@ -3,7 +3,8 @@ import numpy as np
 import time
 import random
 import math
-
+import pandas as pd
+import csv
 
 np.random.seed(1234)
 
@@ -125,7 +126,40 @@ class Environ:
         # self.demand_size = 20
 
         self.V2V_Interference_all = np.zeros((self.n_Veh, self.n_neighbor, self.n_RB)) + self.sig2
-
+        
+        self.preFixedUpdateCount = 0
+        
+    def load_position_data(self, strDatapath):
+        
+        df = pd.read_csv(strDatapath, encoding='utf8')
+        self.preFixedPositionDatas = df.to_numpy()
+        
+        
+    def renew_positions_using_fixed_data(self):
+        i = 0
+        
+        while (i < len(self.vehicles)):
+            temp = self.preFixedPositionDatas[self.preFixedUpdateCount][i]
+            print(temp)
+            temp = temp.replace("[","")
+            temp = temp.replace("]","")
+            temp = temp.split(' ')
+    
+            while temp.count('') > 0:
+                temp.remove('')
+            
+            X = float(temp[0])
+            Y = float(temp[1])
+            
+            self.vehicles[i].position = [X,Y]
+            i+=1
+            
+        self.preFixedUpdateCount += 1
+        
+        #모두 순회하면 처음 데이터로 초기화함.
+        if len(self.preFixedPositionDatas) == self.preFixedUpdateCount:
+            self.preFixedUpdateCount = 0
+            
     def add_new_vehicles(self, start_position, start_direction, start_velocity):
         self.vehicles.append(Vehicle(start_position, start_direction, start_velocity))
 
@@ -135,17 +169,17 @@ class Environ:
             ind = np.random.randint(0, len(self.down_lanes))
             start_position = [self.down_lanes[ind], np.random.randint(0, self.height)]
             start_direction = 'd' # velocity: 10 ~ 15 m/s, random
-            self.add_new_vehicles(start_position, start_direction, np.random.randint(10, 15))
+            self.add_new_vehicles(start_position, start_direction, 35) #시뮬레이션 데이터 속력에 따름.
 
             start_position = [self.up_lanes[ind], np.random.randint(0, self.height)]
             start_direction = 'u'
-            self.add_new_vehicles(start_position, start_direction, np.random.randint(10, 15))
+            self.add_new_vehicles(start_position, start_direction, 35)
             start_position = [np.random.randint(0, self.width), self.left_lanes[ind]]
             start_direction = 'l'
-            self.add_new_vehicles(start_position, start_direction, np.random.randint(10, 15))
+            self.add_new_vehicles(start_position, start_direction, 35)
             start_position = [np.random.randint(0, self.width), self.right_lanes[ind]]
             start_direction = 'r'
-            self.add_new_vehicles(start_position, start_direction, np.random.randint(10, 15))
+            self.add_new_vehicles(start_position, start_direction, 35)
 
         # initialize channels
         self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
@@ -450,9 +484,9 @@ class Environ:
         action_temp = actions.copy()
         V2I_Rate, V2V_Rate, reward_elements = self.Compute_Performance_Reward_Train(action_temp)
 
-        lambdda = 0.3
-        #reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
-        reward = np.sum(V2V_Rate)
+        lambdda = 0.
+        reward = lambdda * np.sum(V2I_Rate) / (self.n_Veh * 10) + (1 - lambdda) * np.sum(reward_elements) / (self.n_Veh * self.n_neighbor) #Origin reward : V2V 충족률만 올리려고함.
+        #reward = np.sum(V2V_Rate)
         return reward
 
     def act_for_testing(self, actions):
