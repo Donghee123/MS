@@ -178,12 +178,13 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
                                 action = agent.select_action(observation, decay_epsilon=False)
                                 
+                                selRBIndex, selPowerdBm = GetRB_Power(action)
    
-                                selRBRateList.append(int(action[0]))
-                                selPowerRateList.append(action[1])
+                                selRBRateList.append(selRBIndex)
+                                selPowerRateList.append(selPowerdBm)
                                 
-                                agent.action_all_with_power[i, j, 0] = int(action[0])
-                                agent.action_all_with_power[i, j, 1] = action[1] 
+                                agent.action_all_with_power[i, j, 0] = selRBIndex
+                                agent.action_all_with_power[i, j, 1] = selPowerdBm
 
                             if i % (len(env.vehicles)/10) == 1:
                                 action_temp = agent.action_all_with_power.copy()
