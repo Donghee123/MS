@@ -146,7 +146,7 @@ class Environ:
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = np.linspace(-10.0, 23.0, 33)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
+        self.V2V_power_dB_List = np.linspace(23.0, -10.0, 33)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
@@ -873,6 +873,12 @@ class Environ:
         V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
         
         powerdBm_arg = self.find_nearest_arg(self.V2V_power_dB_List, actions[idx[0],idx[1], 1])
+        
+        bestIndex = np.argmax(V2V_rewardlist)     
+        bestRB =  int(bestIndex / len(self.V2V_power_dB_List))
+        bestPower = self.V2V_power_dB_List[int(np.argmax(V2V_rewardlist) % len(self.V2V_power_dB_List))]
+        
+        print('V2V 기준 best RB, best Power : ', [bestRB,bestPower])
         
         V2I_reward = (V2I_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
         V2V_reward = (V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
