@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-
+from copy import deepcopy
 from model import (Actor, Critic)
 from memory import SequentialMemory
 from random_process import OrnsteinUhlenbeckProcess
@@ -29,6 +29,7 @@ class DDPG(object):
             'hidden2':args.hidden2, 
             'init_w':args.init_w
         }
+        
         self.actor = Actor(self.nb_states, self.nb_actions, **net_cfg)
         self.actor_target = Actor(self.nb_states, self.nb_actions, **net_cfg)
         self.actor_optim  = Adam(self.actor.parameters(), lr=args.prate)
@@ -124,30 +125,29 @@ class DDPG(object):
             self.s_t = s_t1
 
     def random_action(self):
-        action = np.zeros(2)
-        action[0] = np.random.uniform(0.,19.9)
-        action[1] = np.random.uniform(0.,23.0)        
-        self.a_t = action
+        
+        action = np.zeros(21)
+        
+        for i in range(21):
+            action[i] = np.random.uniform(-1.0, 1.0)
+            
+        self.a_t = deepcopy(action)
+        
         return action
 
-    def select_action(self, s_t, decay_epsilon=True):
+    def select_action(self, s_t, decay_epsilon=True):        
         action = to_numpy(
             self.actor(to_tensor(np.array([s_t])))
         ).squeeze(0)
-        action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
         
-        action[0] = action[0] + 1
-        action[1] = action[1] + 1        
-        action[0] = action[0] * 10.0
-        action[1] = action[1] * 11.5
-                        
-        action[0] = np.clip(action[0], 0., 19.9)
-        action[1] = np.clip(action[1], 0., 23.0)
+        action += self.is_training*max(self.epsilon, 0)*self.random_process.sample()
+        action = np.clip(action, -1.0, 1.0)
         
         if decay_epsilon:
             self.epsilon -= self.depsilon
         
-        self.a_t = action
+        self.a_t = deepcopy(action)
+        
         return action
 
     def reset(self, obs):

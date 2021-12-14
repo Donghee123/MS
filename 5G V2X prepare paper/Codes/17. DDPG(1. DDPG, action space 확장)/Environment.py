@@ -130,7 +130,7 @@ class Environ:
     def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh):
         
         self.observation_space = np.zeros(82)
-        self.action_space = np.zeros(2)
+        self.action_space = np.zeros(21)
     
         self.timestep = 0.01 # 시간은 0.01초 단위 
         self.down_lanes = down_lane   # 아래 도로 ? 
@@ -146,7 +146,7 @@ class Environ:
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = np.linspace(0.0, 23.0, 230)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
+        self.V2V_power_dB_List = np.linspace(-10.0, 23.0, 33)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
@@ -275,8 +275,8 @@ class Environ:
         # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 볼 수 있는 Interference
         # V2V_channel : #idx번째 차량이 전송하고자하는 v2v link의 resource block의 채널 상태를 보여줌
         # 근접한 차량이 선택한 리소스 블록 상태
-        # time_remaining 충족해야하는 데이터량 대비 남은 데이터량 
-        # load_remaining 걸린 시간
+        # 남은 시간
+        # 걸린 시간
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
     
     def renew_positions(self):
@@ -812,7 +812,7 @@ class Environ:
         if self.test_time_count == 0:
             self.test_time_count = 10
             
-        return V2I_Rate_list, V2V_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
+        return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
 
     def Compute_Interference(self, actions):
         # ====================================================
@@ -862,29 +862,24 @@ class Environ:
         self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
         
         #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
-        V2I_rewardlist, V2Vrate_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
+        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
+        
         
         self.renew_positions()
         self.renew_channels_fastfading()
         self.Compute_Interference(actions) 
-        
         rewards_list = rewards_list.T.reshape([-1])
         V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
         V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
-        V2Vrate_rewardlist= V2Vrate_rewardlist.T.reshape([-1])
         
         powerdBm_arg = self.find_nearest_arg(self.V2V_power_dB_List, actions[idx[0],idx[1], 1])
         
         V2I_reward = (V2I_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
         V2V_reward = (V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
-        V2Vrate_reward = (V2Vrate_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2Vrate_rewardlist))/(np.max(V2Vrate_rewardlist) -np.min(V2Vrate_rewardlist) + 0.000001)
-        
-        lambdda = 0.05
-        lambddaV2VDefict = 0.65
-        lambddaV2VRate = 0.3
-        
+       
+        lambdda = 0.1
         #print ("Reward", V2I_reward, V2V_reward, time_left)
-        t = (lambdda * V2I_reward) + (lambddaV2VDefict * V2V_reward) + (lambddaV2VRate * V2Vrate_reward)
+        t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit

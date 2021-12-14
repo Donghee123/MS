@@ -11,18 +11,56 @@ from normalized_env import NormalizedEnv
 from evaluator import Evaluator
 from ddpg import DDPG
 from util import *
+import pandas as pd
+import csv
 
+#File 유틸 함수들    
+def createFolder(directory):
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+     
+def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
+    
+    f = open(strTotalPath,'w', newline='')
+    wr = csv.writer(f)
+    wr.writerow(aryOfHedaers)
+    
+    for i in range(0,len(aryOfDatas)):
+        wr.writerow(aryOfDatas[i])
+    
+    f.close()
 
 #gym.undo_logger_setup()
+def GetRB_Power(action):
+    
+    selectedRBIndex = np.argmax(action[0:20])
+    action[20] = ((action[20] + 1) * 16.5) - 10.0
+    action[20] = np.clip(action[20], -10., 23.0)
+    selectedPower = action[20]
+    
+    return selectedRBIndex, selectedPower
 
-def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_episode_length=None, debug=False):
+def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_episode_length=None, batchsize = 256, debug=False):
 
     agent.is_training = True
     step = 0
     observation = None   
+    
     selectStep = 0   
+    
+    listOfselRB = []
+    listOfselPower = []
+    listOfReward = []
+    
+    listofState_nextState = []
+    
     reward_sum = 0
     reward_sum_list = []
+    
     while step < num_iterations:
         
         agent.is_training = True
@@ -56,7 +94,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                     
                     observation = deepcopy(observation)                     
                     agent.reset_state(observation)
-                        
+                    
                     #state를 보고 action을 정함
                     #action은 선택한 power level, 선택한 resource block 정보를 가짐
                     # 랜덤 선택
@@ -68,26 +106,31 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                         action = agent.select_action(observation, decay_epsilon=True)
                         
                     
-                    
+                    selRBIndex, selPowerdBm = GetRB_Power(action)
         
-        
-                    print('sel RB, PowerdBm : ', action)
+                    print('sel RB, PowerdBm : ', [selRBIndex, selPowerdBm] )
                     
                     selectStep += 1
                                                                                      
                     #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
-                    agent.action_all_with_power_training[i, j, 0] = int(action[0])  # 선택한 Resourceblock을 저장함. 
+                    agent.action_all_with_power_training[i, j, 0] = selRBIndex  # 선택한 Resourceblock을 저장함. 
                         
                     #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
-                    agent.action_all_with_power_training[i, j, 1] = action[1] # PowerdBm을 저장함.
+                    agent.action_all_with_power_training[i, j, 1] = selPowerdBm # PowerdBm을 저장함.
                                         
                     
                     #선택한 power level과 resource block을 기반으로 reward를 계산함.
                     reward = env.act_for_training(agent.action_all_with_power_training, [i,j]) 
                     
+                    listOfselRB.append(selRBIndex)
+                    listOfselPower.append(selPowerdBm)
+                    listOfReward.append(reward)
+    
                     reward_sum += reward
                     
                     observation2 = env.get_state(idx = [i,j], isTraining = False, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power) 
+                    
+                    listofState_nextState.append(np.concatenate((deepcopy(observation), deepcopy(observation2)), axis=0))
                     
                     done = False                    
                     info = False
@@ -97,7 +140,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                     # agent observe and update policy
                     agent.observe(reward, observation2, done)
                     
-                    if selectStep > args.warmup :
+                    if selectStep > args.warmup and selectStep > batchsize:
                         agent.update_policy()
 
                     #observation = deepcopy(observation2)
@@ -135,7 +178,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
                                 action = agent.select_action(observation, decay_epsilon=False)
                                 
-                               
+   
                                 selRBRateList.append(int(action[0]))
                                 selPowerRateList.append(action[1])
                                 
@@ -148,13 +191,15 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 V2IRate_list.append(np.sum(V2IRate))
                                 V2VRate_list.append(np.sum(V2VRate))
                     
-                    if game_idx % 6 == 0:
-                        plt.subplot(211)
-                        plt.hist(selRBRateList, histtype='step')
-                        plt.title('Left : RB Rate, Right : Power Rate')
-                        plt.subplot(212)
-                        plt.hist(selPowerRateList, histtype='step')                                               
-                        plt.show()
+                    
+                    plt.subplot(211)
+                    plt.hist(selRBRateList, histtype='step')
+                    plt.title('Left : RB Rate, Right : Power Rate')
+                    plt.subplot(212)
+                    plt.hist(selPowerRateList, histtype='step')
+                    
+                    
+                    plt.show()
                     
                     V2I_Rate_list[game_idx] = np.mean(np.asarray(V2IRate_list))
                     V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
@@ -170,8 +215,22 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                 print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
                 print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
                 print('Mean of Fail percent is that ', np.mean(Fail_percent_list))   
+     
             
     agent.save_model('ddpg/model', 'final')
+    
+
+    totalModelPath = 'ddpg/'
+    all_select_rb = np.reshape(listOfselRB,(len(listOfselRB),1))
+    all_select_power = np.reshape(listOfselPower,(len(listOfselPower),1))
+    listOfReward = np.reshape(listOfReward,(len(listOfReward),1))
+    
+    listofLog = np.concatenate((all_select_rb, all_select_power,listOfReward), axis=1)
+    
+    MakeCSVFile(totalModelPath, 'total_log.csv', ['Select_RB','Select_Power','Reward'], listofLog)
+
+    listOfStateLog =  np.array(listofState_nextState)
+    MakeCSVFile(totalModelPath, 'State_transition_log.csv', ['current_state : 82', ' next_state : 82'], listOfStateLog)
     
     return reward_sum_list
 
@@ -198,7 +257,7 @@ if __name__ == "__main__":
     parser.add_argument('--prate', default=0.0001, type=float, help='policy net learning rate (only for DDPG)')
     
     parser.add_argument('--discount', default=0.99, type=float, help='')
-    parser.add_argument('--bsize', default=64, type=int, help='minibatch size') # 64
+    parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 64
     parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
     parser.add_argument('--window_length', default=1, type=int, help='')
     parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
@@ -212,9 +271,9 @@ if __name__ == "__main__":
     parser.add_argument('--debug', dest='debug', action='store_true')
     
     parser.add_argument('--init_w', default=0.003, type=float, help='') 
-    parser.add_argument('--warmup', default=10000, type=int, help='time without training but only filling the replay memory') # 10000
+    parser.add_argument('--warmup', default=4000, type=int, help='time without training but only filling the replay memory') # 10000
     parser.add_argument('--validate_steps', default=2000, type=int, help='how many steps to perform a validate experiment') # 2000
-    parser.add_argument('--train_iter', default=20000, type=int, help='train iters each timestep') # 200000
+    parser.add_argument('--train_iter', default=4001, type=int, help='train iters each timestep') # 200000
     parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
@@ -250,7 +309,6 @@ if __name__ == "__main__":
     nb_states = env.observation_space.shape[0]
     nb_actions = env.action_space.shape[0]
 
-
     agent = DDPG(nb_states, nb_actions, args, nVeh)
     
     evaluate = Evaluator(args.validate_episodes, 
@@ -258,7 +316,7 @@ if __name__ == "__main__":
 
     if args.mode == 'train':
         train(args.train_iter, agent, env, evaluate, 
-            args.validate_steps, args.output, max_episode_length=args.max_episode_length, debug=args.debug)
+            args.validate_steps, args.output, max_episode_length=args.max_episode_length, batchsize = args.bsize, debug=args.debug)
 
     elif args.mode == 'test':
         test(args.validate_episodes, agent, env, evaluate, args.resume,
