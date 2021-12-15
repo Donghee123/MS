@@ -38,8 +38,8 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
 def GetRB_Power(action):
     
     selectedRBIndex = np.argmax(action[0:20])
-    action[20] = ((action[20] + 1) * 16.5) - 10.0
-    action[20] = np.clip(action[20], -10., 23.0)
+    action[20] = ((action[20] + 1.0) * 9.0) + 5.0
+    action[20] = np.clip(action[20], 5.0, 23.0)
     selectedPower = action[20]
     
     return selectedRBIndex, selectedPower
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 64
     parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
     parser.add_argument('--window_length', default=1, type=int, help='')
-    parser.add_argument('--tau', default=0.003, type=float, help='moving average for target network')
+    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
     parser.add_argument('--ou_theta', default=0.15, type=float, help='noise theta')
     parser.add_argument('--ou_sigma', default=0.2, type=float, help='noise sigma') 
     parser.add_argument('--ou_mu', default=0.0, type=float, help='noise mu') 

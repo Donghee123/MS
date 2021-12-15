@@ -158,10 +158,10 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
     
-    parser.add_argument('--train_iter', default=5, type=int, help='train iters each timestep') # 6000
-    parser.add_argument('--warmup', default=1, type=int, help='train iters each timestep') # 5000
-    parser.add_argument('--updates_per_step', default=1, type=int, help='update per step') #
-    parser.add_argument('--target_update_step', default=100, type=int, help='target network update step') # 100
+    parser.add_argument('--train_iter', default=6000, type=int, help='train iters each timestep')
+    parser.add_argument('--warmup', default=5000, type=int, help='train iters each timestep')
+    parser.add_argument('--updates_per_step', default=25, type=int, help='update per step')
+    parser.add_argument('--target_update_step', default=100, type=int, help='target network update step')
     
     args = parser.parse_args()
     

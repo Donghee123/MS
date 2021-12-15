@@ -146,7 +146,7 @@ class Environ:
         
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = np.linspace(23.0, -10.0, 33)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
+        self.V2V_power_dB_List = np.linspace(23.0, 5.0, 18)           # v2v link의 종류별 파워 레벨 0~23까지  소수점 2째 자리 까지 고려함.
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
@@ -812,7 +812,7 @@ class Environ:
         if self.test_time_count == 0:
             self.test_time_count = 10
             
-        return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
+        return V2I_Rate_list, V2V_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
 
     def Compute_Interference(self, actions):
         # ====================================================
@@ -862,7 +862,7 @@ class Environ:
         self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
         
         #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
-        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
+        V2I_rewardlist, V2VRate_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
         
         
         self.renew_positions()
@@ -870,22 +870,42 @@ class Environ:
         self.Compute_Interference(actions) 
         rewards_list = rewards_list.T.reshape([-1])
         V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
+        V2VRate_rewardlist = V2VRate_rewardlist.T.reshape([-1])
         V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
         
         powerdBm_arg = self.find_nearest_arg(self.V2V_power_dB_List, actions[idx[0],idx[1], 1])
         
-        bestIndex = np.argmax(V2V_rewardlist)     
-        bestRB =  int(bestIndex / len(self.V2V_power_dB_List))
-        bestPower = self.V2V_power_dB_List[int(np.argmax(V2V_rewardlist) % len(self.V2V_power_dB_List))]
         
-        print('V2V 기준 best RB, best Power : ', [bestRB,bestPower])
+        nbestIndex = np.argmax(V2V_rewardlist)  
+        listofbestIndexs = np.where(V2V_rewardlist == V2V_rewardlist[nbestIndex])  
+        listofBestChoice = []
         
-        V2I_reward = (V2I_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
-        V2V_reward = (V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        for nIndex in listofbestIndexs[0]:
+            
+            nResourceBlock = int(nIndex / len(self.V2V_power_dB_List))
+            nPowerIndex = int(nIndex % len(self.V2V_power_dB_List))
+            
+            listofBestChoice.append((nResourceBlock, self.V2V_power_dB_List[nPowerIndex]))
        
-        lambdda = 0.
+        
+        
+        #print('V2V 기준 best RB, best Power : ', [listofBestChoice[0][0], listofBestChoice[0][1]])
+        #print('same best reward is : ', len(listofBestChoice))
+        
+        #상대적인 reward로 best reward를 선정해서 사용함.
+        #V2I_reward = (V2I_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
+        #V2V_reward = (V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+       
+        #절대적인 reward를 사용함. 
+        V2I_reward = V2I_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
+        V2V_reward = V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
+        V2VRate_reward = V2VRate_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
+        
+        print('V2V rate, V2V success : ', [V2V_reward, V2VRate_reward])
+        
         #print ("Reward", V2I_reward, V2V_reward, time_left)
-        t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
+        #t = lambdda * V2I_reward + (1-lambdda) * V2V_reward.
+        t = V2V_reward + V2VRate_reward #오직 V2V rate와 V2V 충족 만 올리려고함. 
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit
