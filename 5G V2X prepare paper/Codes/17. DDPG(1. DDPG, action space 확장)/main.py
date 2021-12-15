@@ -44,8 +44,15 @@ def GetRB_Power(action):
     
     return selectedRBIndex, selectedPower
 
-def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_episode_length=None, batchsize = 256, debug=False):
-
+def train(num_iterations, agent, env,  evaluate, args):
+    
+    isShowTestGraph = args.showtestGraph
+    validate_steps = args.validate_steps
+    output = args.output
+    max_episode_length = args.max_episode_length
+    batchsize= args.bsize
+    debug=args.debug
+    
     agent.is_training = True
     step = 0
     observation = None   
@@ -192,15 +199,13 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
                                 V2IRate_list.append(np.sum(V2IRate))
                                 V2VRate_list.append(np.sum(V2VRate))
                     
-                    
-                    plt.subplot(211)
-                    plt.hist(selRBRateList, histtype='step')
-                    plt.title('Left : RB Rate, Right : Power Rate')
-                    plt.subplot(212)
-                    plt.hist(selPowerRateList, histtype='step')
-                    
-                    
-                    plt.show()
+                    if (isShowTestGraph == 1):
+                        plt.subplot(211)
+                        plt.hist(selRBRateList, histtype='step')
+                        plt.title('Left : RB Rate, Right : Power Rate')
+                        plt.subplot(212)
+                        plt.hist(selPowerRateList, histtype='step')
+                        plt.show()
                     
                     V2I_Rate_list[game_idx] = np.mean(np.asarray(V2IRate_list))
                     V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
@@ -261,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument('--bsize', default=256, type=int, help='minibatch size') # 64
     parser.add_argument('--rmsize', default=6000000, type=int, help='memory size')
     parser.add_argument('--window_length', default=1, type=int, help='')
-    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
+    parser.add_argument('--tau', default=0.003, type=float, help='moving average for target network')
     parser.add_argument('--ou_theta', default=0.15, type=float, help='noise theta')
     parser.add_argument('--ou_sigma', default=0.2, type=float, help='noise sigma') 
     parser.add_argument('--ou_mu', default=0.0, type=float, help='noise mu') 
@@ -278,6 +283,7 @@ if __name__ == "__main__":
     parser.add_argument('--epsilon', default=50000, type=int, help='linear decay of exploration policy')
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
+    parser.add_argument('--showtestGraph', default='0', type=int, help='Show graph for test')
     # parser.add_argument('--l2norm', default=0.01, type=float, help='l2 weight decay') # TODO
     # parser.add_argument('--cuda', dest='cuda', action='store_true') # TODO
 
@@ -317,7 +323,7 @@ if __name__ == "__main__":
 
     if args.mode == 'train':
         train(args.train_iter, agent, env, evaluate, 
-            args.validate_steps, args.output, max_episode_length=args.max_episode_length, batchsize = args.bsize, debug=args.debug)
+            args)
 
     elif args.mode == 'test':
         test(args.validate_episodes, agent, env, evaluate, args.resume,
