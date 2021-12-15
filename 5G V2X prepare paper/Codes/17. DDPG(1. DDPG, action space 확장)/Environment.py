@@ -901,14 +901,16 @@ class Environ:
         V2V_reward = V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
         V2VRate_reward = V2VRate_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
         
-        print('V2V rate, V2V success : ', [V2V_reward, V2VRate_reward])
+        t = V2V_reward #오직 V2V 성공 확률 충족 만 올리려고함. 
+        totalReward = t - (self.V2V_limit - time_left)/self.V2V_limit
+        print('V2V success, total Reward', [V2V_reward, totalReward])
         
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         #t = lambdda * V2I_reward + (1-lambdda) * V2V_reward.
-        t = V2V_reward + V2VRate_reward #오직 V2V rate와 V2V 충족 만 올리려고함. 
+        
         #print("time left", time_left)
         #return t
-        return t - (self.V2V_limit - time_left)/self.V2V_limit
+        return totalReward
     
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
