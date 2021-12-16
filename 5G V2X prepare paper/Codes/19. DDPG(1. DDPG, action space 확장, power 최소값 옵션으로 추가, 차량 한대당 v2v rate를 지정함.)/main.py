@@ -187,7 +187,7 @@ def train(num_iterations, agent, env,  evaluate, args):
                                 observation = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)                           
                                 action = agent.select_action(observation, decay_epsilon=False)
                                 
-                                selRBIndex, selPowerdBm = GetRB_Power(action)
+                                selRBIndex, selPowerdBm =  GetRB_Power(minPower,action)
    
                                 selRBRateList.append(selRBIndex)
                                 selPowerRateList.append(selPowerdBm)
