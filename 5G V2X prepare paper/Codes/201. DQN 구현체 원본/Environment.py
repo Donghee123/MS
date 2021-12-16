@@ -583,7 +583,7 @@ class Environ:
         
         returnV2IReward = V2I_Rate
         returnV2VReward = V2V_Rate
-        
+        print('mean, std: ', [np.mean(V2V_Rate), np.std(V2V_Rate)])
         return returnV2IReward, returnV2VReward, fail_percent
 
     def Compute_Performance_Reward_Batch(self, actions_power, idx):    # add the power dimension to the action selection
@@ -695,6 +695,7 @@ class Environ:
         
         Interference = np.zeros(self.n_RB)  
         V2I_Rate_list = np.zeros((self.n_RB,len(self.V2V_power_dB_List)))    # 3 of power level, V2I link Channel capacity를 저장함.
+        
         
         
         for i in range(len(self.vehicles)):
