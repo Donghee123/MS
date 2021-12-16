@@ -346,6 +346,7 @@ class Agent(BaseModel):
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
         V2V_Rate_list = np.zeros(number_of_game)
+        V2V_AvGRate_list = np.zeros(number_of_game)
         Fail_percent_list = np.zeros(number_of_game)
         self.load_weight_from_pkl()
         self.training = False
@@ -356,7 +357,7 @@ class Agent(BaseModel):
             test_sample = n_step
             Rate_list = []
             Rate_list_V2V = []
-            
+            Rate_list_V2VAvg = []
             print('test game idx:', game_idx)
             print('The number of vehicle is ', len(self.env.vehicles))
             
@@ -396,6 +397,7 @@ class Agent(BaseModel):
                         rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
                         Rate_list.append(np.sum(rewardOfV2I))
                         Rate_list_V2V.append(np.sum(rewardOfV2V))
+                        Rate_list_V2VAvg.append(np.mean(rewardOfV2V))
                         
                 # print("actions", self.action_all_with_power)
             
@@ -424,17 +426,21 @@ class Agent(BaseModel):
             
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
+            V2V_AvGRate_list[game_idx] = np.mean(np.asarray(Rate_list_V2VAvg))
             
             Fail_percent_list[game_idx] = percent
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
             print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
+            print('Mean of the patital V2V Avg rate is that ', np.mean(V2V_AvGRate_list[0:game_idx] ))
             print('Mean of Fail percent is that ',percent, np.mean(Fail_percent_list[0:game_idx]))
             # print('action is that', action_temp[0,:])
 
         print('The number of vehicle is ', len(self.env.vehicles))
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
         print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+        print('Mean of the V2V avg rate is that ', np.mean(V2V_AvGRate_list))
+        
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
         # print('Test Reward is ', np.mean(test_result))
         
