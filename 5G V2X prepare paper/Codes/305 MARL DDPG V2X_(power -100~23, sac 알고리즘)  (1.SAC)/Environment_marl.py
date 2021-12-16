@@ -140,7 +140,6 @@ class Environ:
         
         while (i < len(self.vehicles)):
             temp = self.preFixedPositionDatas[self.preFixedUpdateCount][i]
-            print(temp)
             temp = temp.replace("[","")
             temp = temp.replace("]","")
             temp = temp.split(' ')

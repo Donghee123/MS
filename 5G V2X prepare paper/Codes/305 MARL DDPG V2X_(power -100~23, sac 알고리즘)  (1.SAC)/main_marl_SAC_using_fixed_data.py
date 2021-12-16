@@ -218,12 +218,14 @@ if __name__ == '__main__':
     
     if IS_TRAIN:
         for i_episode in range(n_episode):
+        
+            print("-------------------------")
+            print('Episode:', i_episode)
             
             #읽어온 데이터 에피소드.
             for i_preFixedpositionIndex in range(len(env.preFixedPositionDatas)):
                 updates = [0,0,0,0]
-                print("-------------------------")
-                print('Episode:', i_episode)
+                
                 
                 if i_episode < epsi_anneal_length:
                     epsi = 1 - i_episode * (1 - epsi_final) / (epsi_anneal_length - 1)  # epsilon decreases over each episode

@@ -901,9 +901,9 @@ class Environ:
         V2V_reward = V2V_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
         V2VRate_reward = V2VRate_rewardlist[int(actions[idx[0],idx[1], 0]) + 20 * powerdBm_arg]
         
-        t = V2V_reward #오직 V2V 성공 확률 충족 만 올리려고함. 
+        t = V2V_reward/800 #오직 V2V 성공 확률 충족 만 올리려고함. 
         totalReward = t - (self.V2V_limit - time_left)/self.V2V_limit
-        print('V2V success, total Reward', [V2V_reward, totalReward])
+        print('V2V success, total Reward', [V2V_reward/800, totalReward])
         
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         #t = lambdda * V2I_reward + (1-lambdda) * V2V_reward.
