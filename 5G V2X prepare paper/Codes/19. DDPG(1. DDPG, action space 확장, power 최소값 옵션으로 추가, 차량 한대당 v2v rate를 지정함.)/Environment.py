@@ -161,7 +161,7 @@ class Environ:
         self.delta_distance = []    #?
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
         self.n_Veh = n_Veh             #최대 vehicle 수
-        self.reqirement_individualrate_V2VRate= 0.5
+        self.reqirement_individualrate_V2VRate= 3.0
         self.V2Vchannels = V2Vchannels(self.n_Veh, self.n_RB)  # V2V 채널 Class, 차량 수와 동일함.
         self.V2Ichannels = V2Ichannels(self.n_Veh, self.n_RB)
 
