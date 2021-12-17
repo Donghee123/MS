@@ -395,6 +395,7 @@ class Agent(BaseModel):
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
                         rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
+                        print('percent : ', percent)
                         Rate_list.append(np.sum(rewardOfV2I))
                         Rate_list_V2V.append(np.sum(rewardOfV2V))
                         Rate_list_V2VAvg.append(np.mean(rewardOfV2V))
