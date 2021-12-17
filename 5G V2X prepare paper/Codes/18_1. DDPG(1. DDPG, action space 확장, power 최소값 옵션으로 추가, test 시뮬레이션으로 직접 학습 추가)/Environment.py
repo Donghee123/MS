@@ -994,7 +994,7 @@ class Environ:
         self.update_time_train = 0.01  # 10ms update time for the training
         self.update_time_test = 0.002 # 2ms update time for testing
         #self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
-        self.update_time_asyn= 2.857142857142857e-5 # for training
+        self.update_time_asyn= 2.857142857142857e-5 # for training 0.0002 / 7
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
 
 if __name__ == "__main__":

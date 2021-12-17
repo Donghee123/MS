@@ -94,7 +94,7 @@ def train_V2(num_iterations, agent, env,  evaluate, args):
             V2VRate_list = []                    
             selPowerRateList = []
             selRBRateList = []
-                
+            percent = 0  
             #print('test game idx:', game_idx)
             for k in range(test_sample):
                 action_temp = agent.action_all_with_power.copy()
@@ -157,13 +157,13 @@ def train_V2(num_iterations, agent, env,  evaluate, args):
     
                 
         #episode 마 할때마다 모델 저장
-        performanceInfo = str(step) + '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list))               
+        performanceInfo = str(step) + '_' + str(np.mean(V2IRate_list)) + '_' + str(np.mean(V2VRate_list)) + '_' + str(percent)               
         agent.save_model('ddpg/model', performanceInfo)
         print ('The number of vehicle is ', len(env.vehicles))
-        print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
-        print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
-        print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
-        print('Mean of Fail percent is that ', np.mean(Fail_percent_list)) 
+        print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2IRate_list) + np.mean(V2VRate_list))
+        print ('Mean of the V2I rate is that ', np.mean(V2IRate_list))
+        print ('Mean of the V2V rate is that ', np.mean(V2VRate_list))
+        print('Mean of Fail percent is that ', percent) 
 
 def train(num_iterations, agent, env,  evaluate, args):
     
