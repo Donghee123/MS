@@ -98,7 +98,7 @@ def train_V2(args, memory, agent, env):
         percent = 0 
         
         #episode 테스트 시작.
-        test_sample = 50 # 200
+        test_sample = 200
         #print('test game idx:', game_idx)
         for k in range(test_sample):
             action_temp = agent.action_all_with_power.copy()
@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
     width = 750
     height = 1299
-    nVeh = 20
+    nVeh = 60
 
     # V2X 환경 적용
     env = Environ(down_lanes, up_lanes, left_lanes,
