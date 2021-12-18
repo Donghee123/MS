@@ -19,7 +19,6 @@ from DQN import prepare_training_inputs
 from DDPG import DDPG, Actor, Critic
 from DDPG import OrnsteinUhlenbeckProcess as OUProcess
 
-
 from common.target_update import soft_update
 from common.train_utils import to_tensor
 from common.memory.memory import ReplayMemory
@@ -57,12 +56,13 @@ critic_target = Critic()
 agent = DDPG(critic=critic,critic_target=critic_target,actor=actor, actor_target=actor_target,
              lr_actor=lr_actor, lr_critic=lr_critic, gamma = gamma)
 
+agent.to(DEVICE)
 memory = ReplayMemory(memory_size)
 
-total_eps = 200
+total_eps = 50 # 200
 print_every = 10
 
-env = gym.make('Pendulum-v0')
+env = gym.make('Pendulum-v1')
 
 if FROM_SCRATCH:
     for n_epi in range(total_eps):
@@ -102,13 +102,13 @@ if FROM_SCRATCH:
                 break
         if n_epi % print_every == 0:
             msg = (n_epi, cum_r) 
-            print("Episode : {} | Cumulative REward : {} |".format(*msg))
+            print("Episode : {} | Cumulative Reward : {} |".format(*msg))
             
     torch.save(agent.state_dict(), 'ddpg_cartpole_user_trained.ptb')
 else:
     agent.load_state_dict(torch.load('ddpg_cartpole_user_trained.ptb'))
                           
-env = gym.make('Pendulum-v0')
+env = gym.make('Pendulum-v1')
 
 s = env.reset()
 cum_r = 0
