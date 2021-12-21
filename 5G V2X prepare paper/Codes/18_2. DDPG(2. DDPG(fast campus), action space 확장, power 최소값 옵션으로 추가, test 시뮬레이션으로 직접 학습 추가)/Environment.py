@@ -955,9 +955,11 @@ class Environ:
     
     def act_asyn_train(self, actions):
         self.n_step += 1
-        if self.n_step % self.n_Veh == 0:
+        
+        if self.n_step % (self.n_Veh * 3) == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
+            
         reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
         self.Compute_Interference(actions)
         return reward 
