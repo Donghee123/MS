@@ -199,11 +199,8 @@ if __name__ == "__main__":
     parser.add_argument('--bsize', default=256, type=int, help='minibatch size') #256
     parser.add_argument('--rmsize', default=50000, type=int, help='memory size')
     parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
-<<<<<<< HEAD
     parser.add_argument('--sampling_only_until', default=300, type=int, help='train start step') # 2000
-=======
-    parser.add_argument('--sampling_only_until', default=200, type=int, help='train start step') # 2000
->>>>>>> eb922f8a129d20801633ed7d5ca66ba87c17e711
+
     
     parser.add_argument('--power_min', default=-10.0, type=float, help='') 
        
