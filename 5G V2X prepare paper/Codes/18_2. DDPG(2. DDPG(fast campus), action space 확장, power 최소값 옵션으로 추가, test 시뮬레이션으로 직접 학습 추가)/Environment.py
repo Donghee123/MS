@@ -956,6 +956,7 @@ class Environ:
     def act_asyn_train(self, actions):
         self.n_step += 1
         
+        #모든 차량이 선택되고 나면 차량의 Position과 Channel을 update함.
         if self.n_step % (self.n_Veh * 3) == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
