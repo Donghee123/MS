@@ -964,9 +964,12 @@ class Environ:
     
     def act_asyn_train(self, actions):
         self.n_step += 1
-        if self.n_step % self.n_Veh == 0:
+        
+        #모든 차량이 선택되고 나면 차량의 Position과 Channel을 update함.
+        if self.n_step % (self.n_Veh * 3) == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
+            
         reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
         self.Compute_Interference(actions)
         return reward 
@@ -1003,7 +1006,11 @@ class Environ:
         self.update_time_train = 0.01  # 10ms update time for the training
         self.update_time_test = 0.002 # 2ms update time for testing
         #self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
+<<<<<<< HEAD
         self.update_time_asyn= 2.857142857142857e-5 # for training 0.0002 / 7 : 60대 차량 기준 1대의 차량이 선택했을떄 지나가는 시간을 의미함.
+=======
+        self.update_time_asyn= 1.1111111111111111111111111111111e-5 # for training 0.0002 / 18
+>>>>>>> b8bb608244251957338a1c60d2b9377ca07bab39
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
 
 if __name__ == "__main__":

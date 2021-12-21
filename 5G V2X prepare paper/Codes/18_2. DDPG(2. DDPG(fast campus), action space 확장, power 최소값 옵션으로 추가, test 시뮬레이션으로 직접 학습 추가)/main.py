@@ -189,21 +189,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
     parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
-    parser.add_argument('--hidden1', default=512, type=int, help='hidden1 num of first fully connect layer')
-    parser.add_argument('--hidden2', default=256, type=int, help='hidden2 num of second fully connect layer')
-    parser.add_argument('--hidden3', default=128, type=int, help='hidden3 num of first fully connect layer')
+    parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
+    parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
+    parser.add_argument('--hidden3', default=64, type=int, help='hidden3 num of first fully connect layer')
 
     parser.add_argument('--lr_actor', default=0.005, type=float, help='Actor learning rate')
     parser.add_argument('--lr_critic', default=0.001, type=float, help='Critic learning rate')
     parser.add_argument('--gamma', default=0.99, type=float, help='')   
-    parser.add_argument('--bsize', default=30, type=int, help='minibatch size') #256
+    parser.add_argument('--bsize', default=256, type=int, help='minibatch size') #256
     parser.add_argument('--rmsize', default=50000, type=int, help='memory size')
     parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
     parser.add_argument('--sampling_only_until', default=31, type=int, help='train start step') # 2000
     
     parser.add_argument('--power_min', default=-10.0, type=float, help='') 
        
-    parser.add_argument('--train_iter', default=2, type=int, help='train iters each timestep') # 4000
+    parser.add_argument('--train_iter', default=100, type=int, help='train iters each timestep') # 4000
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--resume', default='default', type=str, help='Resuming model path for testing')
     parser.add_argument('--showtestGraph', default='0', type=int, help='Show graph for test')
