@@ -966,7 +966,7 @@ class Environ:
         self.n_step += 1
         
         #모든 차량이 선택되고 나면 차량의 Position과 Channel을 update함.
-        if self.n_step % (self.n_Veh * 3) == 0:
+        if self.n_step % ((self.n_Veh - (self.n_Veh/10) + 2) * 3) == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
             
@@ -1007,7 +1007,7 @@ class Environ:
         self.update_time_test = 0.002 # 2ms update time for testing
         #self.update_time_asyn = 0.0002 # 0.2 ms update one subset of the vehicles; for each vehicle, the update time is 2 ms
 
-        self.update_time_asyn= 9.5238095238095238095238095238095e-6 # for training 0.0002 / 21
+        self.update_time_asyn= 1.1111111111111111111111111111111e-5 # for training 0.0002 / 18
 
         self.activate_links = np.zeros((self.n_Veh,3), dtype='bool')
 
