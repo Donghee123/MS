@@ -96,6 +96,10 @@ def train_V2(args, memory, agent, env):
         selRBRateList = []
         percent = 0 
         
+        #agent 값들 모두 초기
+        agent.action_all_with_power[:,:,0] = 0
+        agent.action_all_with_power[:,:,1] = 0
+        
         #episode 테스트 시작.
         test_sample = 200
         #print('test game idx:', game_idx)
@@ -188,7 +192,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
     parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
-    parser.add_argument('--train_resume', default=1, type=int, help='train resume')
+    parser.add_argument('--train_resume', default=0, type=int, help='train resume')
     parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
     parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
     parser.add_argument('--hidden3', default=64, type=int, help='hidden3 num of first fully connect layer')
