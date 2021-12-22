@@ -627,7 +627,7 @@ class Environ:
         V2V_Interference = np.zeros((len(self.vehicles), 3)) #V2V의 간섭 신호들 -> 높으면 V2V Rate가 낮아진다. 
         V2V_Signal = np.zeros((len(self.vehicles), 3)) #V2V 간의 전송신호들 -> 높으면 V2V Rate가 증가함.
         Interfence_times = np.zeros((len(self.vehicles), 3)) # 필요 없는듯?
-        actions[(np.logical_not(self.activate_links))] = -1   #들어온 action에서 동일한 리소스블럭을 사용하는 V2V의 간섭 신호들을 더함.
+        #actions[(np.logical_not(self.activate_links))] = -1   #들어온 action에서 동일한 리소스블럭을 사용하는 V2V의 간섭 신호들을 더함.
         
         for i in range(self.n_RB):
             indexes = np.argwhere(actions == i) #indexes [17, 1] -> 17번번째 차량이 1번번째 차량에게 데이터를 전송하는 것임, i번째 ResourceBlock을 사용함.-> 현재 action과 동일한 리소스 블럭을 사용하는 V2V Link

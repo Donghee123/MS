@@ -54,9 +54,9 @@ def GetRB_Power(powerMin,action):
     powerRange = 23.0 - powerMin
     
     selectedRBIndex = np.argmax(action[0:20])
-    action[20] = ((action[20] + 2.0) * (powerRange / 4)) + powerMin
-    action[20] = np.clip(action[20], powerMin, 23.0)
-    selectedPower = action[20]
+    actionFromPolicy = ((action[20] + 2.0) * (powerRange / 4)) + powerMin
+    actionFromPolicy = np.clip(actionFromPolicy, powerMin, 23.0)
+    selectedPower = actionFromPolicy
     
     return selectedRBIndex, selectedPower
 
@@ -72,11 +72,7 @@ def train_V2(args, memory, agent, env):
     selectStep = 0  
     episode = 0
     
-    #for smple data 
-    listOfselRB = []
-    listOfselPower = []
-    listOfReward = []
-    listofState_nextState = []
+    
     
     V2I_Rate_list = np.zeros(totalEpisode)
     V2V_Rate_list = np.zeros(totalEpisode)
@@ -86,7 +82,12 @@ def train_V2(args, memory, agent, env):
         print('===========================')
         print('curEpisode : ', episode)
         
-                     
+        #for smple data 
+        listOfselRB = []
+        listOfselPower = []
+        listOfReward = []
+        listofState_nextState = []
+        
         env.new_random_game(env.n_Veh)
         ou_noise = OUProcess(mu=np.zeros(1)) # OU random process 리셋              
         cum_r = 0
@@ -100,13 +101,15 @@ def train_V2(args, memory, agent, env):
         #episode 테스트 시작.
         test_sample = 200
         #print('test game idx:', game_idx)
+        agent.action_all_with_power[:,:,1] = -100.0
+        agent.action_all_with_power[:,:,0] = -1
+        
         for k in range(test_sample):
             action_temp = agent.action_all_with_power.copy()
                       
             for i in range(len(env.vehicles)):
                 selectStep += 1
                 
-                agent.action_all_with_power[i,:,0] = -1
                 sorted_idx = np.argsort(env.individual_time_limit[i,:])      
                 
                 for j in sorted_idx:     
@@ -116,6 +119,8 @@ def train_V2(args, memory, agent, env):
                                       
                     action = agent.get_action(state).cpu().numpy() + ou_noise()[0]
                     selRBIndex, selPowerdBm = GetRB_Power(minPower, action)
+                    
+                    print('RB, Power',[selRBIndex, selPowerdBm])
                     
                     selRBRateList.append(selRBIndex)
                     selPowerRateList.append(selPowerdBm)
@@ -189,8 +194,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
     parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
-    parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
-    parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
+    parser.add_argument('--hidden1', default=512, type=int, help='hidden1 num of first fully connect layer')
+    parser.add_argument('--hidden2', default=256, type=int, help='hidden2 num of second fully connect layer')
     parser.add_argument('--hidden3', default=64, type=int, help='hidden3 num of first fully connect layer')
 
     parser.add_argument('--lr_actor', default=0.005, type=float, help='Actor learning rate')

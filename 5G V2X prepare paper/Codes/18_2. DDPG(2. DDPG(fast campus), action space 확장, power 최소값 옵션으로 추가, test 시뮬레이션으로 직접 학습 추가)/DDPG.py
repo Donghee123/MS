@@ -57,7 +57,7 @@ class Critic(nn.Module):
         
         #sate network, action network의 출력을 합침.
         self.q_estimator = MLP(num_neurons[0], 1,
-                               num_neurons=[num_neurons[1], num_neurons[2]],
+                               num_neurons=[num_neurons[1],num_neurons[2]],
                                hidden_act='ReLU',
                                out_act='Identity')
 
