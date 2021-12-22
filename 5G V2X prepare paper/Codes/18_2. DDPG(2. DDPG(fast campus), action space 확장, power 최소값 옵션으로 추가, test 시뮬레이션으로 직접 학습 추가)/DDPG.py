@@ -45,26 +45,16 @@ class Critic(nn.Module):
     def __init__(self, input_state, output_action, num_neurons):
         super(Critic, self).__init__()
         
-        #state를 입력으로 받는 네트워크, 임베딩 된 값 -> 64개
-        self.state_encoder = MLP(input_state, int(num_neurons[0] / 2),
-                                 num_neurons=[],
-                                 out_act='ReLU')  # single layer model
-        
-        #action를 입력으로 받는 네트워크, 임베딩 된 값 -> 64개
-        self.action_encoder = MLP(output_action, int(num_neurons[0] / 2),
-                                  num_neurons=[],
-                                  out_act='ReLU')  # single layer 
-        
         #sate network, action network의 출력을 합침.
-        self.q_estimator = MLP(num_neurons[0], 1,
-                               num_neurons=[num_neurons[1],num_neurons[2]],
+        self.q_estimator = MLP(input_state + output_action, 1,
+                               num_neurons=[num_neurons[0], num_neurons[1],num_neurons[2]],
                                hidden_act='ReLU',
                                out_act='Identity')
 
     def forward(self, s, a):
         #2개의 네트워크를 합침 -> emb
         #cat -> concatenate를 의미
-        emb = torch.cat([self.state_encoder(s), self.action_encoder(a)], dim=-1)
+        emb = torch.cat([s, a], dim=-1)
         #emb값을 q_estimator에 넣음.
         return self.q_estimator(emb)
 

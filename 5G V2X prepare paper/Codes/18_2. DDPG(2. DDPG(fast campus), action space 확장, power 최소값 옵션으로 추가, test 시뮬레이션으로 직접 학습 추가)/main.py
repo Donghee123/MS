@@ -68,11 +68,8 @@ def train_V2(args, memory, agent, env):
     totalEpisode = args.train_iter
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
           
-  
     selectStep = 0  
     episode = 0
-    
-
     
     V2I_Rate_list = np.zeros(totalEpisode)
     V2V_Rate_list = np.zeros(totalEpisode)
@@ -201,7 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--bsize', default=256, type=int, help='minibatch size') #256
     parser.add_argument('--rmsize', default=50000, type=int, help='memory size')
     parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
-    parser.add_argument('--sampling_only_until', default=300, type=int, help='train start step') # 2000
+    parser.add_argument('--sampling_only_until', default=260, type=int, help='train start step') # 2000
 
     
     parser.add_argument('--power_min', default=-10.0, type=float, help='') 
@@ -260,7 +257,11 @@ if __name__ == "__main__":
     
     
     memory = ReplayMemory(memory_size)
-
+    
+    #if args.mode == 'train_V2_resume':
+        
+   
     train_V2(args, memory, agent, env)
+     
 
     
