@@ -168,7 +168,8 @@ class Environ:
 
         self.V2V_Interference_all = np.zeros((self.n_Veh, 3, self.n_RB)) + self.sig2
         self.n_step = 0
-    
+        self.preFixedPositionDatas = 0
+        
     def load_position_data(self, strDatapath):           
         df = pd.read_csv(strDatapath, encoding='utf8')
         self.preFixedPositionDatas = df.to_numpy()
@@ -240,22 +241,22 @@ class Environ:
             start_position = [self.down_lanes[ind], random.randint(0,self.height)]
             start_direction = 'd'
             #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,35)
             
             start_position = [self.up_lanes[ind], random.randint(0,self.height)]
             start_direction = 'u'
             #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,35)
             
             start_position = [random.randint(0,self.width), self.left_lanes[ind]]
             start_direction = 'l'
             #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,35)
             
             start_position = [random.randint(0,self.width), self.right_lanes[ind]]
             start_direction = 'r'
             #self.add_new_vehicles(start_position,start_direction,random.randint(10,15))
-            self.add_new_vehicles(start_position,start_direction,36)
+            self.add_new_vehicles(start_position,start_direction,35)
             
         self.V2V_Shadowing = np.random.normal(0, 3, [len(self.vehicles), len(self.vehicles)])
         self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
@@ -967,7 +968,12 @@ class Environ:
         
         #모든 차량이 선택되고 나면 차량의 Position과 Channel을 update함.
         if self.n_step % ((self.n_Veh - (self.n_Veh/10) + 2) * 3) == 0:
-            self.renew_positions()            
+            
+            if self.preFixedPositionDatas is not 0:
+                self.renew_positions_using_fixed_data()
+            else:
+                self.renew_positions()      
+                
             self.renew_channels_fastfading()
             
         reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)

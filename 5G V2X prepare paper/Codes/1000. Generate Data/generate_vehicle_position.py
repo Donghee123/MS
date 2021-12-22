@@ -44,7 +44,7 @@ height = 1299
 IS_TRAIN = 1
 IS_TEST = 1-IS_TRAIN
 
-generateSecond = 100
+generateSecond = 20
 n_veh = 60
 n_neighbor = 1
 

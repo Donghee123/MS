@@ -87,7 +87,13 @@ def train_V2(args, memory, agent, env):
         listofState_nextState = []
         
         env.new_random_game(env.n_Veh)
-        ou_noise = OUProcess(mu=np.zeros(1)) # OU random process 리셋              
+        
+        #차량 position 초기화 반복문
+        env.preFixedUpdateCount = 0
+        env.renew_positions_using_fixed_data()
+        
+        # OU random process 리셋     
+        ou_noise = OUProcess(mu=np.zeros(1))          
         cum_r = 0
                                                                    
         V2IRate_list = []
@@ -102,7 +108,7 @@ def train_V2(args, memory, agent, env):
         
         #episode 테스트 시작.
         test_sample = 200
-        #print('test game idx:', game_idx)
+        
         for k in range(test_sample):
             action_temp = agent.action_all_with_power.copy()
                       
@@ -192,7 +198,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
     parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
-    parser.add_argument('--train_resume', default=0, type=int, help='train resume')
+    parser.add_argument('--train_resume', default=0, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
+    parser.add_argument('--using_position_data', default=1, type=int, help='using test data, using path : ./position/vehiclePosition.csv')
     parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
     parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
     parser.add_argument('--hidden3', default=64, type=int, help='hidden3 num of first fully connect layer')
@@ -230,7 +237,10 @@ if __name__ == "__main__":
     # V2X 환경 적용
     env = Environ(down_lanes, up_lanes, left_lanes,
               right_lanes, width, height, nVeh, args.power_min)  # V2X 환경 생성
-
+    
+    if args.using_position_data == 1:
+        env.load_position_data('./position/vehiclePosition.csv')
+        
     if args.seed > 0:
         np.random.seed(args.seed)
         env.seed(args.seed)
