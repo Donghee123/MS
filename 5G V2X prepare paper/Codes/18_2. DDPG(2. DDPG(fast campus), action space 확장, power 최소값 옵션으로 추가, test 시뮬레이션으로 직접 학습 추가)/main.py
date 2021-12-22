@@ -118,7 +118,7 @@ def train_V2(args, memory, agent, env):
                                       
                     action = agent.get_action(state).cpu().numpy() + ou_noise()[0]
                     selRBIndex, selPowerdBm = GetRB_Power(minPower, action)
-                    
+                    print('RB, Power' , [selRBIndex, selPowerdBm])
                     selRBRateList.append(selRBIndex)
                     selPowerRateList.append(selPowerdBm)
                     
