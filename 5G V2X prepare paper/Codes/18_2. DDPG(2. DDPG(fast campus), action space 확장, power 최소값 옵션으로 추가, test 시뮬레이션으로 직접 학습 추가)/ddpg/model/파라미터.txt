@@ -1,2 +1,1 @@
-tau = 0.001
-reward = V2I weight : 0.1, V2V weight 0.9
+hidden, 256, 128, 64
