@@ -71,8 +71,10 @@ def train(args, memory, agent, env):
     episode = 0    
     env.new_random_game(60)
            
-    while episode < totalEpisode:
+    for episode in range(totalEpisode):
         print('episode : ', episode)
+        
+        episode += 1
         #차량 position 초기화 반복문
         
         env.new_random_game(60)
