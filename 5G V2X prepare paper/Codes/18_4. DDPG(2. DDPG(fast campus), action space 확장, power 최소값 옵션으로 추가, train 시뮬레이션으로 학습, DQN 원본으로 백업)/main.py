@@ -63,166 +63,151 @@ def GetRB_Power(powerMin,action):
 def train(args, memory, agent, env):
     
     isShowTestGraph = args.showtestGraph
-    number_of_game = 10         
-    minPower = args.power_min
-    totalEpisode = args.train_iter
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'          
-    selectStep = 0  
-    episode = 0    
-    env.new_random_game(60)
-           
-    for episode in range(totalEpisode):
-        print('episode : ', episode)
+    env.new_random_game(20)
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'         
+    for step in (range(0, args.train_iter)):
         
-        episode += 1
-        #차량 position 초기화 반복문
+        if step == 0:       
+            ou_noise = OUProcess(mu=np.zeros(1))       
+            cum_r = 0             
+                
+        # prediction
+        # action = self.predict(self.history.get())
+        if (step % 2000 == 1):
+           ou_noise = OUProcess(mu=np.zeros(1))  
+           print('reward per 2000step : ', cum_r)
+           cum_r = 0
+           env.new_random_game(20)
         
-        env.new_random_game(60)
-        env.preFixedUpdateCount = 0
-        env.renew_positions_using_fixed_data()
+        isTraining = True
+        print(step)
         
-        # OU random process 리셋     
-        ou_noise = OUProcess(mu=np.zeros(1))          
-        cum_r = 0
-        
-        for step in range(2000):                
+        for k in range(1):
+            #i번째 송신 차량
+            for i in range(len(env.vehicles)):
+                #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
+                for j in range(3): 
+                    # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
+                    state = env.get_state(idx = [i,j], isTraining = isTraining, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
+                    state = to_tensor(state)    
+                    #state를 보고 action을 정함
+                    #action은 선택한 power level, 선택한 resource block 정보를 가짐 
+                    action = agent.get_action(state).cpu().numpy() + ou_noise()[0]  
+                                          
+                    selRBIndex, selPowerdBm = GetRB_Power(5, action)    
+                    #선택한 resource block을 넣어줌
+                    agent.action_all_with_power_training[i, j, 0] = selRBIndex
+                     
+                    #선택한 power level을 넣어줌
+                    agent.action_all_with_power_training[i, j, 1] = selPowerdBm 
+                                         
+                    #선택한 power level과 resource block을 기반으로 reward를 계산함.
+                    reward = env.act_for_training(agent.action_all_with_power_training, [i,j]) 
                         
-            for k in range(1):
-                #i번째 송신 차량
-                for i in range(len(env.vehicles)):
-
-                    #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
-                    for j in range(3): 
-                        # i번째 차량에서 j번째 차량으로 데이터를 전송할때 state를 가져옴.
-                        state = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
-                        state = to_tensor(state)
-                        #state를 보고 action을 정함
-                        #action은 선택한 power level, 선택한 resource block 정보를 가짐
-                        action = agent.get_action(state).cpu().numpy() + ou_noise()[0]  
-                        
-                        #self.merge_action([i,j], action)   
-                        
-                        selRBIndex, selPowerdBm = GetRB_Power(minPower, action)
-                        print('RB, Power', [selRBIndex, selPowerdBm])
-                        #선택한 resource block을 넣어줌
-                        agent.action_all_with_power_training[i, j, 0] = selRBIndex
-                        #선택한 power level을 넣어줌
-                        agent.action_all_with_power_training[i, j, 1] = selPowerdBm
-                        
-                        #excute 전에 복사
-                        action_temp = agent.action_all_with_power_training.copy()
-                        
-                        #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                        reward = env.act_for_training(action_temp, [i,j]) 
-                          
-                        nest_state = env.get_state(idx = [i,j], isTraining = True, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
-                        done = False
-                        experience = (state.view(1,82),
+                    next_state = env.get_state(idx = [i,j], isTraining = isTraining, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
+                    
+                    done = False
+                    experience = (state.view(1,82),
                                   torch.tensor(action).view(1,21),
                                   torch.tensor(reward).view(1,1),
-                                  torch.tensor(nest_state).view(1,82),
+                                  torch.tensor(next_state).view(1,82),
                                   torch.tensor(done).view(1,1))
                                   
-                        memory.push(experience)
+                    memory.push(experience)
+                    
+                    cum_r += reward   
                         
-                        cum_r += reward   
-                        
-                        if len(memory) >= sampling_only_until:
-                            #train agent
-                            sampled_exps = memory.sample(batch_size)
-                            sampled_exps = prepare_training_inputs(sampled_exps, device = DEVICE)
-                            agent.update(*sampled_exps)
+                    if len(memory) >= sampling_only_until:
+                        #train agent
+                        sampled_exps = memory.sample(batch_size)
+                        sampled_exps = prepare_training_inputs(sampled_exps, device = DEVICE)
+                        agent.update(*sampled_exps)
                           
-                            #update target networks
-                            #OUProcess에 의해 noisy 한 환경이 생김.
-                            #soft_update를 통해 noisy 한 환경에서 tau값을 조절하며 업데이트함
-                            soft_update(agent.actor, agent.actor_target, tau)
-                            soft_update(agent.critic, agent.critic_target, tau)  
-                
-                env.renew_positions_using_fixed_data()
+                        #update target networks
+                        #OUProcess에 의해 noisy 한 환경이 생김.
+                        #soft_update를 통해 noisy 한 환경에서 tau값을 조절하며 업데이트함
+                        soft_update(agent.actor, agent.actor_target, tau)
+                        soft_update(agent.critic, agent.critic_target, tau)  
+
                         
-        print('Episode cumReward : ', [episode, cum_r])      
-        
-        if (episode % 5 == 0) and (episode > 0):
-        
-            # testing                                  
+        if (step % 2000 == 0) and (step > 0):
+            # testing 
+            isTraining = False
+            number_of_game = 10
+           
             V2I_V2X_Rate_list = np.zeros(number_of_game)
             V2I_Rate_list = np.zeros(number_of_game)
             V2V_Rate_list = np.zeros(number_of_game)
             Fail_percent_list = np.zeros(number_of_game)
             
-            listOfSelRB = []
-            listOfSelPowerdBm = []
-            
-            #10번의 게임 수행 시뮬레이션 20초 수행.
-            for game_idx in range(number_of_game):
-                                           
-                env.new_random_game(60)
-                env.preFixedUpdateCount = 0
-                env.renew_positions_using_fixed_data()
+            temp_V2V_Rate_list = []
+            temp_V2I_Rate_list = []
                 
+            for game_idx in range(number_of_game):
+                
+                listOfSelRB = []
+                listOfSelPowerdBm = []
+                
+                env.new_random_game(len(env.vehicles))
                 test_sample = 200
                 Rate_list = []
-                temp_V2V_Rate_list = []
-                temp_V2I_Rate_list = []
-                print('test game idx:', game_idx)
                 
-                for k in range(test_sample):               
-                    action_temp = agent.action_all_with_power.copy()   
-                    
-                    for i in range(len(env.vehicles)):                  
+                print('test game idx:', game_idx)
+                for k in range(test_sample):
+                    action_temp = agent.action_all_with_power.copy()
+                    for i in range(len(env.vehicles)):
                         agent.action_all_with_power[i,:,0] = -1
-                        sorted_idx = np.argsort(env.individual_time_limit[i,:]) 
-                        
+                        sorted_idx = np.argsort(env.individual_time_limit[i,:])          
                         for j in sorted_idx:                   
-                            state_old = env.get_state(idx = [i,j], isTraining = False, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
-                            action = agent.get_action(state).cpu().numpy()  
-                            
-                            selRBIndex, selPowerdBm = GetRB_Power(minPower, action)
-                            
+                            state = env.get_state(idx = [i,j], isTraining = isTraining, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
+                            state = to_tensor(state)    
+                            #state를 보고 action을 정함
+                            #action은 선택한 power level, 선택한 resource block 정보를 가짐 
+                            action = agent.get_action(state).cpu().numpy()
+                                     
+                            selRBIndex, selPowerdBm = GetRB_Power(minPower, action)    
                             #선택한 resource block을 넣어줌
                             agent.action_all_with_power[i, j, 0] = selRBIndex
-                            #선택한 power level을 넣어줌
-                            agent.action_all_with_power[i, j, 1] = selPowerdBm
-                            
                             listOfSelRB.append(selRBIndex)
-                            listOfSelPowerdBm.append(selPowerdBm)
-                            
-                        if i % (len(self.env.vehicles)/10) == 1:
+                  
+                            #선택한 power level을 넣어줌
+                            agent.action_all_with_power[i, j, 1] = selPowerdBm 
+                            listOfSelPowerdBm(selPowerdBm)
+                                
+                        if i % (len(env.vehicles)/10) == 1:
                             action_temp = agent.action_all_with_power.copy()                                
-                            returnV2IReward, returnV2VReward, percent = env.act_asyn(action_temp)        
+                            returnV2IReward, returnV2VReward, percent = env.act_asyn(action_temp) #self.action_all)            
                             Rate_list.append(np.sum(returnV2IReward) + np.sum(returnV2VReward))
                             temp_V2I_Rate_list.append(np.sum(returnV2IReward))
                             temp_V2V_Rate_list.append(np.sum(returnV2VReward))
-                            
-                  
+                
+              
+                
+                        #print("actions", self.action_all_with_power)
                 V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
                 V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
                 V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
                 Fail_percent_list[game_idx] = percent
+                #print("action is", self.action_all_with_power)
                 print('failure probability is, ', percent)
-            
-            if (isShowTestGraph == 1):
-                showSelectHistGraph(listOfSelRB, listOfSelPowerdBm)   
+                #print('action is that', action_temp[0,:])
                 
-            #episode 마 할때마다 모델 저장           
+            if (isShowTestGraph == 1):
+                showSelectHistGraph(listOfSelRB, listOfSelPowerdBm) 
+                
             print ('The number of vehicle is ', len(self.env.vehicles))
             print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
             print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
             print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
-            print('Mean of Fail percent is that ', np.mean(Fail_percent_list)) 
-            
+            print('Mean of Fail percent is that ', np.mean(Fail_percent_list))      
+
             savePath = 'ddpg/model/'
-            performanceInfo = str(episode) + '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + np.mean(Fail_percent_list)       
+            performanceInfo = str(step) + '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + np.mean(Fail_percent_list)       
             criticPath = savePath + 'critic_' + performanceInfo
             actorPath = savePath + 'actor_' + performanceInfo
         
             torch.save(agent.critic_target.state_dict(), criticPath)      
-            torch.save(agent.actor_target.state_dict(), actorPath)
-            
-        
-
-
+            torch.save(agent.actor_target.state_dict(), actorPath)              
 
 if __name__ == "__main__":
 
@@ -230,7 +215,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
     parser.add_argument('--train_resume', default=0, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
-    parser.add_argument('--using_position_data', default=1, type=int, help='using test data, using path : ./position/vehiclePosition.csv')
+    parser.add_argument('--using_position_data', default=0, type=int, help='using test data, using path : ./position/vehiclePosition.csv')
     parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
     parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
     parser.add_argument('--hidden3', default=64, type=int, help='hidden3 num of first fully connect layer')
@@ -245,8 +230,7 @@ if __name__ == "__main__":
 
     
     parser.add_argument('--power_min', default=-10.0, type=float, help='') 
-       
-    parser.add_argument('--train_iter', default=100, type=int, help='train iters each timestep') # 4000
+    parser.add_argument('--train_iter', default=40000, type=int, help='train iters each timestep')
     parser.add_argument('--seed', default=-1, type=int, help='')
     parser.add_argument('--showtestGraph', default='0', type=int, help='Show graph for test')
 
@@ -263,11 +247,11 @@ if __name__ == "__main__":
 
     width = 750
     height = 1299
-    nVeh = 60
+    nVeh = 20
 
     # V2X 환경 적용
     env = Environ(down_lanes, up_lanes, left_lanes,
-              right_lanes, width, height, nVeh, args.power_min)  # V2X 환경 생성
+              right_lanes, width, height, nVeh)  # V2X 환경 생성
     
     if args.using_position_data == 1:
         env.load_position_data('./position/vehiclePosition.csv')
