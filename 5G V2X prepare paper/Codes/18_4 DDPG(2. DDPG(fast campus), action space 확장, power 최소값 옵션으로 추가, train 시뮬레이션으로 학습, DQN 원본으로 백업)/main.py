@@ -192,9 +192,7 @@ def train(args, memory, agent, env):
                 V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
                 V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
                 Fail_percent_list[game_idx] = percent
-                #print("action is", self.action_all_with_power)
                 print('failure probability is, ', percent)
-                #print('action is that', action_temp[0,:])
                 
             if (isShowTestGraph == 1):
                 showSelectHistGraph(listOfSelRB, listOfSelPowerdBm) 
@@ -292,10 +290,10 @@ if __name__ == "__main__":
     memory = ReplayMemory(memory_size)
     
     if args.train_resume == 1:
-        actor.mlp.load_state_dict(torch.load('./ddpg/resume model/actor'))
-        actor_target.mlp.load_state_dict(torch.load('./ddpg/resume model/actor'))
-        critic.mlp.load_state_dict(torch.load('./ddpg/resume model/critic'))
-        critic_target.mlp.load_state_dict(torch.load('./ddpg/resume model/critic'))
+        agent.actor.load_state_dict(torch.load('./ddpg/resume model/actor'))        
+        agent.actor_target.load_state_dict(torch.load('./ddpg/resume model/actor'))
+        agent.critic.load_state_dict(torch.load('./ddpg/resume model/critic'))
+        agent.critic_target.load_state_dict(torch.load('./ddpg/resume model/critic'))
         
    
     train(args, memory, agent, env)
