@@ -140,17 +140,21 @@ def train(args, memory, agent, env):
             V2V_Rate_list = np.zeros(number_of_game)
             Fail_percent_list = np.zeros(number_of_game)
             
-            temp_V2V_Rate_list = []
-            temp_V2I_Rate_list = []
-                
+            
+             
+            
             for game_idx in range(number_of_game):
                 
                 listOfSelRB = []
                 listOfSelPowerdBm = []
                 
                 env.new_random_game(len(env.vehicles))
+
                 test_sample = 200
-                Rate_list = []
+                
+                temp_V2V_Rate_list = []
+                temp_V2I_Rate_list = []
+                Rate_list = [] 
                 
                 print('test game idx:', game_idx)
                 for k in range(test_sample):
@@ -165,14 +169,14 @@ def train(args, memory, agent, env):
                             #action은 선택한 power level, 선택한 resource block 정보를 가짐 
                             action = agent.get_action(state).cpu().numpy()
                                      
-                            selRBIndex, selPowerdBm = GetRB_Power(minPower, action)    
+                            selRBIndex, selPowerdBm = GetRB_Power(5, action)    
                             #선택한 resource block을 넣어줌
                             agent.action_all_with_power[i, j, 0] = selRBIndex
                             listOfSelRB.append(selRBIndex)
                   
                             #선택한 power level을 넣어줌
                             agent.action_all_with_power[i, j, 1] = selPowerdBm 
-                            listOfSelPowerdBm(selPowerdBm)
+                            listOfSelPowerdBm.append(selPowerdBm)
                                 
                         if i % (len(env.vehicles)/10) == 1:
                             action_temp = agent.action_all_with_power.copy()                                
@@ -183,7 +187,7 @@ def train(args, memory, agent, env):
                 
               
                 
-                        #print("actions", self.action_all_with_power)
+                #print("actions", self.action_all_with_power)
                 V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
                 V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
                 V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
@@ -195,14 +199,14 @@ def train(args, memory, agent, env):
             if (isShowTestGraph == 1):
                 showSelectHistGraph(listOfSelRB, listOfSelPowerdBm) 
                 
-            print ('The number of vehicle is ', len(self.env.vehicles))
+            print ('The number of vehicle is ', len(env.vehicles))
             print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
             print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
             print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
             print('Mean of Fail percent is that ', np.mean(Fail_percent_list))      
 
             savePath = 'ddpg/model/'
-            performanceInfo = str(step) + '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + np.mean(Fail_percent_list)       
+            performanceInfo = str(step) + '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list))       
             criticPath = savePath + 'critic_' + performanceInfo
             actorPath = savePath + 'actor_' + performanceInfo
         
@@ -213,8 +217,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
-    parser.add_argument('--mode', default='train_V2', type=str, help='support option: train/test')
-    parser.add_argument('--train_resume', default=0, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
+    parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
+    parser.add_argument('--train_resume', default=1, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
     parser.add_argument('--using_position_data', default=0, type=int, help='using test data, using path : ./position/vehiclePosition.csv')
     parser.add_argument('--hidden1', default=256, type=int, help='hidden1 num of first fully connect layer')
     parser.add_argument('--hidden2', default=128, type=int, help='hidden2 num of second fully connect layer')
