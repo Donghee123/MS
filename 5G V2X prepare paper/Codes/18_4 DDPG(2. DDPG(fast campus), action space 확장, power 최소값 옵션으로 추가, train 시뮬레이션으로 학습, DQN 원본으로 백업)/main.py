@@ -126,8 +126,9 @@ def train(args, memory, agent, env):
                         #update target networks
                         #OUProcess에 의해 noisy 한 환경이 생김.
                         #soft_update를 통해 noisy 한 환경에서 tau값을 조절하며 업데이트함
-                        soft_update(agent.actor, agent.actor_target, tau)
-                        soft_update(agent.critic, agent.critic_target, tau)  
+                        
+                        soft_update(target = agent.actor_target, source = agent.actor, tau = tau)
+                        soft_update(target = agent.critic_target, source = agent.critic, tau = tau)  
 
                         
         if (step % 2000 == 0) and (step > 0):
@@ -227,7 +228,7 @@ if __name__ == "__main__":
     parser.add_argument('--gamma', default=0.99, type=float, help='')   
     parser.add_argument('--bsize', default=256, type=int, help='minibatch size') #256
     parser.add_argument('--rmsize', default=50000, type=int, help='memory size')
-    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')
+    parser.add_argument('--tau', default=0.001, type=float, help='moving average for target network')#0.001
     parser.add_argument('--sampling_only_until', default=260, type=int, help='train start step') # 2000
 
     

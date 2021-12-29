@@ -913,7 +913,7 @@ class Environ:
         V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
         V2I_reward = (V2I_rewardlist[action_temp[idx[0],idx[1], 0]+ 20*action_temp[idx[0],idx[1], 1]] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
         V2V_reward = (V2V_rewardlist[action_temp[idx[0],idx[1], 0]+ 20*action_temp[idx[0],idx[1], 1]] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
-        lambdda = 0.1
+        lambdda = 0.0
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
         #print("time left", time_left)
