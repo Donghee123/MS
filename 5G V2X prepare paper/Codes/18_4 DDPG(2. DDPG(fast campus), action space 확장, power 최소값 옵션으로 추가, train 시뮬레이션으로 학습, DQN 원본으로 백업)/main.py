@@ -53,7 +53,10 @@ def GetRB_Power(powerMin,action):
     
     powerRange = 23.0 - powerMin
     
-    selectedRBIndex = np.argmax(action[0:20])
+    select_maxValue  = np.max(action[0:20])
+    candidateList_selRB = np.where(action[0:20] == select_maxValue)
+    selectedRBIndex = random.sample(list(candidateList_selRB[0]),k=1)[0]
+    
     actionFromPolicy = ((action[20] + 2.0) * (powerRange / 4)) + powerMin
     actionFromPolicy = np.clip(actionFromPolicy, powerMin, 23.0)
     selectedPower = actionFromPolicy
