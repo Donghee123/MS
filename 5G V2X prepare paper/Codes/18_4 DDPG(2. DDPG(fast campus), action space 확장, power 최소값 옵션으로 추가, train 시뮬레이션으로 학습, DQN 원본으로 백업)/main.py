@@ -143,10 +143,7 @@ def train(args, memory, agent, env):
             V2I_Rate_list = np.zeros(number_of_game)
             V2V_Rate_list = np.zeros(number_of_game)
             Fail_percent_list = np.zeros(number_of_game)
-            
-            
-             
-            
+                                              
             for game_idx in range(number_of_game):
                 
                 listOfSelRB = []
@@ -214,7 +211,81 @@ def train(args, memory, agent, env):
         
             torch.save(agent.critic_target.state_dict(), criticPath)      
             torch.save(agent.actor_target.state_dict(), actorPath)              
+        elif (step % 10000 == 0) and (step > 0):
+            vehicleList = [20,40,60,80,100]
+            for numberOfVehicle in vehicleList:
+                # testing 
+                isTraining = False
+                number_of_game = 10
+               
+                V2I_V2X_Rate_list = np.zeros(number_of_game)
+                V2I_Rate_list = np.zeros(number_of_game)
+                V2V_Rate_list = np.zeros(number_of_game)
+                Fail_percent_list = np.zeros(number_of_game)
+                env.vehicles = numberOfVehicle            
+                for game_idx in range(number_of_game):
+                    
+                    listOfSelRB = []
+                    listOfSelPowerdBm = []
+                    
+                    env.new_random_game(len(env.vehicles))
+    
+                    test_sample = 200
+                    
+                    temp_V2V_Rate_list = []
+                    temp_V2I_Rate_list = []
+                    Rate_list = [] 
+                    
+                    print('test game idx:', game_idx)
+                    for k in range(test_sample):
+                        action_temp = agent.action_all_with_power.copy()
+                        for i in range(len(env.vehicles)):
+                            agent.action_all_with_power[i,:,0] = -1
+                            sorted_idx = np.argsort(env.individual_time_limit[i,:])          
+                            for j in sorted_idx:                   
+                                state = env.get_state(idx = [i,j], isTraining = isTraining, action_all_with_power_training = agent.action_all_with_power_training, action_all_with_power = agent.action_all_with_power)   
+                                state = to_tensor(state)    
+                                #state를 보고 action을 정함
+                                #action은 선택한 power level, 선택한 resource block 정보를 가짐 
+                                action = agent.get_action(state).cpu().numpy()
+                                         
+                                selRBIndex, selPowerdBm = GetRB_Power(5, action)    
+                                #선택한 resource block을 넣어줌
+                                agent.action_all_with_power[i, j, 0] = selRBIndex
+                                listOfSelRB.append(selRBIndex)
+                      
+                                #선택한 power level을 넣어줌
+                                agent.action_all_with_power[i, j, 1] = selPowerdBm 
+                                listOfSelPowerdBm.append(selPowerdBm)
+                                    
+                            if i % (len(env.vehicles)/10) == 1:
+                                action_temp = agent.action_all_with_power.copy()                                
+                                returnV2IReward, returnV2VReward, percent = env.act_asyn(action_temp) #self.action_all)            
+                                Rate_list.append(np.sum(returnV2IReward) + np.sum(returnV2VReward))
+                                temp_V2I_Rate_list.append(np.sum(returnV2IReward))
+                                temp_V2V_Rate_list.append(np.sum(returnV2VReward))
+                                                        
+                    #print("actions", self.action_all_with_power)
+                    V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+                    V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
+                    V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
+                    Fail_percent_list[game_idx] = percent
+                    print('failure probability is, ', percent)
+                                       
+                print ('The number of vehicle is ', len(env.vehicles))
+                print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
+                print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print ('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+                print('Mean of Fail percent is that ', np.mean(Fail_percent_list))      
 
+                savePath = 'ddpg/model/'
+                performanceInfo = str(step) + '_' + str(len(env.vehicles))+ '_' + str(np.mean(V2I_Rate_list)) + '_' + str(np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list))       
+                criticPath = savePath + 'critic_' + performanceInfo
+                actorPath = savePath + 'actor_' + performanceInfo
+            
+                torch.save(agent.critic_target.state_dict(), criticPath)      
+                torch.save(agent.actor_target.state_dict(), actorPath)
+            
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
@@ -293,14 +364,23 @@ if __name__ == "__main__":
     
     memory = ReplayMemory(memory_size)
     
-    if args.train_resume == 1:
-        agent.actor.load_state_dict(torch.load('./ddpg/resume model/actor'))        
-        agent.actor_target.load_state_dict(torch.load('./ddpg/resume model/actor'))
-        agent.critic.load_state_dict(torch.load('./ddpg/resume model/critic'))
-        agent.critic_target.load_state_dict(torch.load('./ddpg/resume model/critic'))
+    
         
-   
-    train(args, memory, agent, env)
+    if args.mode == 'play':    
+        agent.actor.load_state_dict(torch.load('./ddpg/play model/actor'))        
+        agent.actor_target.load_state_dict(torch.load('./ddpg/play model/actor'))
+        agent.critic.load_state_dict(torch.load('./ddpg/play model/critic'))
+        agent.critic_target.load_state_dict(torch.load('./ddpg/play model/critic'))
+        play(args, agent, env)
+        
+    elif args.mode =='train':
+        if args.train_resume == 1:
+            agent.actor.load_state_dict(torch.load('./ddpg/resume model/actor'))        
+            agent.actor_target.load_state_dict(torch.load('./ddpg/resume model/actor'))
+            agent.critic.load_state_dict(torch.load('./ddpg/resume model/critic'))
+            agent.critic_target.load_state_dict(torch.load('./ddpg/resume model/critic'))
+            
+        train(args, memory, agent, env)
      
 
     
