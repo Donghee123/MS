@@ -128,7 +128,7 @@ class Environ:
     vehicles이 취한 행동에 따라 새로운 상태로 전환함.
     """
 
-    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh):
+    def __init__ (self, down_lane, up_lane, left_lane, right_lane, width, height, n_Veh, fPowermin):
         
         self.observation_space = np.zeros(82)
         self.action_space = np.zeros(21)
@@ -143,10 +143,11 @@ class Environ:
         
         self.vehicles = []           # 차량의 수
         self.demands = []            # 요구하는 차량의 수 ?
-        
+        self.fPowermin = fPowermin
+        Powerrange = int(23.0 - self.fPowermin) + 10
         self.V2V_power_dB = 23       # v2v link의 dBm 
         self.V2I_power_dB = 23       # v2i link의 dBm
-        self.V2V_power_dB_List = [23, 10, 5]            # v2v link의 종류별 파워 레벨
+        self.V2V_power_dB_List =  np.linspace(23,-10,Powerrange)#[23, 10, 5]            # v2v link의 종류별 파워 레벨
         #self.V2V_power = 10**(self.V2V_power_dB)
         #self.V2I_power = 10**(self.V2I_power_dB)
         self.sig2_dB = -114          #노이즈 파워 dbm 단위
