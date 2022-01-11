@@ -1,3 +1,8 @@
+#############################
+# PROJECT NAME : V2V DDPG   #
+# TRAINING AND PLAYING CODE #
+#############################
+
 #!/usr/bin/env python3 
 import numpy as np
 import argparse
