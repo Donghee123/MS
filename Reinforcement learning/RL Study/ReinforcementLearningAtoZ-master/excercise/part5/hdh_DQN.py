@@ -2,7 +2,7 @@
 """
 Created on Tue Aug 31 08:50:33 2021
 
-@author: Hyewon Lee
+@author: Donghee Han
 """
 
 import sys; sys.path.append('..')
