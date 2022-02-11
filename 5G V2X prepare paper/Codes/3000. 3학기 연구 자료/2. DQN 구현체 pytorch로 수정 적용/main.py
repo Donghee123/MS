@@ -38,12 +38,13 @@ def train(env, agent, memory, batch_size, train_iter):
             num_game, update_count,ep_reward = 0, 0, 0.
             total_reward, total_loss, total_q = 0., 0., 0.
             ep_reward, actions = [], []        
-            
+        
+        agent.epsilon = agent.epsilon - (1/train_iter)
+        agent.epsilon = torch.tensor(max(eps_max,  agent.epsilon))
+        
         # prediction
         # action = self.predict(self.history.get())
         if (step % 2000 == 1):
-            agent.epsilon = agent.epsilon - (1/train_iter)
-            agent.epsilon = torch.tensor(max(eps_min,  agent.epsilon))
             env.new_random_game(20)
   
             print("2000 step Cumulative Reward : " + str(ep_reward) + ", Epsilon : " + str(agent.epsilon))
