@@ -29,7 +29,7 @@ def train(env, agent, memory, batch_size, train_iter):
     number_not_big = 0
     env.new_random_game(20)
     
-    total_eps = 3000
+    
     eps_max = 0.08
     eps_min = 0.01
     
@@ -66,7 +66,7 @@ def train(env, agent, memory, batch_size, train_iter):
                     
 
                     state_old = env.get_state([i,j], True, agent.action_all_with_power_training, agent.action_all_with_power) 
-                    state_old = torch.tensor(state_old).view(1,82).float()
+                    state_old = torch.tensor(state_old).view(1,82).float().to(agent.DEVICE)
                     
                     #state를 보고 action을 정함
                     #action은 선택한 power level, 선택한 resource block 정보를 가짐
@@ -96,6 +96,7 @@ def train(env, agent, memory, batch_size, train_iter):
                     if len(memory) >= batch_size:
                         sampled_exps = memory.sample(batch_size)
                         sampled_exps = prepare_training_inputs(sampled_exps)
+                        sampled_exps = sampled_exps
                         agent.update(*sampled_exps)
                     
                     #qnet의 파라미터를 하이퍼 파라미터 수만큼 업데이트 했다면 target qnet에 qnet의 파라미터를 업데이트함

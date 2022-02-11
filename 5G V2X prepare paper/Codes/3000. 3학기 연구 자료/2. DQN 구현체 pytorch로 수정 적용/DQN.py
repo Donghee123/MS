@@ -30,9 +30,9 @@ class DQN(nn.Module):
         self.lr = lr
         self.gamma = gamma
         self.opt = torch.optim.Adam(params=self.qnet.parameters(), lr=lr)
-        
+        self.epsilon = epsilon
         #트레이닝 과정중에 입실론 저장을 위해 등록함
-        self.register_buffer('epsilon', torch.ones(1) * epsilon)
+        #self.register_buffer('epsilon', torch.ones(1) * epsilon)
 
         # target network related
         """
@@ -65,24 +65,30 @@ class DQN(nn.Module):
         """
         
         self.criteria = nn.SmoothL1Loss()
-        DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-        #self.to(DEVICE)
+        self.DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.to(self.DEVICE)
 
     def get_action(self, state, isTest = False):
         #입실론 그리디 기반
-        qs = self.qnet(state)
+        
         prob = np.random.uniform(0.0, 1.0, 1)
         if torch.from_numpy(prob).float() <= self.epsilon and isTest == False:  # random
 
             action = np.random.choice(range(self.action_dim))
         else:  # greedy
-
+            qs = self.qnet(state)
             action = qs.argmax(dim=-1)
         return int(action)
 
     def update(self, state, action, reward, next_state, done):
         s, a, r, ns = state, action, reward, next_state
-
+        
+        s = s.to(self.DEVICE)
+        a = a.to(self.DEVICE)
+        r = r.to(self.DEVICE)
+        ns = ns.to(self.DEVICE)
+        done = done.to(self.DEVICE)
+        
         # compute Q-Learning target with 'target network'
         with torch.no_grad():
             q_max, _ = self.qnet_target(ns).max(dim=-1, keepdims=True)

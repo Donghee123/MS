@@ -44,6 +44,9 @@ class MultiLayerPerceptron(nn.Module):
                 self.layers.append(self.out_act)
             else:#마지막이 아니면 히든 레이어의 활성화 함수 적용
                 self.layers.append(self.hidden_act)
+            
+        self.DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.to(self.DEVICE)
 
 
     def forward(self, xs):
