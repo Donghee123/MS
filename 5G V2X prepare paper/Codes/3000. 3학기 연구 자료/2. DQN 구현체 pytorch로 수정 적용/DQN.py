@@ -73,10 +73,10 @@ class DQN(nn.Module):
         qs = self.qnet(state)
         prob = np.random.uniform(0.0, 1.0, 1)
         if torch.from_numpy(prob).float() <= self.epsilon and isTest == False:  # random
-            print('action random, ' + 'epsilon is ' + str(self.epsilon))
+
             action = np.random.choice(range(self.action_dim))
         else:  # greedy
-            print('action greedy')
+
             action = qs.argmax(dim=-1)
         return int(action)
 
