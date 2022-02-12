@@ -33,11 +33,12 @@ def train(env, agent, memory, batch_size, train_iter):
     eps_max = 0.08
     eps_min = 0.01
     
+    logs = []
     for step in (range(0, train_iter)): # need more configuration
         if step == 0:                   # initialize set some varibles
-            num_game, update_count,ep_reward = 0, 0, 0.
+            num_game, update_count,ep_reward, ep_target_reward = 0., 0., 0., 0.
             total_reward, total_loss, total_q = 0., 0., 0.
-            ep_reward, actions = [], []        
+            actions = []        
         
         agent.epsilon = agent.epsilon - (1/train_iter)
         agent.epsilon = torch.tensor(max(eps_max,  agent.epsilon))
@@ -47,11 +48,14 @@ def train(env, agent, memory, batch_size, train_iter):
         if (step % 2000 == 1):
             env.new_random_game(20)
   
-            print("2000 step Cumulative Reward : " + str(ep_reward) + ", Epsilon : " + str(agent.epsilon))
-            ep_reward = 0
+            logs.append((": 2000 step Cumulative Reward : " + str(ep_reward) + ", Epsilon : " + str(agent.epsilon) + '-- Target Reward : ' + str(ep_target_reward)))
+           
+            ep_reward = 0.
+            ep_target_reward = 0.
             
+            for index, value in enumerate(logs):
+                print(str(index) + value)
             
-        
         print(step)
         state_old = env.get_state([0,0], True, agent.action_all_with_power_training, agent.action_all_with_power) 
         #print("state", state_old)
@@ -80,8 +84,11 @@ def train(env, agent, memory, batch_size, train_iter):
                     agent.action_all_with_power_training[i, j, 1] = int(np.floor(action/agent.RB_number))  
                                      
                     #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                    reward_train = env.act_for_training(agent.action_all_with_power_training, [i,j]) 
+                    reward_train, reward_best = env.act_for_training(agent.action_all_with_power_training, [i,j])
+                    
                     ep_reward = ep_reward + reward_train
+                    ep_target_reward = ep_target_reward + reward_best
+                    
                     state_new = env.get_state([i,j], True, agent.action_all_with_power_training, agent.action_all_with_power) 
                     
                     experience = (state_old, 
