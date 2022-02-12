@@ -838,7 +838,7 @@ class Environ:
         
         V2I_reward_best = (np.max(V2I_rewardlist) - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
         V2V_reward_best = (np.max(V2V_rewardlist) - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
-        t_best = t = lambdda * V2I_reward_best + (1-lambdda) * V2V_reward_best
+        t_best = lambdda * V2I_reward_best + (1-lambdda) * V2V_reward_best
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit, t_best - (self.V2V_limit - time_left)/self.V2V_limit
