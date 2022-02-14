@@ -803,6 +803,24 @@ class Environ:
         # generate a new demand of a V2V
         self.demand = self.demand_amount*np.ones((self.n_RB,3))
         self.time_limit = 10
+        
+    def find_maxReward(self,V2I_rewardlist : np.array,  V2V_rewardlist : np.array):
+        
+        max_t = -60000
+        for index, value in enumerate(V2I_rewardlist):
+             
+            V2I_reward = (V2I_rewardlist[index] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
+            V2V_reward = (V2V_rewardlist[index] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        
+            lambdda = 0.1
+            t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
+            if max_t < t:
+                max_t = t
+        
+        return max_t
+        
+        
+        
     def act_for_training(self, actions, idx):
         # =============================================
         # This function gives rewards for training
@@ -836,9 +854,9 @@ class Environ:
         #print ("Reward", V2I_reward, V2V_reward, time_left)
         t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
         
-        V2I_reward_best = (np.max(V2I_rewardlist) - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
-        V2V_reward_best = (np.max(V2V_rewardlist) - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
-        t_best = lambdda * V2I_reward_best + (1-lambdda) * V2V_reward_best
+        
+        t_best = self.find_maxReward(V2I_rewardlist, V2V_rewardlist)
+        
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit, t_best - (self.V2V_limit - time_left)/self.V2V_limit
