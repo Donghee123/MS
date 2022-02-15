@@ -228,7 +228,7 @@ def main():
   n_input = 82
   n_output = 60
   
-  lr = 1e-4 * 5
+  lr = 1e-2
   gamma = 0.99
   
   
