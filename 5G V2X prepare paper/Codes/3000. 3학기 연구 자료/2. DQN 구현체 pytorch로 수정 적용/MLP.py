@@ -19,7 +19,7 @@ class MultiLayerPerceptron(nn.Module):
                  input_dim: int,
                  output_dim: int,
                  num_neurons: list = [64, 32], #각 히든 레이어의 뉴런수
-                 hidden_act: str = 'ReLU', #각 히든 레이어의 활성화 함수
+                 hidden_act: str = 'LeakyReLU', #각 히든 레이어의 활성화 함수
                  out_act: str = 'Identity'): #아웃풋 레이어의 활성화 함수
         super(MultiLayerPerceptron, self).__init__() #baseclass 초기화
 
