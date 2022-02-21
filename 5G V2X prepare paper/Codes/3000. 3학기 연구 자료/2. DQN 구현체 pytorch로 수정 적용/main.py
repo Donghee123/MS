@@ -7,10 +7,12 @@ from common.memory.memory import ReplayMemory
 
 from Environment import *
 
-import torch
-import pandas as pd
-import csv
 import os
+import csv
+import torch
+import wandb 
+import pandas as pd
+import argparse
 
 
 sumrateV2IList = []
@@ -18,7 +20,7 @@ sumrateV2VList = []
 
 probabilityOfSatisfiedV2VList = []
 
-def train(env, agent, memory, batch_size, train_iter):
+def train(env, agent, memory, batch_size, train_iter, wandb):
     num_game, update_count, ep_reward = 0, 0, 0.
     total_reward, total_loss, total_q = 0.,0.,0.
     max_avg_ep_reward = 0
@@ -28,8 +30,8 @@ def train(env, agent, memory, batch_size, train_iter):
     mean_not_big = 0
     number_not_big = 0
     env.new_random_game(20)
-    
-    
+        
+        
     eps_max = 0.08
     eps_min = 0.01
     
@@ -49,7 +51,8 @@ def train(env, agent, memory, batch_size, train_iter):
             env.new_random_game(20)
   
             logs.append((": 2000 step Cumulative Reward : " + str(ep_reward) + ", Epsilon : " + str(agent.epsilon) + '-- Target Reward : ' + str(ep_target_reward)))
-           
+            wandb.log({"Step": step , "DQN_reward": ep_reward, "target_reward" : ep_target_reward, "epsilon" : agent.epsilon})
+            
             ep_reward = 0.
             ep_target_reward = 0.
             
@@ -206,7 +209,10 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
     
     f.close()
 
-def main():
+def main(args):
+
+  wandb.init(config=args, project="my-project")
+  wandb.config["test"] = "DQN Version 1"
 
   up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
   down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
@@ -216,25 +222,21 @@ def main():
   
   width = 750
   height = 1299
+
   
   Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height, arrayOfVeh[0])
   
-  #arrayOfVeh = [20,40,60,80,100] for play
-  
+  n_hidden_1 = args.hidden1
+  n_hidden_2 = args.hidden2
+  n_hidden_3 = args.hidden3
 
-  n_hidden_1 = 500
-  n_hidden_2 = 250
-  n_hidden_3 = 120
+  
   n_input = 82
   n_output = 60
-  
-  lr = 0.0001
-  gamma = 0.98
-  
-  
-  memory_size = 1000000
-  batch_size = 3000
-  
+  lr = args.learning_rate
+  gamma = args.gamma
+  memory_size = args.memorysize
+  batch_size = args.batchszie
   
   qnet = MLP(n_input,n_output, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
   qnet_target = MLP(n_input, n_output, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
@@ -242,13 +244,14 @@ def main():
   agent = DQN(n_input,n_output, qnet = qnet, qnet_target = qnet_target, lr=lr, gamma=gamma, epsilon=1.0, environment=Env)
   memory = ReplayMemory(memory_size)
   
-  train_iter = 40000
+  train_iter = args.train_iter
+  
   for nVeh in arrayOfVeh:      
       
       Env.new_random_game()
          
       #학습
-      train(Env, agent, memory, batch_size, train_iter)
+      train(Env, agent, memory, batch_size, train_iter, wandb)
         
       #학습 전
       #v2i_Sumrate, v2v_Sumrate, probability = agent.play(n_step = 100, n_episode = 20, random_choice = False)
@@ -291,4 +294,21 @@ def main():
   
   
 if __name__ == '__main__':
-    main()
+    
+
+    parser = argparse.ArgumentParser(description='PyTorch on DQN')
+
+    parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
+    parser.add_argument('--train_resume', default=1, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
+    parser.add_argument('--hidden1', default=500, type=int, help='hidden1 num of first fully connect layer')
+    parser.add_argument('--hidden2', default=250, type=int, help='hidden2 num of second fully connect layer')
+    parser.add_argument('--hidden3', default=120, type=int, help='hidden3 num of first fully connect layer')
+    parser.add_argument('--learning_rate', default=0.0001, type=float, help='learning rate')   
+    parser.add_argument('--gamma', default=0.98, type=float, help='reward gamma')   
+    parser.add_argument('--memorysize', default=1000000, type=int, help='memory size')
+    parser.add_argument('--batchszie', default=2500, type=int, help='batch size')
+    parser.add_argument('--train_iter', default=40000, type=int, help='train iters each timestep')
+
+    args = parser.parse_args()
+    
+    main(args)
