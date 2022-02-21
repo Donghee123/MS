@@ -228,12 +228,12 @@ def main():
   n_input = 82
   n_output = 60
   
-  lr = 1e-2
-  gamma = 0.99
+  lr = 0.0001
+  gamma = 0.98
   
   
   memory_size = 1000000
-  batch_size = 2000
+  batch_size = 3000
   
   
   qnet = MLP(n_input,n_output, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
