@@ -218,6 +218,22 @@ class Environ:
         self.V2I_Shadowing = np.random.normal(0, 8, len(self.vehicles))
         self.delta_distance = np.asarray([c.velocity for c in self.vehicles])
         #self.renew_channel()
+
+    def find_maxReward(self,V2I_rewardlist : np.array,  V2V_rewardlist : np.array):
+        
+        max_t = -60000
+        for index, value in enumerate(V2I_rewardlist):
+             
+            V2I_reward = (V2I_rewardlist[index] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
+            V2V_reward = (V2V_rewardlist[index] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        
+            lambdda = 0.1
+            t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
+            if max_t < t:
+                max_t = t
+        
+        return max_t
+
     def renew_positions(self):
         # ========================================================
         # This function update the position of each vehicle
@@ -756,6 +772,46 @@ class Environ:
         # generate a new demand of a V2V
         self.demand = self.demand_amount*np.ones((self.n_RB,3))
         self.time_limit = 10
+
+    def act_for_training_HDH(self, actions, idx):
+        # =============================================
+        # This function gives rewards for training
+        # idx : 송신 차량, 수신 차량 정보를 가짐.
+        # action : 선택한 power level, 선택한 resource block을 가짐.
+        # ===========================================
+        
+        #reward list를 정의함 -> resource block 사이즈를 가짐
+        rewards_list = np.zeros(self.n_RB)
+        
+        #action을 복사함.
+        action_temp = actions.copy()
+        
+        #활성화된 link를 의미함
+        #모든 차량기준으로 3개의 v2v link를 의미
+        self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
+        
+        #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
+        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
+        
+        
+        self.renew_positions()
+        self.renew_channels_fastfading()
+        self.Compute_Interference(actions) 
+        rewards_list = rewards_list.T.reshape([-1])
+        V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
+        V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
+        V2I_reward = (V2I_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
+        V2V_reward = (V2V_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
+        lambdda = 0.1
+        #print ("Reward", V2I_reward, V2V_reward, time_left)
+        t = lambdda * V2I_reward + (1-lambdda) * V2V_reward
+        
+        
+        t_best = self.find_maxReward(V2I_rewardlist, V2V_rewardlist)
+        
+        #print("time left", time_left)
+        #return t
+        return t - (self.V2V_limit - time_left)/self.V2V_limit, t_best - (self.V2V_limit - time_left)/self.V2V_limit
     def act_for_training(self, actions, idx):
         # =============================================
         # This function gives rewards for training

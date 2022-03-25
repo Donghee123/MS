@@ -42,10 +42,9 @@ class DQN(nn.Module):
         qnet_target.load_state_dict(qnet.state_dict())
         self.qnet_target = qnet_target
         
-
         self.RB_number = environment.n_RB
         self.num_vehicle = environment.n_Veh
-        self.action_all_with_power_training = np.zeros([20, 3, 2],dtype = 'int32')
+        self.action_all_with_power_training = np.zeros([40, 3, 2],dtype = 'int32')
         self.action_all_with_power = np.zeros([self.num_vehicle, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
         
         """

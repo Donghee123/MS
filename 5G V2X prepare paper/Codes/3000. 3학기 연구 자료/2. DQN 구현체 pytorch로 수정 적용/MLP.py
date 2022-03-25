@@ -37,13 +37,22 @@ class MultiLayerPerceptron(nn.Module):
          
         #레이어에 뉴런 설정 루프
         self.layers = nn.ModuleList()
+        
+         
+
         for i, (in_dim, out_dim) in enumerate(zip(input_dims, output_dims)):
             is_last = True if i == len(input_dims) - 1 else False
             self.layers.append(nn.Linear(in_dim, out_dim))
+            
+            if type(self.layers[-1]) == torch.nn.modules.linear.Linear:
+                 self.layers[-1].weight = nn.init.trunc_normal_(tensor = self.layers[-1].weight,std=0.1)
+
             if is_last:#마지막이면 출력 레이어 활성화 함수 적용
                 self.layers.append(self.out_act)
             else:#마지막이 아니면 히든 레이어의 활성화 함수 적용
                 self.layers.append(self.hidden_act)
+            
+            
             
         self.DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.to(self.DEVICE)

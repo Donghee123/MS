@@ -8,6 +8,8 @@ from replay_memory import ReplayMemory
 from utils import save_pkl, load_pkl
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import wandb 
+import argparse
 
 class Agent(BaseModel):
     def __init__(self, config, environment, sess):
@@ -33,7 +35,7 @@ class Agent(BaseModel):
         self.learning_rate_decay_step = 500000
         self.target_q_update_step = 100
         self.discount = 0.5
-        self.double_q = True
+        self.double_q = False
         self.build_dqn()          
         self.V2V_number = 3 * len(self.env.vehicles)    # every vehicle need to communicate with 3 neighbors  
         self.training = True
@@ -41,6 +43,7 @@ class Agent(BaseModel):
     def merge_action(self, idx, action):
         self.action_all_with_power[idx[0], idx[1], 0] = action % self.RB_number
         self.action_all_with_power[idx[0], idx[1], 1] = int(np.floor(action/self.RB_number))
+
     def get_state(self, idx):
     # ===============
     #  Get State from the environment
@@ -57,7 +60,7 @@ class Agent(BaseModel):
         V2V_interference = (-self.env.V2V_Interference_all[idx[0],idx[1],:] - 60)/60
         #선택한 resource block
         NeiSelection = np.zeros(self.RB_number)
-        
+    
         #인접한 차량에게 전송할 power 선정
         for i in range(3):
             for j in range(3):
@@ -120,33 +123,61 @@ class Agent(BaseModel):
     
     
     def train(self):  
+        
+        parser = argparse.ArgumentParser(description='PyTorch on DQN')
+
+        parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
+        parser.add_argument('--train_resume', default=1, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
+        parser.add_argument('--hidden1', default=500, type=int, help='hidden1 num of first fully connect layer')
+        parser.add_argument('--hidden2', default=250, type=int, help='hidden2 num of second fully connect layer')
+        parser.add_argument('--hidden3', default=120, type=int, help='hidden3 num of first fully connect layer')
+        parser.add_argument('--learning_rate', default=0.0001, type=float, help='learning rate')   
+        parser.add_argument('--gamma', default=0.98, type=float, help='reward gamma')   
+        parser.add_argument('--memorysize', default=1000000, type=int, help='memory size')
+        parser.add_argument('--batchszie', default=2500, type=int, help='batch size')
+        parser.add_argument('--train_iter', default=40000, type=int, help='train iters each timestep')
+
+        args = parser.parse_args()
+
+        #wandb.init(config=args, project="my-project")
+        wandb.init(project="my-project")
+        wandb.config["test"] = "DQN Version"
+        
+       
+        logs = []
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0.,0.,0.
         max_avg_ep_reward = 0
-        ep_reward, actions = [], []        
+        ep_reward, actions = [], []   
+        ep_reward_value = 0     
         mean_big = 0
         number_big = 0
         mean_not_big = 0
         number_not_big = 0
+       
+        ep_target_reward = 0.
         self.env.new_random_game(20)
         for self.step in (range(0, 40000)): # need more configuration
             if self.step == 0:                   # initialize set some varibles
                 num_game, self.update_count,ep_reward = 0, 0, 0.
                 total_reward, self.total_loss, self.total_q = 0., 0., 0.
-                ep_reward, actions = [], []               
+                ep_target_reward = 0.
+                ep_reward_value = 0     
+                ep_reward, actions = [], []          
                 
             # prediction
             # action = self.predict(self.history.get())
             if (self.step % 2000 == 1):
-                self.env.new_random_game(20)
-                
+                self.env.new_random_game(20) 
             
-                
             print(self.step)
             state_old = self.get_state([0,0])
             #print("state", state_old)
             self.training = True
             for k in range(1):
+                
+                
+                
                 #i번째 송신 차량
                 for i in range(len(self.env.vehicles)):
                     #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
@@ -162,19 +193,32 @@ class Agent(BaseModel):
                         #선택한 resource block을 넣어줌
                         self.action_all_with_power_training[i, j, 0] = action % self.RB_number 
                         
+                        
+                        
                         #선택한 power level을 넣어줌
                         self.action_all_with_power_training[i, j, 1] = int(np.floor(action/self.RB_number))  
                                          
                         #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                        reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
-                        
+                        reward_train, reward_best = self.env.act_for_training_HDH(self.action_all_with_power_training, [i,j])
+
+                        ep_reward_value = ep_reward_value + reward_train
+                        ep_target_reward = ep_target_reward + reward_best
+
                         state_new = self.get_state([i,j]) 
-                        
+
                         self.observe(state_old, state_new, reward_train, action)
                         
                         if self.memory.addCount % self.replay_memory_size == 0:
                             self.memory.save('train')
                         
+                                 
+                logs.append((": 2000 step Cumulative Reward : " + str(ep_reward_value) + '-- Target Reward : ' + str(ep_target_reward) + '-- Diff DQN vs target : ' + str(ep_target_reward - ep_reward_value)))
+                wandb.log({"DQN_reward": ep_reward_value, "target_reward" : ep_target_reward, "Diff DQN vs target" : ep_target_reward - ep_reward_value})
+                
+
+                ep_target_reward = 0.
+                ep_reward_value = 0.
+
             if (self.step % 2000 == 0) and (self.step > 0):
                 # testing 
                 self.training = False
@@ -187,6 +231,10 @@ class Agent(BaseModel):
                 V2I_Rate_list = np.zeros(number_of_game)
                 V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
+                
+                resourceBlocks = [[0] for _ in range(20)]
+                
+                
                 for game_idx in range(number_of_game):
                     self.env.new_random_game(self.num_vehicle)
                     test_sample = 200
@@ -203,6 +251,7 @@ class Agent(BaseModel):
                                 state_old = self.get_state([i,j])
                                 action = self.predict(state_old, self.step, True)
                                 self.merge_action([i,j], action)
+                                resourceBlocks[action % self.RB_number][0] = resourceBlocks[action % self.RB_number][0] + 1
                             if i % (len(self.env.vehicles)/10) == 1:
                                 action_temp = self.action_all_with_power.copy()                                
                                 returnV2IReward, returnV2VReward, percent = self.env.act_asyn(action_temp) #self.action_all)            
@@ -210,6 +259,7 @@ class Agent(BaseModel):
                                 temp_V2I_Rate_list.append(np.sum(returnV2IReward))
                                 temp_V2V_Rate_list.append(np.sum(returnV2VReward))
                         #print("actions", self.action_all_with_power)
+                                     
                     V2I_V2X_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
                     V2I_Rate_list[game_idx] = np.mean(np.asarray(temp_V2I_Rate_list))
                     V2V_Rate_list[game_idx] = np.mean(np.asarray(temp_V2V_Rate_list))
@@ -217,6 +267,8 @@ class Agent(BaseModel):
                     #print("action is", self.action_all_with_power)
                     print('failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
+                histTable = wandb.Table(data=resourceBlocks, columns=["Resource block"])
+                wandb.log({'my_histogram': wandb.plot.histogram(histTable, "Resource block",title="Count of Resource block")})   
                 self.save_weight_to_pkl()
                 print ('The number of vehicle is ', len(self.env.vehicles))
                 print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))

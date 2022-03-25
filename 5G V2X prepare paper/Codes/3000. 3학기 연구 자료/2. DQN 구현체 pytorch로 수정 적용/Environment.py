@@ -878,7 +878,7 @@ class Environ:
         self.Compute_Interference(actions)
         return reward
         
-    def new_random_game(self, n_Veh = 0):
+    def new_random_game(self, n_Veh = 20):
         # make a new game
         self.n_step = 0
         self.vehicles = []

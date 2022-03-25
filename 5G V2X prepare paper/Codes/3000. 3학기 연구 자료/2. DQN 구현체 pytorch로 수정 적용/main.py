@@ -29,7 +29,7 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
     number_big = 0
     mean_not_big = 0
     number_not_big = 0
-    env.new_random_game(20)
+    env.new_random_game(40)
         
         
     eps_max = 0.08
@@ -48,21 +48,16 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
         # prediction
         # action = self.predict(self.history.get())
         if (step % 2000 == 1):
-            env.new_random_game(20)
+            env.new_random_game(40)
   
-            logs.append((": 2000 step Cumulative Reward : " + str(ep_reward) + ", Epsilon : " + str(agent.epsilon) + '-- Target Reward : ' + str(ep_target_reward)))
-            wandb.log({"Step": step , "DQN_reward": ep_reward, "target_reward" : ep_target_reward, "epsilon" : agent.epsilon})
             
-            ep_reward = 0.
-            ep_target_reward = 0.
-            
-            for index, value in enumerate(logs):
-                print(str(index) + value)
-            
+        
         print(step)
         state_old = env.get_state([0,0], True, agent.action_all_with_power_training, agent.action_all_with_power) 
         #print("state", state_old)
         training = True
+    
+        
         
         for k in range(1):
             #i번째 송신 차량
@@ -112,7 +107,12 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
                     #qnet의 파라미터를 하이퍼 파라미터 수만큼 업데이트 했다면 target qnet에 qnet의 파라미터를 업데이트함
                     if step % 50 == 0:
                         agent.qnet_target.load_state_dict(agent.qnet.state_dict())
-                    
+        
+        logs.append((": 2000 step Cumulative Reward : " + str(ep_reward) + '-- Target Reward : ' + str(ep_target_reward) + '-- Diff DQN vs target : ' + str(ep_target_reward - ep_reward)))
+        wandb.log({"DQN_reward": ep_reward, "target_reward" : ep_target_reward, "Diff DQN vs target" : ep_target_reward - ep_reward})
+        ep_reward = 0.
+        ep_target_reward = 0.
+                             
         if (step % 2000 == 0) and (step > 0):
             # testing 
             training = False
@@ -212,13 +212,13 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
 def main(args):
 
   wandb.init(config=args, project="my-project")
-  wandb.config["test"] = "DQN Version 1"
+  wandb.config["My pytorch DQN"] = "DQN Version 0.1"
 
   up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
   down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
   left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
   right_lanes = [433-3.5-3.5/2,433-3.5/2,866-3.5-3.5/2,866-3.5/2,1299-3.5-3.5/2,1299-3.5/2]
-  arrayOfVeh = [20] # for train
+  arrayOfVeh = [40] # for train
   
   width = 750
   height = 1299
@@ -238,8 +238,8 @@ def main(args):
   memory_size = args.memorysize
   batch_size = args.batchszie
   
-  qnet = MLP(n_input,n_output, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
-  qnet_target = MLP(n_input, n_output, num_neurons=[n_hidden_1, n_hidden_2, n_hidden_3])
+  qnet = MLP(n_input,n_output, num_neurons=[n_hidden_1, n_hidden_2])
+  qnet_target = MLP(n_input, n_output, num_neurons=[n_hidden_1, n_hidden_2])
   
   agent = DQN(n_input,n_output, qnet = qnet, qnet_target = qnet_target, lr=lr, gamma=gamma, epsilon=1.0, environment=Env)
   memory = ReplayMemory(memory_size)
@@ -300,8 +300,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
     parser.add_argument('--train_resume', default=1, type=int, help='train resume, using path : ./ddpg/resume model/actor, ./ddpg/resume model/critic')
-    parser.add_argument('--hidden1', default=500, type=int, help='hidden1 num of first fully connect layer')
-    parser.add_argument('--hidden2', default=250, type=int, help='hidden2 num of second fully connect layer')
+    parser.add_argument('--hidden1', default=128, type=int, help='hidden1 num of first fully connect layer')
+    parser.add_argument('--hidden2', default=256, type=int, help='hidden2 num of second fully connect layer')
     parser.add_argument('--hidden3', default=120, type=int, help='hidden3 num of first fully connect layer')
     parser.add_argument('--learning_rate', default=0.0001, type=float, help='learning rate')   
     parser.add_argument('--gamma', default=0.98, type=float, help='reward gamma')   
