@@ -51,13 +51,11 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
             env.new_random_game(40)
   
             
-        
         print(step)
         state_old = env.get_state([0,0], True, agent.action_all_with_power_training, agent.action_all_with_power) 
         #print("state", state_old)
         training = True
     
-        
         
         for k in range(1):
             #i번째 송신 차량
@@ -125,6 +123,7 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
             V2I_Rate_list = np.zeros(number_of_game)
             V2V_Rate_list = np.zeros(number_of_game)
             Fail_percent_list = np.zeros(number_of_game)
+            resourceBlocks = [[0] for _ in range(20)]
             for game_idx in range(number_of_game):
                 env.new_random_game(agent.num_vehicle)
                 test_sample = 200
@@ -141,8 +140,10 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
                             state_old = env.get_state([i,j], False, agent.action_all_with_power_training, agent.action_all_with_power) 
 
                             state_old = torch.tensor(state_old).view(1,82).float()
-                            action = agent.get_action(state_old,isTest = True)
                             
+                            action = agent.get_action(state_old.to(agent.DEVICE),isTest = True)
+                            selectedRB = action % agent.RB_number
+                            resourceBlocks[selectedRB][0] = resourceBlocks[selectedRB][0] + 1
                             agent.action_all_with_power[i, j, 0] = action % agent.RB_number
                             agent.action_all_with_power[i, j, 1] = int(np.floor(action/agent.RB_number))
                             
@@ -162,6 +163,8 @@ def train(env, agent, memory, batch_size, train_iter, wandb):
                 print('failure probability is, ', percent)
                 #print('action is that', action_temp[0,:])
             
+            histTable = wandb.Table(data=resourceBlocks, columns=["Resource block"])
+            wandb.log({'my_histogram': wandb.plot.histogram(histTable, "Resource block",title="Count of Resource block")})   
             print ('The number of vehicle is ', len(env.vehicles))
             print ('Mean of the V2I + V2I rate is that ', np.mean(V2I_V2X_Rate_list))
             print ('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
@@ -306,7 +309,7 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', default=0.0001, type=float, help='learning rate')   
     parser.add_argument('--gamma', default=0.98, type=float, help='reward gamma')   
     parser.add_argument('--memorysize', default=1000000, type=int, help='memory size')
-    parser.add_argument('--batchszie', default=2500, type=int, help='batch size')
+    parser.add_argument('--batchszie', default=50, type=int, help='batch size')
     parser.add_argument('--train_iter', default=40000, type=int, help='train iters each timestep')
 
     args = parser.parse_args()

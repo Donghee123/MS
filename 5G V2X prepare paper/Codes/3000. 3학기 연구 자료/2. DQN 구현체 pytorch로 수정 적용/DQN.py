@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-
+import random
 
 class DQN(nn.Module):
 
@@ -69,20 +69,24 @@ class DQN(nn.Module):
 
     def get_action(self, state, isTest = False):
         #입실론 그리디 기반
-        
-        action = np.random.choice(range(self.action_dim))
-        return int(action)
-    
-        """
+
         prob = np.random.uniform(0.0, 1.0, 1)
+        
         if torch.from_numpy(prob).float() <= self.epsilon and isTest == False:  # random
 
             action = np.random.choice(range(self.action_dim))
         else:  # greedy
+        
             qs = self.qnet(state)
-            action = qs.argmax(dim=-1)
+            
+            with torch.no_grad():
+                select_maxValue  = torch.max(qs[0])
+                candidateList_selRB = torch.where(qs[0] == select_maxValue)
+                selectedAction = random.sample(list(candidateList_selRB[0]),k=1)[0]
+                action = selectedAction.cpu()
+            
         return int(action)
-        """
+        
         
     def update(self, state, action, reward, next_state, done):
         s, a, r, ns = state, action, reward, next_state
