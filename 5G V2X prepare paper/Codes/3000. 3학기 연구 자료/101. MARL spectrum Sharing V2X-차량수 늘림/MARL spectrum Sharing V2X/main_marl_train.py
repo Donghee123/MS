@@ -34,9 +34,9 @@ IS_TEST = 1-IS_TRAIN
 
 label = 'marl_model'
 
-n_veh = 20
+n_veh = 10
 n_neighbor = 3
-n_RB = n_veh
+n_RB = 10
 
 env = Environment_marl.Environ(down_lanes, up_lanes, left_lanes, right_lanes, width, height, n_veh, n_neighbor)
 env.new_random_game()  # initialize parameters in env
