@@ -35,7 +35,7 @@ class Agent(BaseModel):
         self.learning_rate_decay_step = 500000
         self.target_q_update_step = 100
         self.discount = 0.5
-        self.double_q = True
+        self.double_q = False
         self.build_dqn()          
         self.V2V_number = 3 * len(self.env.vehicles)    # every vehicle need to communicate with 3 neighbors  
         self.training = True
