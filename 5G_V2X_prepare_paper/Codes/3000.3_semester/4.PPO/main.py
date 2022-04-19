@@ -49,10 +49,8 @@ def train(env, agent, train_iter, power_min, wandb):
     for step in (range(0, train_iter)): # need more configuration
 
         if step == 0:                   # initialize set some varibles
-            num_game, update_count,ep_reward, ep_target_reward = 0., 0., 0., 0.
-            total_reward, total_loss, total_q = 0., 0., 0.
-            actions = []        
-        
+            ep_reward= 0.
+            
         #모든 차량이 2000번 action을 완료했을 경우 초기화
         if (step % 2000 == 1):
             env.new_random_game(20)
@@ -85,11 +83,10 @@ def train(env, agent, train_iter, power_min, wandb):
                 env.action_all_with_power_training[i, j, 1] = selectedPower_Index 
                                      
                     #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                reward_train, reward_best = env.act_for_training(env.action_all_with_power_training, [i,j])
+                reward_train = env.act_for_training(env.action_all_with_power_training, [i,j])
                     
                 ep_reward = ep_reward + reward_train
-                ep_target_reward = ep_target_reward + reward_best
-                    
+                   
                 state_new = env.get_state([i,j], True, env.action_all_with_power_training, env.action_all_with_power) 
                     
                     #경험 저장
@@ -105,11 +102,11 @@ def train(env, agent, train_iter, power_min, wandb):
         if agent.has_continuous_action_space and step % update_timestep == 0:
             agent.decay_action_std(action_std_decay_rate, min_action_std)
         
-        logs.append((": 2000 step Cumulative Reward : " + str(ep_reward) + '-- Target Reward : ' + str(ep_target_reward) + '-- Diff PPO vs target : ' + str(ep_target_reward - ep_reward)))
-        wandb.log({"PPO_reward": ep_reward, "target_reward" : ep_target_reward, "Diff PPO vs target" : ep_target_reward - ep_reward})
+        logs.append(": 2000 step Cumulative Reward : " + str(ep_reward))
+        wandb.log({"PPO_reward": ep_reward})
+        
         ep_reward = 0.
-        ep_target_reward = 0.
-                             
+                            
         if (step % 2000 == 0) and (step > 0):
             # testing 
             training = False

@@ -3,6 +3,7 @@ import numpy as np
 import time
 import random
 import math
+import pdb
 
 
 
@@ -157,7 +158,8 @@ class Environ:
         self.delta_distance = []    #?
         self.n_RB = 20              #resource block의 수 차량들이 주파수 점유 할 수 있는 수
         self.n_Veh = n_Veh             #최대 vehicle 수
-        
+        self.f_V2I_min_Throughput_= 5.0
+        self.f_V2V_constant = 1.0
         self.action_all_with_power = np.zeros([self.n_Veh, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
         self.action_all_with_power_training = np.zeros([self.n_Veh, 3, 2],dtype = 'int32')   # this is actions that taken by V2V links with power
         
@@ -745,7 +747,7 @@ class Environ:
                 
                 V2V_Rate_list[i, power_idx] = np.sum(V2V_Rate_cur)
                 Deficit_list[i,power_idx] = 0 - 1 * np.sum(np.maximum(np.zeros(V2V_Signal_temp.shape), (self.demand - self.individual_time_limit * V2V_Rate_cur * 1500)))
-        
+               
         Interference = np.zeros(self.n_RB)  
         V2I_Rate_list = np.zeros((self.n_RB,len(self.V2V_power_dB_List)))    # 3 of power level, V2I link Channel capacity를 저장함.
         
@@ -768,6 +770,14 @@ class Environ:
                 - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
                      
         self.demand -= V2V_Rate * self.update_time_train * 1500
+
+        v2v_reward_1 = self.demand.copy()
+        v2v_reward_1[v2v_reward_1 <= 0] = 0.0
+        v2v_reward_1[v2v_reward_1 > 0] = 1.0
+
+        v2v_reward_1 = v2v_reward_1 * V2V_Rate
+        v2v_reward_1[v2v_reward_1 <= 0] = self.f_V2V_constant
+
         self.test_time_count -= self.update_time_train
         
         #각기 다른 차량들의 time_limit을 1사이클만큼 시간이 지남을 의미       
@@ -776,9 +786,17 @@ class Environ:
         #time_limit이 0보다 같거나 작은 것이 있는 경우...??
         self.individual_time_limit [np.add(self.individual_time_limit <= 0,  self.demand < 0)] = self.V2V_limit
         self.demand[self.demand < 0] = self.demand_amount
+
         if self.test_time_count == 0:
             self.test_time_count = 10
-        return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
+
+        
+        v2i_reward_1_list = V2I_Rate_list
+        v2i_reward_2_list = V2I_Rate_list.copy()
+        v2i_reward_2_list[v2i_reward_2_list < self.f_V2I_min_Throughput_] = 0
+        v2i_reward_2_list[v2i_reward_2_list >= self.f_V2I_min_Throughput_] = 1
+
+        return v2i_reward_1_list, v2i_reward_2_list, v2v_reward_1, Deficit_list
 
     def Compute_Interference(self, actions):
         # ====================================================
@@ -845,27 +863,24 @@ class Environ:
         self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
         
         #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
-        V2I_rewardlist, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
-        
-        
+        v2i_reward_1_list, v2i_reward_2_list, v2v_reward_1, v2v_reward_2_list = self.Compute_Performance_Reward_Batch(action_temp,idx)
+
+        v2i_reward_1 = np.sum(v2i_reward_1_list.T.reshape([-1])[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]])
+        v2i_reward_2 = np.sum(v2i_reward_2_list.T.reshape([-1])[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]])
+        v2v_reward_1 = np.sum(v2v_reward_1)
+        v2v_reward_2 = np.sum(v2v_reward_2_list.T.reshape([-1])[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]])
+
         self.renew_positions()
         self.renew_channels_fastfading()
         self.Compute_Interference(actions) 
-        rewards_list = rewards_list.T.reshape([-1])
-        V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
-        V2V_rewardlist = V2V_rewardlist.T.reshape([-1])
-        V2I_reward = (V2I_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2I_rewardlist))/(np.max(V2I_rewardlist) -np.min(V2I_rewardlist) + 0.000001)
-        V2V_reward = (V2V_rewardlist[actions[idx[0],idx[1], 0]+ 20*actions[idx[0],idx[1], 1]] - np.min(V2V_rewardlist))/(np.max(V2V_rewardlist) -np.min(V2V_rewardlist) + 0.000001)
-        lambdda = 0.1
-        #print ("Reward", V2I_reward, V2V_reward, time_left)
-        t = (lambdda * V2I_reward + (1-lambdda) * V2V_reward)
+
+        lambdda_1 = 0.03
+        lambdda_2 = 0.5
+        lambdda_3 = 1.0
+        lambdda_4 = 1.0
         
-        
-        t_best = (self.find_maxReward(V2I_rewardlist, V2V_rewardlist))
-        
-        #print("time left", time_left)
-        #return t
-        return (t - (self.V2V_limit - time_left)/self.V2V_limit), (t_best - (self.V2V_limit - time_left)/self.V2V_limit)
+        return (lambdda_1 * v2i_reward_1) + (lambdda_2 * v2i_reward_2) + (lambdda_3 * v2v_reward_1) + (lambdda_4 * v2v_reward_2)
+
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
         self.n_step += 1
