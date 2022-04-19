@@ -138,7 +138,7 @@ def train(env, agent, train_iter, power_min, wandb):
                         for j in sorted_idx:                   
                             state_old = env.get_state([i,j], False, env.action_all_with_power_training, env.action_all_with_power) 
 
-                            action = agent.select_action(state_old)
+                            action = agent.select_action(state_old, is_evalMode = True)
 
                             selectedRB_Index, selectedPower_Index = GetRB_Power(power_min, action, env)
                             
@@ -194,10 +194,10 @@ def main(args):
 
   K_epochs = 10               # update policy for K epochs
   eps_clip = 0.2              # clip parameter for PPO
-  gamma = 0.99                # discount factor
+  gamma = args.reward_gamma   # discount factor
 
-  lr_actor = 0.0003       # learning rate for actor network
-  lr_critic = 0.001       # learning rate for critic network
+  lr_actor = args.actor_learning_rate       # learning rate for actor network
+  lr_critic = args.critic_learning_rate      # learning rate for critic network
 
   ppo_agent = PPO(n_input, n_output, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std)
 
@@ -217,8 +217,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PPO with Pytorch')
 
     parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
-    parser.add_argument('--actor_learning_rate', default=0.0001, type=float, help='actor learning rate')   
-    parser.add_argument('--critic_learning_rate', default=0.0001, type=float, help='critic learning rate')   
+    parser.add_argument('--actor_learning_rate', default=0.0003, type=float, help='actor learning rate')   
+    parser.add_argument('--critic_learning_rate', default=0.001 , type=float, help='critic learning rate')   
+    parser.add_argument('--reward_gamma', default=0.99 , type=float, help='reward gamma')   
     parser.add_argument('--train_iter', default=40000, type=int, help='train iters each timestep')
 
     args = parser.parse_args()

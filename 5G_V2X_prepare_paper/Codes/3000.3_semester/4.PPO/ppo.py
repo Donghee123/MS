@@ -180,16 +180,17 @@ class PPO:
 
         
 
-    def select_action(self, state):
+    def select_action(self, state, is_evalMode = False):
 
         if self.has_continuous_action_space:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(self.device)
                 action, action_logprob = self.policy_old.act(state)
 
-            self.buffer.states.append(state)
-            self.buffer.actions.append(action)
-            self.buffer.logprobs.append(action_logprob)
+            if is_evalMode == False:
+                self.buffer.states.append(state)
+                self.buffer.actions.append(action)
+                self.buffer.logprobs.append(action_logprob)
 
             return action.detach().cpu().numpy().flatten()
 
@@ -198,9 +199,10 @@ class PPO:
                 state = torch.FloatTensor(state).to(self.device)
                 action, action_logprob = self.policy_old.act(state)
             
-            self.buffer.states.append(state)
-            self.buffer.actions.append(action)
-            self.buffer.logprobs.append(action_logprob)
+            if is_evalMode == False:
+                self.buffer.states.append(state)
+                self.buffer.actions.append(action)
+                self.buffer.logprobs.append(action_logprob)
 
             return action.item()
 
