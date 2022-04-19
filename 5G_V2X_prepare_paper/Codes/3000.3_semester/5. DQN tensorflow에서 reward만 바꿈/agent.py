@@ -189,13 +189,15 @@ class Agent(BaseModel):
                                 self.merge_action([i,j], action)
                             if i % (len(self.env.vehicles)/10) == 1:
                                 action_temp = self.action_all_with_power.copy()
-                                reward, percent = self.env.act_asyn(action_temp) #self.action_all)            
-                                Rate_list.append(np.sum(reward))
+                                returnV2IReward, returnV2VReward, fail_percent = self.env.act_asyn(action_temp) #self.action_all)  
+                                  
+
+                                Rate_list.append(np.sum(returnV2IReward))
                         #print("actions", self.action_all_with_power)
                     V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
-                    Fail_percent_list[game_idx] = percent
+                    Fail_percent_list[game_idx] = fail_percent
                     #print("action is", self.action_all_with_power)
-                    print('failure probability is, ', percent)
+                    print('failure probability is, ', fail_percent)
                     #print('action is that', action_temp[0,:])
                 self.save_weight_to_pkl()
                 print ('The number of vehicle is ', len(self.env.vehicles))
