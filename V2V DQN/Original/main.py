@@ -12,7 +12,6 @@ flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
 flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 
 # Environment
-flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
 flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
 
 # Etc
@@ -64,10 +63,10 @@ def main(_):
     #agent.play()
     
     #학습
-    agent.train()
+    #agent.train()
     
     #학습 후
-    #agent.play()
+    agent.play()
 
 if __name__ == '__main__':
     tf.app.run()

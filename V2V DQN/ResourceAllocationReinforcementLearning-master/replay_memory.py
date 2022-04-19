@@ -57,6 +57,3 @@ class ReplayMemory:
         rewards = self.rewards[indexes]
         return prestate, poststate, actions, rewards
     
-    def save(self):
-        
-   
