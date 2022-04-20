@@ -10,6 +10,7 @@ import random
 import pandas as pd
 import csv
 import os
+import wandb
 
 #File 유틸 함수들    
 def createFolder(directory):
@@ -341,60 +342,32 @@ class SAC(object):
         return nindex_selectedRB, fPower
 
     def train(self): 
-        
-        updateloggingData = []
-        updateloggingDataHeader = ['critic_1_loss', 'critic_2_loss', 'policy_loss', 'ent_loss', 'alpha']
-        
-        trainloggingData = []
-        trainloggingDataHeader = ['reward']
-        
+        wandb.init(config=self.args, project="V2V Resource Allocation by SAC")
+        wandb.config["My pytorch SAC"] = "SAC Version 0.1"
+
         updates = 0
-        num_game, self.update_count, ep_reward = 0, 0, 0.
-        total_reward, self.total_loss, self.total_q = 0.,0.,0.
-        max_avg_ep_reward = 0
-        ep_reward, actions = [], []        
-        mean_big = 0
-        number_big = 0
-        mean_not_big = 0
-        number_not_big = 0
+        self.update_count= 0
+        self.total_loss, self.total_q = 0.,0.
+
         total_numsteps = 0
         self.env.new_random_game(20)
-        
-        updateloggingDataHeader = ['critic_1_loss', 'critic_2_loss', 'policy_loss', 'ent_loss', 'alpha'] 
-        rewardloggingDataHeader = ['reward']
-        
-        critic_1_losses = []
-        critic_2_losses = []
-        policy_losses = []
-        ent_losses = []
-        alphas = []
+                
         rewardloggingData = []
-        
-        
-        
+    
         for self.step in (range(0, self.train_step)): # need more configuration #40000
             if self.step == 0:                   # initialize set some varibles
-                num_game, self.update_count,ep_reward = 0, 0, 0.
-                total_reward, self.total_loss, self.total_q = 0., 0., 0.
-                ep_reward, actions = [], []               
+                self.update_count = 0
+                self.total_loss, self.total_q = 0., 0.
                 
             # prediction
-            # action = self.predict(self.history.get())
             if (self.step % 2000 == 1):
                 self.env.renew_neighbor()
                 
             print(self.step)
-            state_old = self.get_state([0,0])
-            #print("state", state_old)
+            state_old = self.get_state([0,0])            
             self.training = True
-            reward_sum = 0
-            
-            temp_critic_1_losses = []
-            temp_critic_2_losses = []
-            temp_policy_losses = []
-            temp_ent_losses = []
-            temp_alphas = []
-            
+            fReward_sum = 0
+                        
             #현재 상태에서 모든 차량이 선택을 수행함.
             for k in range(1):
                 #i번째 송신 차량
@@ -409,12 +382,10 @@ class SAC(object):
                         #action은 선택한 power level, 선택한 resource block 정보를 가짐
                         # 랜덤 선택
                         if self.args.start_steps > total_numsteps:
-                            print('random')
                             listofRandom_actions = [random.random() for _ in range(20)]
                             listofRandom_actions.append(random.uniform(-10.0, 23.0))
                             action = np.array(listofRandom_actions)
                         else:
-                            print('policy')
                             action = self.select_action(state_old)
 
                         # 업데이트 
@@ -437,26 +408,32 @@ class SAC(object):
                         self.action_all_with_power_training[i, j, 1] = fselected_powerdB # PowerdBm을 저장함.
                                          
                         #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                        reward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
-                        
-                        reward_sum += reward_train
+                        fReward_train = self.env.act_for_training(self.action_all_with_power_training, [i,j]) 
+
+                        fReward_sum += fReward_train
                         
                         state_new = self.get_state([i,j]) 
                                               
-                        self.memory.push(state_old.reshape(82), action, np.array([reward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
-            
-            print(reward_sum)
+                        self.memory.push(state_old.reshape(82), action, np.array([fReward_train]), state_new.reshape(82),np.array([1])) # Append transition to memory
+
+            wandb.log({"SAC_one_step_reward": fReward_sum})
+                        
+            print(fReward_sum)
                                                         
-            rewardloggingData.append(reward_sum)
+            rewardloggingData.append(fReward_sum)
             
             if (self.step % self.test_step == 0) and (self.step > 0):
                 # testing 
                 self.training = False
+
                 number_of_game = 10
+
                 if (self.step % 10000 == 0) and (self.step > 0):
                     number_of_game = 50 
+
                 if (self.step == 38000):
-                    number_of_game = 100               
+                    number_of_game = 100     
+
                 V2I_Rate_list = np.zeros(number_of_game)
                 V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
@@ -474,7 +451,9 @@ class SAC(object):
                             for j in sorted_idx:                   
                                 state_old = self.get_state([i,j])                               
                                 action = self.select_action(state_old, evaluate=True)
+
                                 selected_resourceBlock , fselected_powerdB = self.ConvertToRealAction(action)
+
                                 self.action_all_with_power[i, j, 0] = selected_resourceBlock
                                 self.action_all_with_power[i, j, 1] = fselected_powerdB
                                 
@@ -491,9 +470,9 @@ class SAC(object):
                     print('failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
                     
-                
-                
-                #2000번 트레이닝 할때 마다 모델 저장.
+
+                wandb.log({f"SAC_{self.step}_V2I_Reward": np.mean(V2I_Rate_list), f"SAC_{self.step}_V2V_Reward": np.mean(V2V_Rate_list), f"SAC_{self.step}_V2V_fail_pecent": np.mean(Fail_percent_list)})
+
                 self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print ('The number of vehicle is ', len(self.env.vehicles))
                 print ('Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))

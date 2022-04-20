@@ -835,21 +835,10 @@ class Environ:
         
         selRB = actions[idx[0],idx[1], 0]
         selPower = actions[idx[0],idx[1], 1]
-        
-        
-        print("selRB : ", round(selRB,1), ", selPowerdBm : ", round(selPower,1))  
-        print("V2I : ", round(V2I_reward,3), ", V2V : ", round(V2V_reward,3), ", V2V QoS : ", round(V2VRate_list,3))        
-        
-        
-        
-        #print ("Reward", V2I_reward, V2V_reward, time_left)
-        t = lambdda_v2irate * V2I_reward + lambdda_v2vrate * V2V_reward + lambdda_v2vQos * V2V_reward
-        #print("time left", time_left)
-        #return t
 
+        t = lambdda_v2irate * V2I_reward + lambdda_v2vrate * V2V_reward + lambdda_v2vQos * V2V_reward
+        
         rewardSum = t - (self.V2V_limit - time_left)/self.V2V_limit
-        datas = {'V2I Rate': [V2I_reward], 'V2V Rate': [V2VRate_list],'V2V Qos': [V2V_reward], 'Reward Sum' : [rewardSum]}    
-        self.wrie_log(datas)  
         
         return rewardSum
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
