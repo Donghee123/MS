@@ -471,7 +471,7 @@ class SAC(object):
                     #print('action is that', action_temp[0,:])
                     
 
-                wandb.log({f"SAC_{self.step}_V2I_Reward": np.mean(V2I_Rate_list), f"SAC_{self.step}_V2V_Reward": np.mean(V2V_Rate_list), f"SAC_{self.step}_V2V_fail_pecent": np.mean(Fail_percent_list)})
+                wandb.log({f"SAC_V2I_Rete": np.mean(V2I_Rate_list), f"SAC_V2V_Rete": np.mean(V2V_Rate_list), f"SAC_V2V_fail_pecent": np.mean(Fail_percent_list)})
 
                 self.save_model('V2X_Model_' + str(self.step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print ('The number of vehicle is ', len(self.env.vehicles))
