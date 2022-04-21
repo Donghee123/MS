@@ -264,7 +264,7 @@ class SAC(object):
     
     
         
-    def play(self, actor_path, critic_path , n_step = 100, n_episode = 100, test_ep = None):
+    def play(self, actor_path, critic_path , n_step = 100, n_episode = 20, test_ep = None):
         
         self.load_model(actor_path = actor_path, critic_path = critic_path)
         number_of_game = n_episode
@@ -293,42 +293,33 @@ class SAC(object):
                     sorted_idx = np.argsort(self.env.individual_time_limit[i, :])
                     for j in sorted_idx:
                         state_old = self.get_state([i, j])
-                        time_left_list.append(state_old[-1])
                         action = self.select_action(state_old, evaluate=True)
+
+                        selected_resourceBlock , fselected_powerdB = self.ConvertToRealAction(action)
                         
-                        if state_old[-1] <=0:
-                            continue
-                        
-                        selectResouceBlock, selectPowerDB = self.GenerateAction(action)                                            
-                        
-                        self.merge_action([i, j], action)
-                    
+                        self.action_all_with_power[i, j, 0] = selected_resourceBlock
+                        self.action_all_with_power[i, j, 1] = fselected_powerdB
+                                
                     #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
                     if i % (len(self.env.vehicles) / 10) == 1:
                         action_temp = self.action_all_with_power.copy()
-                        rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
-                        Rate_list.append(np.sum(rewardOfV2I))
-                        Rate_list_V2V.append(np.sum(rewardOfV2V))
+                        returnV2IReward, returnV2VReward, fail_percent = self.env.act_asyn(action_temp)
+                        Rate_list.append(np.sum(returnV2IReward))
+                        Rate_list_V2V.append(np.sum(returnV2VReward))
                         
-                # print("actions", self.action_all_with_power)
-            
-            
-          
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
             
-            Fail_percent_list[game_idx] = percent
+            Fail_percent_list[game_idx] = fail_percent
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
             print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
-            print('Mean of Fail percent is that ',percent, np.mean(Fail_percent_list[0:game_idx]))
-            # print('action is that', action_temp[0,:])
-
+            print('Mean of Fail percent is that ',fail_percent, np.mean(Fail_percent_list[0:game_idx]))
+            
         print('The number of vehicle is ', len(self.env.vehicles))
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
         print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
-        # print('Test Reward is ', np.mean(test_result))
         
         return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
     

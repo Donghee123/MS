@@ -847,9 +847,9 @@ class Environ:
         if self.n_step % 10 == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
-        reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
+        returnV2IReward, returnV2VReward, fail_percent = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
         self.Compute_Interference(actions)
-        return reward
+        return returnV2IReward, returnV2VReward, fail_percent
     def act(self, actions):
         # simulate the next state after the action is given
         self.n_step += 1        
