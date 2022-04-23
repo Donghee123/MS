@@ -63,7 +63,7 @@ class Rollout:
         self.update_info()
 
     def calculate_reward(self, n_updates):
-        print('calculate_reward!!!!')
+        
         int_rew, predicted_audio, target_audio, discrim_preds = self.intrinsic_model.calculate_loss(
             ob=self.buf_obs, last_ob=self.buf_obs_last, acs=self.buf_acs, audio=self.buf_audio)
         self.buf_rews[:] = self.reward_fun(int_rew=int_rew, ext_rew=self.buf_ext_rews)
