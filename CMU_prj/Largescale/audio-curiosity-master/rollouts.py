@@ -168,6 +168,8 @@ class Rollout:
                     self.buf_audio[sli, start_index:end_index] = audios
 
             if t > 0:
+                if prevrews > 0:
+                    a = prevrews
                 self.buf_ext_rews[sli, t - 1] = prevrews
 
             if self.recorder is not None:

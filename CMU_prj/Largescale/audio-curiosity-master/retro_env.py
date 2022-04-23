@@ -247,6 +247,7 @@ class RetroEnv(gym.Env):
         self.stepCount = 0
         if self.audio_clip:
             if self.make_video:
+                print("video 만든다!")
                 #time.sleep(0.2)
                 baseline_str = 'b-' if self.is_baseline else ''
                 path = baseline_str + self.gamename + '_audio.wav'
