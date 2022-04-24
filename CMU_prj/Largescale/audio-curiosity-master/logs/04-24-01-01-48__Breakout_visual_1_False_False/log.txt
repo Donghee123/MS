@@ -1,2 +1,0 @@
-Logging to ./logs/04-24-01-01-48__Breakout_visual_1_False_False
-episode recordings saved to ./logs/04-24-01-01-48__Breakout_visual_1_False_False/env0_0.pk
