@@ -1,0 +1,106 @@
+1060 byte
+-------- marl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 41.71 Mbps
+Pr(V2V success): 0.8975
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 40.66 Mbps
+Pr(V2V success): 1.0
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 39.36 Mbps
+Pr(V2V success): 0.9925
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 41.99 Mbps
+Pr(V2V success): 1.0
+
+2120 byte
+-------- marl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 40.59 Mbps
+Pr(V2V success): 0.8925
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 38.68 Mbps
+Pr(V2V success): 0.985
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 37.04 Mbps
+Pr(V2V success): 0.9075
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 41.22 Mbps
+Pr(V2V success): 1.0
+
+3180 byte
+-------- marl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 39.62 Mbps
+Pr(V2V success): 0.885
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 36.52 Mbps
+Pr(V2V success): 0.96
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 35.63 Mbps
+Pr(V2V success): 0.8625
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 40.47 Mbps
+Pr(V2V success): 1.0
+
+4240 byte
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 38.69 Mbps
+Pr(V2V success): 0.86
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 34.2 Mbps
+Pr(V2V success): 0.885
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 34.51 Mbps
+Pr(V2V success): 0.8375
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 39.76 Mbps
+Pr(V2V success): 1.0
+
+5300 byte
+-------- marl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 37.82 Mbps
+Pr(V2V success): 0.8525
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 32.39 Mbps
+Pr(V2V success): 0.8
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 33.42 Mbps
+Pr(V2V success): 0.81
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 39.02 Mbps
+Pr(V2V success): 1.0
+
+6360byte
+-------- marl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 36.87 Mbps
+Pr(V2V success): 0.8475
+-------- sarl -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 31.15 Mbps
+Pr(V2V success): 0.7
+-------- random -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 32.48 Mbps
+Pr(V2V success): 0.7575
+-------- DPRA -------------
+n_veh: 4 , n_neighbor: 1
+Sum V2I rate: 38.24 Mbps
+Pr(V2V success): 1.0
