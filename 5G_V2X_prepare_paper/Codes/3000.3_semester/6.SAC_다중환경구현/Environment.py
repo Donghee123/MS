@@ -6,7 +6,8 @@ import math
 import csv
 import pandas as pd
 import os
-    
+import copy
+
 # This file is revised for more precise and concise expression.
 """
 분석 순서
@@ -178,6 +179,17 @@ class Environ:
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
         return idx
+
+    def merge_action(self,idx,nSelectedRB, fPowerdBm, bIsTrainMode):
+        if bIsTrainMode == True:
+            self.action_all_with_power_training[idx[0], idx[1], 0] = nSelectedRB  # 선택한 Resourceblock을 저장함.                                                     
+            #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
+            self.action_all_with_power_training[idx[0], idx[1], 1] = fPowerdBm # PowerdBm을 저장함.
+        else:
+            self.action_all_with_power[idx[0], idx[1], 0] = nSelectedRB  # 선택한 Resourceblock을 저장함.                                                     
+            #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
+            self.action_all_with_power[idx[0], idx[1], 1] = fPowerdBm # PowerdBm을 저장함.
+                               
 
     def get_state(self, idx, isTraining):
     # ===============
@@ -792,19 +804,27 @@ class Environ:
                 V2I_Interference_temp[i] += 10**((self.V2V_power_dB_List[j] - self.V2I_channels_with_fastfading[idx[0], i] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
                 V2I_Rate_list[i, j] = np.sum(np.log2(1 + np.divide(10**((self.V2I_power_dB + self.vehAntGain + self.bsAntGain \
                 - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
-                     
-        self.demand -= V2V_Rate * self.update_time_train * 1500
-        self.test_time_count -= self.update_time_train
+
+        #for using ray
+        demand = copy.deepcopy(self.demand)
+        test_time_count = copy.deepcopy(self.test_time_count)
+        individual_time_limit = copy.deepcopy(self.individual_time_limit)
+
+        demand -= V2V_Rate * self.update_time_train * 1500
+        test_time_count -= self.update_time_train
         
         #각기 다른 차량들의 time_limit을 1사이클만큼 시간이 지남을 의미       
-        self.individual_time_limit -= self.update_time_train
+        individual_time_limit -= self.update_time_train
         
         #time_limit이 0보다 같거나 작은 것이 있는 경우...??
-        self.individual_time_limit [np.add(self.individual_time_limit <= 0,  self.demand < 0)] = self.V2V_limit
-        self.demand[self.demand < 0] = self.demand_amount
-        if self.test_time_count == 0:
-            self.test_time_count = 10
-        return V2I_Rate_list, V2V_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
+        individual_time_limit [np.add(individual_time_limit <= 0,  demand < 0)] = self.V2V_limit
+
+        demand[demand < 0] = self.demand_amount
+
+        if test_time_count == 0:
+            test_time_count = 10
+
+        return V2I_Rate_list, V2V_Rate_list, Deficit_list, individual_time_limit[idx[0], idx[1]], [demand, test_time_count, individual_time_limit]
 
     def Compute_Interference(self, actions):
         # ====================================================
@@ -863,12 +883,14 @@ class Environ:
         self.activate_links = np.ones((self.n_Veh,3), dtype = 'bool')
         
         #V2I reward(capacity), V2V reward(capacity), Time reward를 의미, 논문에서는 이 3개의 list를 각각 다른 weight로 선정하여 학습 시킴.
-        V2I_rewardlist, V2VRate_list, V2V_rewardlist, time_left = self.Compute_Performance_Reward_Batch(action_temp,idx)
+        V2I_rewardlist, V2VRate_list, V2V_rewardlist, time_left, listOfchanged = self.Compute_Performance_Reward_Batch(action_temp,idx)
         
-        
+        """
         self.renew_positions()
         self.renew_channels_fastfading()
         self.Compute_Interference(actions) 
+        """
+
         rewards_list = rewards_list.T.reshape([-1])
         V2I_rewardlist = V2I_rewardlist.T.reshape([-1])
         V2VRate_list = V2VRate_list.T.reshape([-1])
@@ -891,7 +913,8 @@ class Environ:
         
         rewardSum = t - (self.V2V_limit - time_left)/self.V2V_limit
         
-        return rewardSum
+        return rewardSum, listOfchanged
+
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
         self.n_step += 1

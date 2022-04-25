@@ -8,7 +8,7 @@ from replay_memory import ReplayMemory
 import os
 import wandb
 import ray
-
+import copy
 
 def play(self, actor_path, critic_path , n_step = 100, n_episode = 20, test_ep = None):
         
@@ -72,12 +72,12 @@ def play(self, actor_path, critic_path , n_step = 100, n_episode = 20, test_ep =
 @ray.remote
 def random_game(env, nvehicle):
     env.new_random_game(nvehicle)
-    
+    return env
 
 @ray.remote
 def renew_neighbor(env):
     env.renew_neighbor()
-    
+    return env
 
 @ray.remote
 def get_state(env,idx, isTraining):
@@ -85,7 +85,7 @@ def get_state(env,idx, isTraining):
 
 @ray.remote
 def act_for_training(env, idx):
-    return env.act_for_training(env.action_all_with_power_training, idx) 
+    return env.act_for_training(env.action_all_with_power_training, idx)
 
 
 def parrel_get_state(envs,idx, isTraining):
@@ -94,19 +94,42 @@ def parrel_get_state(envs,idx, isTraining):
     return states
 
 def parrel_random_games(envs, nvehicle):
-    for env in envs:
-        random_game.remote(env, nvehicle)
+    envs = [random_game.remote(env, nvehicle) for env in envs]
+    envs = ray.get(envs)
+    return copy.deepcopy(envs)
         
 def parrel_renew_neighbors(envs):
-    for env in envs:
-        renew_neighbor.remote(env)
-        
-def parrel_act_for_training(envs, idx):
-    datas = [act_for_training.remote(env, idx) for env in envs]
-    rewards = ray.get(datas)
-    return rewards
+    envs = [renew_neighbor.remote(env) for env in envs]
+    envs = ray.get(envs)
+    return copy.deepcopy(envs)
 
-def train(agent,memory,args, envs): 
+def parrel_act_for_training(envs, idx):
+    ray.put(envs)
+    datas = [act_for_training.remote(env, idx) for env in envs]
+    rewards_listOfchanged = ray.get(datas)  
+    
+    envs = copy.deepcopy(envs)
+
+    listOfReturnEnvs = []
+    listOfRewards = []
+    for nIndex, env in enumerate(envs): 
+        demand = rewards_listOfchanged[nIndex][1][0]
+        test_time_count = rewards_listOfchanged[nIndex][1][1]
+        individual_time_limit = rewards_listOfchanged[nIndex][1][2]
+        env.demand = demand
+        env.test_time_count = test_time_count
+        env.individual_time_limit = individual_time_limit
+        env.renew_positions()
+        env.renew_channels_fastfading()
+        env.Compute_Interference(env.action_all_with_power_training)
+        listOfReturnEnvs.append(env)
+        listOfRewards.append(rewards_listOfchanged[nIndex][0])
+
+    #modify env
+      
+    return listOfReturnEnvs, listOfRewards
+
+def train(agent,memory,args, envs, testenv): 
         
     #공유 agent
     agent = agent
@@ -126,18 +149,20 @@ def train(agent,memory,args, envs):
 
     total_numsteps = 0
     
-    parrel_random_games(envs, env.n_Veh)
+    envs = parrel_random_games(envs, 20)
       
     rewardloggingData = []
     
     for step in (range(0, args.train_step)): # need more configuration #40000
+            print(step)
+
             if step == 0:                   # initialize set some varibles
                 update_count = 0
                 total_loss, total_q = 0., 0.
                 
             # prediction
             if (step % 2000 == 1):
-                parrel_renew_neighbors(envs)
+                envs = parrel_renew_neighbors(envs)
                 
             
             training = True
@@ -146,7 +171,7 @@ def train(agent,memory,args, envs):
             #현재 상태에서 모든 차량이 선택을 수행함.
             for k in range(1):
                 #i번째 송신 차량
-                for i in range(len(env.vehicles)):
+                for i in range(len(envs[0].vehicles)):
                     #i번째 송신 차량에서 전송한 신호를 수신하는 j번째 수신 차량 
                     for j in range(3): 
                         
@@ -190,19 +215,17 @@ def train(agent,memory,args, envs):
                             listOfselected_fselected_powerdB.append(fselected_powerdB)
 
                         for index, env in enumerate(envs):
-                        #i 번째 차량에서 j 번째 차량으로 전송할 리소스 블럭 선택
-                            env.action_all_with_power_training[i, j, 0] = int(listOfselected_resourceBlock[index])  # 선택한 Resourceblock을 저장함.                                                     
-                            #i 번째 차량에서 j 번째 차량으로 전송할 Power dB 선택
-                            env.action_all_with_power_training[i, j, 1] = listOfselected_fselected_powerdB[index] # PowerdBm을 저장함.
+                            env.merge_action([i,j],int(listOfselected_resourceBlock[index]), listOfselected_fselected_powerdB[index], bIsTrainMode = True)
+
                                          
                         #선택한 power level과 resource block을 기반으로 reward를 계산함.
-                        listOfReward_train =  parrel_act_for_training(envs, [i,j]) 
+                        envs, listOfReward_train = parrel_act_for_training(envs, [i,j]) 
 
                         fReward_sum += np.mean(listOfReward_train)
                         
                         state_news = parrel_get_state(envs,[i,j],isTraining = True)
 
-                        for nIndex in range(len(state_news)):                
+                        for nIndex in range(len(state_news)):            
                             memory.push(state_olds[nIndex].reshape(82), listsof_action[nIndex], np.array([listOfReward_train[nIndex]]), state_news[nIndex].reshape(82),np.array([1])) # Append transition to memory
 
             #wandb.log({f"{str_process_name}-SAC_one_step_reward": fReward_sum})
@@ -223,28 +246,29 @@ def train(agent,memory,args, envs):
                 V2V_Rate_list = np.zeros(number_of_game)
                 Fail_percent_list = np.zeros(number_of_game)
                 for game_idx in range(number_of_game):
-                    env.new_random_game(env.n_Veh)
+                    
+                    testenv.new_random_game(env.n_Veh)
                     test_sample = 200
                     V2IRate_list = []
                     V2VRate_list = []
-                    print(f'{str_process_name} - test game idx:', game_idx)
+                    print('test game idx:', game_idx)
                     for k in range(test_sample):
-                        action_temp = env.action_all_with_power.copy()
+                        action_temp = testenv.action_all_with_power.copy()
                         for i in range(len(env.vehicles)):
-                            env.action_all_with_power[i,:,0] = -1
-                            sorted_idx = np.argsort(env.individual_time_limit[i,:])          
+                            testenv.action_all_with_power[i,:,0] = -1
+                            sorted_idx = np.argsort(testenv.individual_time_limit[i,:])          
                             for j in sorted_idx:                   
-                                state_old = env.get_state([i,j], isTraining = False)                               
+                                state_old = testenv.get_state([i,j], isTraining = False)                               
                                 action = agent.select_action(state_old, evaluate=True)
 
                                 selected_resourceBlock , fselected_powerdB = agent.ConvertToRealAction(action)
 
-                                agent.action_all_with_power[i, j, 0] = selected_resourceBlock
-                                agent.action_all_with_power[i, j, 1] = fselected_powerdB
+                                testenv.action_all_with_power[i, j, 0] = selected_resourceBlock
+                                testenv.action_all_with_power[i, j, 1] = fselected_powerdB
                                 
                             if i % (len(env.vehicles)/10) == 1:
-                                action_temp = env.action_all_with_power.copy()
-                                V2IRate, V2VRate, percent = env.act_asyn(action_temp) #self.action_all)            
+                                action_temp = testenv.action_all_with_power.copy()
+                                V2IRate, V2VRate, percent = testenv.act_asyn(action_temp) #self.action_all)            
                                 V2IRate_list.append(np.sum(V2IRate))
                                 V2VRate_list.append(np.sum(V2VRate))
                         #print("actions", self.action_all_with_power)
@@ -252,18 +276,18 @@ def train(agent,memory,args, envs):
                     V2V_Rate_list[game_idx] = np.mean(np.asarray(V2VRate_list))
                     Fail_percent_list[game_idx] = percent
                     #print("action is", self.action_all_with_power)
-                    print(f'{str_process_name} - failure probability is, ', percent)
+                    print(f'failure probability is, ', percent)
                     #print('action is that', action_temp[0,:])
                     
 
                 #wandb.log({f"{str_process_name} - SAC_V2I_Rete": np.mean(V2I_Rate_list), f"{str_process_name} - SAC_V2V_Rete": np.mean(V2V_Rate_list), f"{str_process_name} - SAC_V2V_fail_pecent": np.mean(Fail_percent_list)})
 
                 agent.save_model('V2X_Model_' + str(step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
-                print (f'{str_process_name} - The number of vehicle is ', len(env.vehicles))
-                print (f'{str_process_name} - Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
-                print (f'{str_process_name} - Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
-                print (f'{str_process_name} - Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
-                print(f'{str_process_name} - Mean of Fail percent is that ', np.mean(Fail_percent_list))    
+                print (f'The number of vehicle is ', len(env.vehicles))
+                print (f'Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
+                print (f'Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+                print (f'Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+                print(f'Mean of Fail percent is that ', np.mean(Fail_percent_list))    
 
 if __name__ == '__main__':
 
@@ -313,7 +337,7 @@ if __name__ == '__main__':
                         help='set environment per process (default: 4)')
 
     #처음에 랜덤 선택하는 횟수를 지정함
-    parser.add_argument('--start_steps', type=int, default=10000, metavar='N',  # 10000
+    parser.add_argument('--start_steps', type=int, default=100000, metavar='N',  # 10000
                         help='Steps sampling random actions (default: 10000)')
 
     parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
@@ -355,8 +379,11 @@ if __name__ == '__main__':
     action_space = spaces.Box(
         np.array(action_min_list), np.array(action_max_list), dtype=np.float32)
 
+    testenv = Environ(down_lanes, up_lanes, left_lanes,
+                    right_lanes, width, height, nVeh)
+
     envs = [Environ(down_lanes, up_lanes, left_lanes,
-                    right_lanes, width, height, nVeh) for _ in range(3)] # V2X 환경 생성
+                    right_lanes, width, height, nVeh) for _ in range(10)] # V2X 환경 생성
 
     #wandb.init(config=args, project="V2V Resource Allocation by SAC")
     #wandb.config["My pytorch SAC"] = "Multi Envs SAC Version 0.1"
@@ -364,7 +391,7 @@ if __name__ == '__main__':
     agent = SAC(statespaceSize, action_space, args, envs[0])
     memory = ReplayMemory(args.replay_size, args.seed)
 
-    train(agent, memory, args, envs)
+    train(agent, memory, args, envs, testenv)
 
 
 

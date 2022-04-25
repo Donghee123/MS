@@ -22,10 +22,15 @@ def print_current_datetime():
 ray.init()
 
 @ray.remote
-def random_game(env, vehicle, agent, memory):
+def random_game(env, vehicle):
     print(f'{env} init!')
     env.new_random_game(vehicle)
+    return env
 
+def parrel_renew_neighbors(envs, vehicle):
+    envs = [random_game.remote(env, vehicle) for env in envs]
+    envs = ray.get(envs)
+    return envs
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
@@ -119,8 +124,12 @@ if __name__ == '__main__':
     envs = [Environ(down_lanes, up_lanes, left_lanes,
                     right_lanes, width, height, nVeh) for _ in range(3)] # V2X 환경 생성
 
+    ray.put(envs)
     agent = SAC(statespaceSize, action_space, args, envs[0])
     memory = ReplayMemory(args.replay_size, args.seed)
 
+    for i in range(3):
+        envs = parrel_renew_neighbors(envs, nVeh)
+
     for env in envs:
-        random_game.remote(env,nVeh, agent, memory)
+        print(len(env.vehicles))
