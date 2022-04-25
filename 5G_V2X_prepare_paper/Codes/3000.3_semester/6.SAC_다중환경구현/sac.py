@@ -51,6 +51,8 @@ class SAC(object):
         self.memory = ReplayMemory(args.replay_size, args.seed)
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
+        self.device = 'cpu'
+        
         print('test wiil be processing by ', self.device)
         self.RB_number = 20
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
