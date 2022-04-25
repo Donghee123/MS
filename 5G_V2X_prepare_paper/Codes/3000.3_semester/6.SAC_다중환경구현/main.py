@@ -228,7 +228,7 @@ def train(agent,memory,args, envs, testenv):
                         for nIndex in range(len(state_news)):            
                             memory.push(state_olds[nIndex].reshape(82), listsof_action[nIndex], np.array([listOfReward_train[nIndex]]), state_news[nIndex].reshape(82),np.array([1])) # Append transition to memory
 
-            #wandb.log({f"{str_process_name}-SAC_one_step_reward": fReward_sum})
+            wandb.log({f"SAC_one_step_reward": fReward_sum})
                                                                    
             if (step % args.test_step == 0) and (step > 0):
                 # testing 
@@ -280,7 +280,7 @@ def train(agent,memory,args, envs, testenv):
                     #print('action is that', action_temp[0,:])
                     
 
-                #wandb.log({f"{str_process_name} - SAC_V2I_Rete": np.mean(V2I_Rate_list), f"{str_process_name} - SAC_V2V_Rete": np.mean(V2V_Rate_list), f"{str_process_name} - SAC_V2V_fail_pecent": np.mean(Fail_percent_list)})
+                wandb.log({f"SAC_V2I_Rete": np.mean(V2I_Rate_list), f"SAC_V2V_Rete": np.mean(V2V_Rate_list), f"SAC_V2V_fail_pecent": np.mean(Fail_percent_list)})
 
                 agent.save_model('V2X_Model_' + str(step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
                 print (f'The number of vehicle is ', len(env.vehicles))
@@ -385,8 +385,8 @@ if __name__ == '__main__':
     envs = [Environ(down_lanes, up_lanes, left_lanes,
                     right_lanes, width, height, nVeh) for _ in range(10)] # V2X 환경 생성
 
-    #wandb.init(config=args, project="V2V Resource Allocation by SAC")
-    #wandb.config["My pytorch SAC"] = "Multi Envs SAC Version 0.1"
+    wandb.init(config=args, project="Multi Environment V2V Resource Allocation by SAC")
+    wandb.config["My pytorch SAC"] = "Multi Environment SAC Version 0.1"
 
     agent = SAC(statespaceSize, action_space, args, envs[0])
     memory = ReplayMemory(args.replay_size, args.seed)

@@ -12,14 +12,29 @@ from replay_memory import ReplayMemory
 
 print(ray.__version__)
 
+class testclass():
+    def __init__(self, enbNumber):
+        self.enbNumber = enbNumber
+    
+    def getEnvNumber(self):
+        return self.enbNumber
+
+
+@ray.remote
+def getEnvNumber(env):
+    return env.getEnvNumber()
+
+def parrel_EnvNumber(envs):
+    datas = [getEnvNumber.remote(env) for env in envs]
+    expectedNumber = ray.get(datas)
+    return datas
+
 # Ray Task    
 @ray.remote
 def print_current_datetime():
     time.sleep(0.3)
     current_datetime = datetime.datetime.now()
     return current_datetime
-
-ray.init()
 
 @ray.remote
 def random_game(env, vehicle):
@@ -33,6 +48,7 @@ def parrel_renew_neighbors(envs, vehicle):
     return envs
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 
     parser.add_argument('--policy', default="Gaussian",
@@ -89,6 +105,9 @@ if __name__ == '__main__':
                         help='Set test interval step (default: 2000)')
     #======================================================================================
 
+    #ray.init()
+
+
     args = parser.parse_args()
 
 
@@ -119,8 +138,6 @@ if __name__ == '__main__':
 
 
     
-
-
     envs = [Environ(down_lanes, up_lanes, left_lanes,
                     right_lanes, width, height, nVeh) for _ in range(3)] # V2X 환경 생성
 
@@ -133,3 +150,9 @@ if __name__ == '__main__':
 
     for env in envs:
         print(len(env.vehicles))
+
+
+    #listOftestclass = [testclass(number) for number in range(3)] # V2X 환경 생성
+    #print(parrel_EnvNumber(listOftestclass))
+    
+
