@@ -27,7 +27,7 @@ def getEnvNumber(env):
 def parrel_EnvNumber(envs):
     datas = [getEnvNumber.remote(env) for env in envs]
     expectedNumber = ray.get(datas)
-    return datas
+    return expectedNumber
 
 # Ray Task    
 @ray.remote
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         print(len(env.vehicles))
 
 
-    #listOftestclass = [testclass(number) for number in range(3)] # V2X 환경 생성
-    #print(parrel_EnvNumber(listOftestclass))
+    listOftestclass = [testclass(number) for number in range(10)] # V2X 환경 생성
+    print(parrel_EnvNumber(listOftestclass))
     
 

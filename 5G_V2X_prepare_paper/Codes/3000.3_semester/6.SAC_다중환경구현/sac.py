@@ -50,7 +50,7 @@ class SAC(object):
         
         self.memory = ReplayMemory(args.replay_size, args.seed)
         self.device = torch.device("cuda" if args.cuda else "cpu")
-
+        self.device = 'cpu'
         
         print('test wiil be processing by ', self.device)
         self.RB_number = 20
