@@ -192,9 +192,8 @@ def train(agent,memory,args, envs, testenv):
                                 listsof_action.append(action)
                         else:
                             
-                            for state_old in range(state_olds):
-                                action = agent.select_action(state_old)
-                                listsof_action.append(action)
+                            for state_old in state_olds:
+                                listsof_action.append(agent.select_action(state_old))
 
                         # 업데이트 
                         if len(memory) > args.batch_size:
