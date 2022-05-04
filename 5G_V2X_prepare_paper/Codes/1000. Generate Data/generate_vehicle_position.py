@@ -27,7 +27,6 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     
     f.close()
     
-
 # ################## SETTINGS ######################
 up_lanes = [3.5/2, 3.5/2 + 3.5, 250+3.5/2,
         250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
