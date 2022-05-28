@@ -28,15 +28,6 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     
     f.close()
 
-def ConvertToRealAction(self, action):
-        
-        fselect_maxValue  = np.max(action[0:20])
-        listofCandidateList_selRB = np.where(action[0:20] == fselect_maxValue)
-        nindex_selectedRB = random.sample(list(listofCandidateList_selRB[0]),k=1)[0]
-
-        fPower = action[20]
-        return nindex_selectedRB, fPower
-
 def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
         
         number_of_game = n_episode
@@ -66,7 +57,7 @@ def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
                         state_old = env.get_state([i, j], isTraining = False)
                         action = agent.select_action(state_old, evaluate=True)
 
-                        selected_resourceBlock , fselected_powerdB = ConvertToRealAction(action)
+                        selected_resourceBlock , fselected_powerdB = agent.ConvertToRealAction(action)
                         
                         env.action_all_with_power[i, j, 0] = selected_resourceBlock
                         env.action_all_with_power[i, j, 1] = fselected_powerdB
