@@ -100,41 +100,51 @@ sumrateV2VList = []
 probabilityOfSatisfiedV2VList = []
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
-parser.add_argument('--env-name', default="HalfCheetah-v2",
-                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
+
 parser.add_argument('--policy', default="Gaussian",
-                    help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
+                        help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 parser.add_argument('--eval', type=bool, default=True,
-                    help='Evaluates a policy a policy every 10 episode (default: True)')
+                        help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor for reward (default: 0.99)')
+                        help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
-                    help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
-                    help='learning rate (default: 0.0003)')
+                        help='target smoothing coefficient(τ) (default: 0.005)')
+parser.add_argument('--lr', type=float, default=0.0001, metavar='G', #0.0003
+                        help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
-                    help='Temperature parameter α determines the relative importance of the entropy\
-                            term against the reward (default: 0.2)')
+                        help='Temperature parameter α determines the relative importance of the entropy\
+                                term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
-                    help='Automaically adjust α (default: False)')
+                        help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
-                    help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N',
-                    help='batch size (default: 256)')
+                        help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
-                    help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=500, metavar='N',
-                    help='hidden size (default: 500)')
-parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
-                    help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=20000, metavar='N',
-                    help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
-                    help='Value target update per no. of updates per step (default: 1)')
+                        help='maximum number of steps (default: 1000000)')
+parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
+                        help='hidden size (default: 500)')
+parser.add_argument('--target_update_interval', type=int, default=10, metavar='N', # 1
+                        help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
-                    help='size of replay buffer (default: 10000000)')
-parser.add_argument('--cuda', action="store_true",
-                    help='run on CUDA (default: False)')
+                        help='size of replay buffer (default: 10000000)')
+
+
+#테스트 관련 하이퍼파라미터==============================================================
+parser.add_argument('--cuda', action="store_true",default=True,
+                        help='run on CUDA (default: False)')
+parser.add_argument('--batch_size', type=int, default=256, metavar='N', # 256
+                        help='batch size (default: 256)')
+parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
+                        help='model updates per simulator step (default: 1)')
+parser.add_argument('--envs_per_process', type=int, default=4, metavar='N', # 1
+                        help='set environment per process (default: 4)')
+#처음에 랜덤 선택하는 횟수를 지정함
+parser.add_argument('--start_steps', type=int, default=100000, metavar='N',  # 10000
+                        help='Steps sampling random actions (default: 10000)')
+parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
+                        help='Set train step (default: 40000)')
+parser.add_argument('--test_step', type=int, default=2000, metavar='N',  # 2000
+                        help='Set test interval step (default: 2000)')
+    #======================================================================================
 args = parser.parse_args()
 
 # Environment
@@ -184,8 +194,8 @@ memory = ReplayMemory(args.replay_size, args.seed)
 
 arrayOfVeh = [20,40,60,80,100]
 
-actor_path = './model/testmodel/sac_actor_V2X_Model_'
-critic_path = './model/testmodel/sac_critic_V2X_Model_'
+actor_path = './models/testmodel/sac_actor_V2X_Model_'
+critic_path = './models/testmodel/sac_critic_V2X_Model_'
 
 for nVeh in arrayOfVeh:      
     Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
