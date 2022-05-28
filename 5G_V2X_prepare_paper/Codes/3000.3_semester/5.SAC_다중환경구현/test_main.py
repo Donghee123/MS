@@ -192,8 +192,6 @@ action_space = spaces.Box(
 envs = [Environ(down_lanes, up_lanes, left_lanes,
                     right_lanes, width, height, nVeh) for _ in range(1)] # V2X 환경 생성
 
-agent = SAC(statespaceSize, action_space, args, envs[0])
-
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
 
@@ -211,7 +209,7 @@ for nVeh in arrayOfVeh:
     agent.load_model(actor_path = actor_path, critic_path= critic_path) 
 
     #학습 
-    v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+    v2i_Sumrate, v2v_Sumrate, probability = play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
     
     sumrateV2IList.append(v2i_Sumrate)
     sumrateV2VList.append(v2v_Sumrate)
