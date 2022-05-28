@@ -176,21 +176,26 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 # End 초기화 부분
 
+
 # Agent
 statespaceSize = 82
-actionRange = [0.0, 19123.0]
+action_min_list = [0.0 for _ in range(20)]
+action_min_list.append(-10.0)
+
+action_max_list = [1.0 for _ in range(20)]
+action_max_list.append(23.0)
+
 action_space = spaces.Box(
-    np.array([0.0]), np.array([19123.0]), dtype=np.float32)
+    np.array(action_min_list), np.array(action_max_list), dtype=np.float32)
 
-agent = SAC(statespaceSize, action_space, args, env)
 
-# Tesnorboard
-#writer = SummaryWriter('runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), args.env_name, args.policy, "autotune" if args.automatic_entropy_tuning else ""))
+envs = [Environ(down_lanes, up_lanes, left_lanes,
+                    right_lanes, width, height, nVeh) for _ in range(1)] # V2X 환경 생성
+
+agent = SAC(statespaceSize, action_space, args, envs[0])
+
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
-
-
-#agent.train()
 
 arrayOfVeh = [20,40,60,80,100]
 
