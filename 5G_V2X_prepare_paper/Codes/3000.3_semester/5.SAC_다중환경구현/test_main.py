@@ -209,7 +209,7 @@ for nVeh in arrayOfVeh:
     agent.load_model(actor_path = actor_path, critic_path= critic_path) 
 
     #학습 
-    v2i_Sumrate, v2v_Sumrate, probability = play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+    v2i_Sumrate, v2v_Sumrate, probability = play(agent,Env, nVeh, n_step = 100, n_episode = 20)
     
     sumrateV2IList.append(v2i_Sumrate)
     sumrateV2VList.append(v2v_Sumrate)
