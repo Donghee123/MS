@@ -27,7 +27,73 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
         wr.writerow(aryOfDatas[i])
     
     f.close()
-    
+
+def ConvertToRealAction(self, action):
+        
+        fselect_maxValue  = np.max(action[0:20])
+        listofCandidateList_selRB = np.where(action[0:20] == fselect_maxValue)
+        nindex_selectedRB = random.sample(list(listofCandidateList_selRB[0]),k=1)[0]
+
+        fPower = action[20]
+        return nindex_selectedRB, fPower
+
+def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
+        
+        number_of_game = n_episode
+        V2I_Rate_list = np.zeros(number_of_game)
+        V2V_Rate_list = np.zeros(number_of_game)
+        Fail_percent_list = np.zeros(number_of_game)  
+        training = False
+
+        for game_idx in range(number_of_game):
+            env.new_random_game(num_vehicle)
+            test_sample = n_step
+            Rate_list = []
+            Rate_list_V2V = []
+            
+            print('test game idx:', game_idx)
+            print('The number of vehicle is ', len(env.vehicles))
+            
+            time_left_list = []
+
+
+            for k in range(test_sample):
+                action_temp = env.action_all_with_power.copy()
+                for i in range(len(env.vehicles)):
+                    env.action_all_with_power[i, :, 0] = -1
+                    sorted_idx = np.argsort(env.individual_time_limit[i, :])
+                    for j in sorted_idx:
+                        state_old = env.get_state([i, j], isTraining = False)
+                        action = agent.select_action(state_old, evaluate=True)
+
+                        selected_resourceBlock , fselected_powerdB = ConvertToRealAction(action)
+                        
+                        env.action_all_with_power[i, j, 0] = selected_resourceBlock
+                        env.action_all_with_power[i, j, 1] = fselected_powerdB
+                                
+                    #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
+                    if i % (len(env.vehicles) / 10) == 1:
+                        action_temp = env.action_all_with_power.copy()
+                        returnV2IReward, returnV2VReward, fail_percent = env.act_asyn(action_temp)
+                        Rate_list.append(np.sum(returnV2IReward))
+                        Rate_list_V2V.append(np.sum(returnV2VReward))
+                        
+            V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
+            V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
+            
+            Fail_percent_list[game_idx] = fail_percent
+
+            print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
+            print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
+            print('Mean of Fail percent is that ',fail_percent, np.mean(Fail_percent_list[0:game_idx]))
+            
+        print('The number of vehicle is ', len(env.vehicles))
+        print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
+        print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
+        print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
+        
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
+
 sumrateV2IList = []
 sumrateV2VList = []
 
@@ -117,23 +183,26 @@ memory = ReplayMemory(args.replay_size, args.seed)
 #agent.train()
 
 arrayOfVeh = [20,40,60,80,100]
-actor_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_actor_V2X_Model_'
-critic_path = 'H:/Projects/MS/5G V2X prepare paper/Codes/SAC Scaling 전/model/model/sac_critic_V2X_Model_'
-for nVeh in arrayOfVeh:      
-      Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
-      Env.new_random_game()
-      
-      agent = SAC(statespaceSize, action_space, args, Env)
-              
-      #학습 
-      v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
-        
-      sumrateV2IList.append(v2i_Sumrate)
-      sumrateV2VList.append(v2v_Sumrate)
-        
-      probabilityOfSatisfiedV2VList.append(probability)
-               
 
+actor_path = './model/testmodel/sac_actor_V2X_Model_'
+critic_path = './model/testmodel/sac_critic_V2X_Model_'
+
+for nVeh in arrayOfVeh:      
+    Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
+    Env.new_random_game(nVeh)
+      
+    agent = SAC(statespaceSize, action_space, args, Env)
+
+    agent.load_model(actor_path = actor_path, critic_path= critic_path) 
+
+    #학습 
+    v2i_Sumrate, v2v_Sumrate, probability = agent.play(actor_path= actor_path, critic_path= critic_path ,n_step = 100, n_episode = 20, random_choice = False)
+    
+    sumrateV2IList.append(v2i_Sumrate)
+    sumrateV2VList.append(v2v_Sumrate)
+        
+    probabilityOfSatisfiedV2VList.append(probability)
+               
 
 sumrateV2IListnpList = np.array(sumrateV2IList)
 sumrateV2VListnpList = np.array(sumrateV2VList)
@@ -160,83 +229,3 @@ folderPath = './ResultData'
 csvFileName = 'ResultData.csv'
 createFolder(folderPath)
 MakeCSVFile(folderPath, csvFileName, allData)
-  
-"""
-# Training Loop
-total_numsteps = 0
-updates = 0
-
-for i_episode in itertools.count(1):
-    episode_reward = 0
-    episode_steps = 0
-    done = False
-    
-    env.new_random_game() #V2X 환경 재적용
-    state = env.reset()
-
-    while not done:
-        
-        if args.start_steps > total_numsteps:
-            action = env.action_space.sample()  # Sample random action
-        else:
-            action = agent.select_action(state)  # Sample action from policy
-
-        if len(memory) > args.batch_size:
-            # Number of updates per step in environment
-            for i in range(args.updates_per_step):
-                # Update parameters of all the networks
-                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
-
-                #writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                #writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                #writer.add_scalar('loss/policy', policy_loss, updates)
-                #writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                #writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-                updates += 1
-
-        next_state, reward, done, _ = env.step(action) # Step
-        episode_steps += 1
-        total_numsteps += 1
-        episode_reward += reward
-
-        # Ignore the "done" signal if it comes from hitting the time horizon.
-        # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-        mask = 1 if episode_steps == env._max_episode_steps else float(not done)
-
-        memory.push(state, action, reward, next_state, mask) # Append transition to memory
-
-        state = next_state
-
-    if total_numsteps > args.num_steps:
-        break
-
-   # writer.add_scalar('reward/train', episode_reward, i_episode)
-    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
-
-    if i_episode % 10 == 0 and args.eval is True:
-        avg_reward = 0.
-        episodes = 10
-        for _  in range(episodes):
-            state = env.reset()
-            episode_reward = 0
-            done = False
-            while not done:
-                action = agent.select_action(state, evaluate=True)
-
-                next_state, reward, done, _ = env.step(action)
-                episode_reward += reward
-
-
-                state = next_state
-            avg_reward += episode_reward
-        avg_reward /= episodes
-
-
-        #writer.add_scalar('avg_reward/test', avg_reward, i_episode)
-
-        print("----------------------------------------")
-        print("Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2)))
-        print("----------------------------------------")
-
-env.close()
-"""
