@@ -129,7 +129,7 @@ def train(agent,memory,args, envs, testenv):
                             
                             for _ in range(len(envs)):
                                 listofRandom_actions = [random.random() for _ in range(20)]
-                                listofRandom_actions.append(random.uniform(-10.0, 23.0))
+                                listofRandom_actions.append(random.uniform(-10.0, args.powerlimit))
                                 action = np.array(listofRandom_actions)
                                 listsof_action.append(action)
                         else:
@@ -222,8 +222,11 @@ def train(agent,memory,args, envs, testenv):
                     
 
                 wandb.log({f"SAC_V2I_Rete": np.mean(V2I_Rate_list), f"SAC_V2V_Rete": np.mean(V2V_Rate_list), f"SAC_V2V_fail_pecent": np.mean(Fail_percent_list)})
+                modelperformance = f'V2X_Model_{step}_{(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)):.2f}_{np.mean(Fail_percent_list):.2f}'
+                modelconfig = f'_{args.lambda_v2irate}_{args.lambda_v2vrate + args.lambda_qos}_{args.lambda_enerfyefficient}_{args.powerlimit}_{args.numberofenv}'
 
-                agent.save_model('V2X_Model_' + str(step) + '_' + str(np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list)) + '_' + str(np.mean(Fail_percent_list)))
+
+                agent.save_model(modelconfig + modelperformance)
                 print (f'The number of vehicle is ', len(env.vehicles))
                 print (f'Mean of the V2I rate + V2V rate is that ', np.mean(V2I_Rate_list) + np.mean(V2V_Rate_list))
                 print (f'Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
@@ -232,12 +235,16 @@ def train(agent,memory,args, envs, testenv):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
+    parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args, (V2I, V2V, Qos, Efficient)')
 
     parser.add_argument('--policy', default="Gaussian",
                         help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
     parser.add_argument('--eval', type=bool, default=True,
                         help='Evaluates a policy a policy every 10 episode (default: True)')
+
+    parser.add_argument('--resume', type=bool, default=False,
+                        help='Resume train model (default: False)')
+
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                         help='discount factor for reward (default: 0.99)')
     parser.add_argument('--tau', type=float, default=0.005, metavar='G',
@@ -255,11 +262,9 @@ if __name__ == '__main__':
                         help='maximum number of steps (default: 1000000)')
     parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                         help='hidden size (default: 500)')
-
-
     parser.add_argument('--target_update_interval', type=int, default=10, metavar='N', # 1
                         help='Value target update per no. of updates per step (default: 1)')
-    parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
+    parser.add_argument('--replay_size', type=int, default=10000000, metavar='N',
                         help='size of replay buffer (default: 10000000)')
 
 
@@ -274,8 +279,23 @@ if __name__ == '__main__':
     parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
                         help='model updates per simulator step (default: 1)')
 
-    parser.add_argument('--envs_per_process', type=int, default=4, metavar='N', # 1
-                        help='set environment per process (default: 4)')
+    parser.add_argument('--powerlimit', type=float, default=23.0, metavar='N', # 23.0
+                        help='set agent available power')
+
+    parser.add_argument('--numberofenv', type=int, default=10, metavar='N', # 10
+                        help='set number of env')
+
+    parser.add_argument('--lambda_v2irate', type=float, default=0.1, metavar='N', 
+                        help='set lambda_v2irate')
+
+    parser.add_argument('--lambda_v2vrate', type=float, default=0.4, metavar='N', 
+                        help='set lambda_v2vrate')   
+
+    parser.add_argument('--lambda_qos', type=float, default=0.5, metavar='N', 
+                        help='set lambda_qos')
+
+    parser.add_argument('--lambda_enerfyefficient', type=float, default=0.0, metavar='N', 
+                        help='set lambda_enerfyefficient')
 
     #처음에 랜덤 선택하는 횟수를 지정함
     parser.add_argument('--start_steps', type=int, default=100000, metavar='N',  # 10000
@@ -309,27 +329,44 @@ if __name__ == '__main__':
     #ray instance init
     ray.init()
 
+    powerlimit = args.powerlimit
+    numberofenv = args.numberofenv
+
     # Agent
     statespaceSize = 82
     action_min_list = [0.0 for _ in range(20)]
     action_min_list.append(-10.0)
-
+     
     action_max_list = [1.0 for _ in range(20)]
-    action_max_list.append(23.0)
+    action_max_list.append(powerlimit)
+
+    lambdda_v2irate = args.lambda_v2irate
+    lambdda_v2vrate = args.lambda_v2vrate
+    lambdda_v2vQos = args.lambda_qos
+    lambdda_enerfyefficient = args.lambda_enerfyefficient    
+
+    lambdaweightlist = [lambdda_v2irate, lambdda_v2vrate, lambdda_v2vQos, lambdda_enerfyefficient]
 
     action_space = spaces.Box(
         np.array(action_min_list), np.array(action_max_list), dtype=np.float32)
 
     testenv = Environ(down_lanes, up_lanes, left_lanes,
-                    right_lanes, width, height, nVeh)
+                    right_lanes, width, height, nVeh, powerlimit, lambdaweightlist)
 
     envs = [Environ(down_lanes, up_lanes, left_lanes,
-                    right_lanes, width, height, nVeh) for _ in range(10)] # V2X 환경 생성
+                    right_lanes, width, height, nVeh, powerlimit, lambdaweightlist) for _ in range(numberofenv)] # V2X 환경 생성
 
-    wandb.init(config=args, project="Multi Environment V2V Resource Allocation by SAC")
-    wandb.config["My pytorch SAC"] = "Multi Environment SAC Version 0.1"
+    wandb.init(config=args, project=f"Multi Environment V2V Resource Allocation by SAC")
+    wandb.config["My pytorch SAC"] = "Multi Environment SAC Version 0.2 reward : (V2I, V2V, Qos, Efficient)"
 
     agent = SAC(statespaceSize, action_space, args, envs[0])
+
+    if args.resume == True:
+        actor_path = './models/_sac_actor__0.1_0.9_0.0_20.0_5V2X_Model_8000_168.67_0.16_'
+        critic_path = './models/_sac_critic__0.1_0.9_0.0_20.0_5V2X_Model_8000_168.67_0.16_'
+        agent.load_model(actor_path, critic_path)
+        args.start_steps = 0
+
     memory = ReplayMemory(args.replay_size, args.seed)
 
     train(agent, memory, args, envs, testenv)

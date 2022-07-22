@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn.functional as F
-from torch.optim import Adam
+from torch.optim import *
 from utils import soft_update, hard_update
 from model import GaussianPolicy, QNetwork, DeterministicPolicy
 import numpy as np
@@ -50,12 +50,12 @@ class SAC(object):
         
         self.memory = ReplayMemory(args.replay_size, args.seed)
         self.device = torch.device("cuda" if args.cuda else "cpu")
-        self.device = 'cpu'
         
         print('test wiil be processing by ', self.device)
         self.RB_number = 20
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
+        #self.critic_optim = RMSprop(self.critic.parameters(), momentum=0.95, eps=0.01, lr=args.lr)
         self.training = True
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
@@ -66,15 +66,19 @@ class SAC(object):
                 self.target_entropy = -torch.prod(torch.Tensor(action_space.shape[0]).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
+                #self.alpha_optim = RMSprop([self.log_alpha], momentum=0.95, eps=0.01, lr=args.lr)
+                
 
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+            #self.policy_optim = RMSprop(self.policy.parameters(), momentum=0.95, eps=0.01, lr=args.lr)
 
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
             self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+            #self.policy_optim = RMSprop(self.policy.parameters(), momentum=0.95, eps=0.01, lr=args.lr)
 
     def find_nearest_value(self,array, value):
         array = np.asarray(array)
@@ -85,20 +89,6 @@ class SAC(object):
             array = np.asarray(array)
             idx = (np.abs(array - value)).argmin()
             return idx
-
-    def GetRB_Power(self,powerMin,action, env):
-        
-        powerRange = 23.0 - powerMin
-        
-        select_maxValue  = np.max(action[0:20])
-        candidateList_selRB = np.where(action[0:20] == select_maxValue)
-        selectedRB_index = random.sample(list(candidateList_selRB[0]),k=1)[0]
-
-        
-        actionFromPolicy = (action[20] + 1.0) * (powerRange / 2) + powerMin 
-        selectedPower_index = self.find_nearest_arg(env.V2V_power_dB_List, actionFromPolicy)
-        
-        return selectedRB_index, selectedPower_index
 
     def select_action(self, state, evaluate=False):
 
@@ -167,15 +157,15 @@ class SAC(object):
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
 
     # Save model parameters
-    def save_model(self, env_name, suffix="", actor_path=None, critic_path=None, ):
+    def save_model(self, config_name, suffix="", actor_path=None, critic_path=None, ):
         
         if not os.path.exists('models/'):
             os.makedirs('models/')
 
         if actor_path is None:
-            actor_path = 'models/_sac_actor_{}_{}'.format(env_name, suffix)
+            actor_path = 'models/_sac_actor_{}_{}'.format(config_name, suffix)
         if critic_path is None:
-            critic_path = 'models/_sac_critic_{}_{}'.format(env_name, suffix)
+            critic_path = 'models/_sac_critic_{}_{}'.format(config_name, suffix)
         print('Saving models to {} and {}'.format(actor_path, critic_path))
         torch.save(self.policy.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
@@ -187,37 +177,6 @@ class SAC(object):
             self.policy.load_state_dict(torch.load(actor_path))
         if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))
-    
-    
-    
-    """
-    Scaling 기능 추가 2021/10/25
-    0~999 -> -100.0 ~ 123.0
-    """
-    def GenerateAction(self, action : float):
-        
-        selected_resourceBlock = 0
-        selected_powerdB = -100.0
-        
-        onestep_PowerdB = 123.0/999.0
-        
-        if action < 0.0:
-            selected_resourceBlock = 0
-            selected_powerdB = 0.0
-        elif action >= 20000:
-            selected_resourceBlock = 19
-            selected_powerdB = 123.0
-        else:
-            selected_resourceBlock = int(action / 1000)
-            selected_powerdB = (action % 1000) * onestep_PowerdB
-                            
-        if selected_powerdB > 123.0:
-            selected_powerdB = 123.0
-                            
-        selected_powerdB -= 100.0
-        
-        return selected_resourceBlock, selected_powerdB
-    
     
     def ConvertToRealAction(self, action):
         

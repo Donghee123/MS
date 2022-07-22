@@ -28,12 +28,16 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfHedaers, aryOfDatas):
     
     f.close()
 
-def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
+def play(agent, env, num_vehicle, n_step = 100, n_episode = 20, randommode = False):
         
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
         V2V_Rate_list = np.zeros(number_of_game)
-        Fail_percent_list = np.zeros(number_of_game)  
+        Fail_percent_list = np.zeros(number_of_game)
+        Power_list = np.zeros(number_of_game)  
+        varPower_list = np.zeros(number_of_game)
+        stdPower_list = np.zeros(number_of_game)
+
         training = False
 
         for game_idx in range(number_of_game):
@@ -47,7 +51,7 @@ def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
             
             time_left_list = []
 
-
+            selectedPower = []
             for k in range(test_sample):
                 action_temp = env.action_all_with_power.copy()
                 for i in range(len(env.vehicles)):
@@ -55,13 +59,18 @@ def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
                     sorted_idx = np.argsort(env.individual_time_limit[i, :])
                     for j in sorted_idx:
                         state_old = env.get_state([i, j], isTraining = False)
-                        action = agent.select_action(state_old, evaluate=True)
 
-                        selected_resourceBlock , fselected_powerdB = agent.ConvertToRealAction(action)
-                        
+                        if randommode == False:
+                            action = agent.select_action(state_old, evaluate=True)
+                            selected_resourceBlock , fselected_powerdB = agent.ConvertToRealAction(action)
+                        else:
+                            selected_resourceBlock = random.randint(0,19)
+                            fselected_powerdB = random.uniform(-10., 23.)
+
+
                         env.action_all_with_power[i, j, 0] = selected_resourceBlock
                         env.action_all_with_power[i, j, 1] = fselected_powerdB
-                                
+                        selectedPower.append(fselected_powerdB)
                     #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
                     if i % (len(env.vehicles) / 10) == 1:
                         action_temp = env.action_all_with_power.copy()
@@ -73,22 +82,34 @@ def play(agent, env, num_vehicle, n_step = 100, n_episode = 20):
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
             
             Fail_percent_list[game_idx] = fail_percent
+            Power_list[game_idx] = np.mean(selectedPower)
+            varPower_list[game_idx] = np.var(selectedPower)
+            stdPower_list[game_idx] = np.std(selectedPower)
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
             print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
             print('Mean of Fail percent is that ',fail_percent, np.mean(Fail_percent_list[0:game_idx]))
-            
+            print('Mean of Power is that ', np.mean(Power_list[0:game_idx]))
+            print('Mean of var Power is that ', np.mean(varPower_list[0:game_idx]))
+            print('Mean of std Power is that ', np.mean(stdPower_list[0:game_idx]))
+
         print('The number of vehicle is ', len(env.vehicles))
         print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list))
         print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list))
         print('Mean of Fail percent is that ', np.mean(Fail_percent_list))
-        
-        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
+        print('Mean of Power is that ', np.mean(Power_list))
+        print('Mean of var Power is that ', np.mean(varPower_list))
+        print('Mean of std Power is that ', np.mean(stdPower_list))
+
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list), np.mean(Power_list), np.mean(varPower_list), np.mean(stdPower_list)
 
 sumrateV2IList = []
 sumrateV2VList = []
 
 probabilityOfSatisfiedV2VList = []
+selectedenergyList = []
+selectedenergyvarList = []
+selectedenergystdList = []
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 
@@ -128,7 +149,7 @@ parser.add_argument('--updates_per_step', type=int, default=1, metavar='N', # 1
                         help='model updates per simulator step (default: 1)')
 parser.add_argument('--envs_per_process', type=int, default=4, metavar='N', # 1
                         help='set environment per process (default: 4)')
-#처음에 랜덤 선택하는 횟수를 지정함
+#처음에 랜덤 선택하는 횟수를 지정함 
 parser.add_argument('--start_steps', type=int, default=100000, metavar='N',  # 10000
                         help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--train_step', type=int, default=40000, metavar='N',  # 40000
@@ -188,8 +209,9 @@ memory = ReplayMemory(args.replay_size, args.seed)
 
 arrayOfVeh = [20,40,60,80,100]
 
-actor_path = './models/testmodel/sac_actor_V2X_Model_'
-critic_path = './models/testmodel/sac_critic_V2X_Model_'
+
+actor_path =  os.path.join('models' , 'testmodel', 'sac_actor_V2X_Model_v2iv2vqos')
+critic_path = os.path.join('models' , 'testmodel', 'sac_critic_V2X_Model_v2iv2vqos')
 
 for nVeh in arrayOfVeh:      
     Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
@@ -200,19 +222,24 @@ for nVeh in arrayOfVeh:
     agent.load_model(actor_path = actor_path, critic_path= critic_path) 
 
     #학습 
-    v2i_Sumrate, v2v_Sumrate, probability = play(agent,Env, nVeh, n_step = 100, n_episode = 20)
+    v2i_Sumrate, v2v_Sumrate, probability, meanpower, varpower, stdpower = play(agent,Env, nVeh, n_step = 100, n_episode = 10, randommode=False)
     
     sumrateV2IList.append(v2i_Sumrate)
     sumrateV2VList.append(v2v_Sumrate)
         
     probabilityOfSatisfiedV2VList.append(probability)
-               
+    selectedenergyList.append(meanpower)
+    selectedenergyvarList.append(varpower)
+    selectedenergystdList.append(stdpower)
 
 sumrateV2IListnpList = np.array(sumrateV2IList)
 sumrateV2VListnpList = np.array(sumrateV2VList)
 sumrateV2V_V2IListnpList = sumrateV2IListnpList + sumrateV2VListnpList
 probabilityOfSatisfiedV2VnpList = np.array(probabilityOfSatisfiedV2VList)
-  
+useMeanPowernpList = np.array(selectedenergyList)
+useVarPowernpList = np.array(selectedenergyvarList)
+useStdPowernpList = np.array(selectedenergystdList)
+
 print('V2I sumrate')
 print(sumrateV2IListnpList)
 print('V2V sumrate')
@@ -221,15 +248,28 @@ print('V2V + V2I rate')
 print(sumrateV2IListnpList + sumrateV2VListnpList)
 print('Outage probability')
 print(probabilityOfSatisfiedV2VnpList)
+print('Use Power mean')
+print(useMeanPowernpList)
+print('Use Power var')
+print(useVarPowernpList)
+print('Use Power std')
+print(useStdPowernpList)
+
 
 allData=[]
 allData.append(sumrateV2IListnpList)
 allData.append(sumrateV2VListnpList)
 allData.append(sumrateV2V_V2IListnpList)
 allData.append(probabilityOfSatisfiedV2VnpList)
+allData.append(useMeanPowernpList)
+allData.append(useVarPowernpList)
+allData.append(useStdPowernpList)
+
 allData = np.transpose(allData)
   
 folderPath = './ResultData'
 csvFileName = 'ResultData.csv'
+aryOfHedaers = ['v2i', 'v2v','v2i+v2v', 'qos', 'mean power', 'var power', 'std power']
+
 createFolder(folderPath)
-MakeCSVFile(folderPath, csvFileName, allData)
+MakeCSVFile(folderPath, csvFileName, aryOfHedaers, allData)
