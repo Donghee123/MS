@@ -78,7 +78,7 @@ def main(_):
   width = 750
   height = 1299
   
-  arrayOfVeh = [20, 40, 60, 80, 100] # for play
+  arrayOfVeh = [40, 40, 60, 80, 100] # for play
   #arrayOfVeh = [20] # for train
 
   sumrateV2IList = []

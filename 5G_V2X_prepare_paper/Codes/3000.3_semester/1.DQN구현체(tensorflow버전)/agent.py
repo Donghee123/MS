@@ -12,6 +12,7 @@ import wandb
 import argparse
 import pickle
 import _pickle as cPickle
+import pdb
 
 class Agent(BaseModel):
     def __init__(self, config, environment, sess):
@@ -89,6 +90,7 @@ class Agent(BaseModel):
                     
         time_remaining = np.asarray([self.env.demand[idx[0],idx[1]] / self.env.demand_amount])
         load_remaining = np.asarray([self.env.individual_time_limit[idx[0],idx[1]] / self.env.V2V_limit])
+        pdb.set_trace()
         #print('shapes', time_remaining.shape,load_remaining.shape)
         # V2I_channel : #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 볼 수 있는 Interference
@@ -100,6 +102,9 @@ class Agent(BaseModel):
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
 
     def predictwidthModel(self, model, s_t):
+        # ==========================
+        #  Select actions
+        # ======================
         s_t = np.expand_dims(s_t, 0)
         action =  model.predict(s_t)
         actionIndex = np.argmax(action)
