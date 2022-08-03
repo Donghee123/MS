@@ -3,7 +3,7 @@ import numpy as np
 import time
 import random
 import math
-
+import pdb
 
 
     
@@ -162,6 +162,7 @@ class Environ:
 
         self.V2V_Interference_all = np.zeros((self.n_Veh, 3, self.n_RB)) + self.sig2
         self.n_step = 0
+        self.sub_fc = 1500
         
     def add_new_vehicles(self, start_position, start_direction, start_velocity):    
         self.vehicles.append(Vehicle(start_position, start_direction, start_velocity))
@@ -499,9 +500,12 @@ class Environ:
         V2I_Signals = self.V2I_power_dB-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure
         V2I_Rate = np.log2(1 + np.divide(10**(V2I_Signals/10), self.V2I_Interference[0:min(self.n_RB,self.n_Veh)]))
 
-
+        
          # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_test * 1500    # decrease the demand, V2V Link에서 요구하는 데이터 량
+        #if self.n_step % 5 == 0:
+            #pdb.set_trace()
+
+        self.demand -= V2V_Rate * self.update_time_test * self.sub_fc    # decrease the demand, V2V Link에서 요구하는 데이터 량
         self.test_time_count -= self.update_time_test               # compute the time left for estimation
         self.individual_time_limit -= self.update_time_test         # compute the time left for individual V2V transmission
         self.individual_time_interval -= self.update_time_test      # compute the time interval left for next transmission
@@ -528,7 +532,7 @@ class Environ:
         #    self.failed_transmission = 0
         failed_percentage = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001)
         # print('Percentage of failed', np.sum(new_active), self.failed_transmission, self.failed_transmission + self.success_transmission , failed_percentage)    
-        return V2I_Rate, failed_percentage #failed_percentage
+        return V2I_Rate, V2V_Rate, failed_percentage #failed_percentage
 
         
     def Compute_Performance_Reward_fast_fading_with_power_asyn(self, actions_power):   # revising based on the fast fading part
@@ -577,7 +581,7 @@ class Environ:
         #print("V2I information", V2I_Signals, self.V2I_Interference, V2I_Rate)
         
         # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_asyn * 1500    # decrease the demand, 계산된 V2V_Rate를 보고 차량들의 요구하는 비트수를 감소 시킴. 즉 일정 SINR을 가지고 데이터 전송을 의미함.
+        self.demand -= V2V_Rate * self.update_time_asyn * self.sub_fc    # decrease the demand, 계산된 V2V_Rate를 보고 차량들의 요구하는 비트수를 감소 시킴. 즉 일정 SINR을 가지고 데이터 전송을 의미함.
         self.test_time_count -= self.update_time_asyn               # compute the time left for estimation 
         self.individual_time_limit -= self.update_time_asyn         # compute the time left for individual V2V transmission
         self.individual_time_interval -= self.update_time_asyn     # compute the time interval left for next transmission
@@ -707,7 +711,7 @@ class Environ:
                     V2V_Rate = V2V_Rate_cur.copy()
                 
                 V2V_Rate_list[i, power_idx] = np.sum(V2V_Rate_cur)
-                Deficit_list[i,power_idx] = 0 - 1 * np.sum(np.maximum(np.zeros(V2V_Signal_temp.shape), (self.demand - self.individual_time_limit * V2V_Rate_cur * 1500)))
+                Deficit_list[i,power_idx] = 0 - 1 * np.sum(np.maximum(np.zeros(V2V_Signal_temp.shape), (self.demand - self.individual_time_limit * V2V_Rate_cur * self.sub_fc)))
         
         Interference = np.zeros(self.n_RB)  
         V2I_Rate_list = np.zeros((self.n_RB,len(self.V2V_power_dB_List)))    # 3 of power level, V2I link Channel capacity를 저장함.
@@ -730,7 +734,7 @@ class Environ:
                 V2I_Rate_list[i, j] = np.sum(np.log2(1 + np.divide(10**((self.V2I_power_dB + self.vehAntGain + self.bsAntGain \
                 - self.bsNoiseFigure-self.V2I_channels_abs[0:min(self.n_RB,self.n_Veh)])/10), V2I_Interference_temp[0:min(self.n_RB,self.n_Veh)])))
                      
-        self.demand -= V2V_Rate * self.update_time_train * 1500
+        self.demand -= V2V_Rate * self.update_time_train * self.sub_fc
         self.test_time_count -= self.update_time_train
         
         #각기 다른 차량들의 time_limit을 1사이클만큼 시간이 지남을 의미       
@@ -856,6 +860,7 @@ class Environ:
         #print("time left", time_left)
         #return t
         return t - (self.V2V_limit - time_left)/self.V2V_limit
+        
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
     def act_asyn(self, actions):
         self.n_step += 1

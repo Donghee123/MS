@@ -90,7 +90,7 @@ class Agent(BaseModel):
                     
         time_remaining = np.asarray([self.env.demand[idx[0],idx[1]] / self.env.demand_amount])
         load_remaining = np.asarray([self.env.individual_time_limit[idx[0],idx[1]] / self.env.V2V_limit])
-        pdb.set_trace()
+        #pdb.set_trace()
         #print('shapes', time_remaining.shape,load_remaining.shape)
         # V2I_channel : #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         # V2V_interference : 이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 볼 수 있는 Interference
@@ -98,6 +98,7 @@ class Agent(BaseModel):
         # 근접한 차량이 선택한 리소스 블록 상태
         # 남은 시간
         # 걸린 시간
+
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
 
@@ -531,7 +532,7 @@ class Agent(BaseModel):
         model.add(tf.keras.layers.Dense(n_hidden_2, activation='relu'))
         model.add(tf.keras.layers.Dense(n_hidden_3, activation='relu'))
         model.add(tf.keras.layers.Dense(n_output, activation='relu'))
-        rootpath = '/home/cnlab1/workspace/MS/5G_V2X_prepare_paper/Codes/3000.3_semester/1.DQN구현체(tensorflow버전)/weight/v2i,v2v,qos,power'
+        rootpath = '/home/cnlab1/workspace/MS/5G_V2X_prepare_paper/Codes/3000.3_semester/1.DQN구현체(tensorflow버전)/weight/v2i,v2v,qos'
         weight1 = self.loadparameter( os.path.join(rootpath, 'encoder_h1.pkl') ) 
         weight2 = self.loadparameter( os.path.join(rootpath, 'encoder_h2.pkl') ) 
         weight3 = self.loadparameter( os.path.join(rootpath, 'encoder_h3.pkl') ) 
@@ -548,7 +549,8 @@ class Agent(BaseModel):
 
         return model
 
-    def playwithKeras(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False):
+    def playwithKeras(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False, use_async = True):
+        use_async = use_async
         number_of_game = n_episode
         V2I_Rate_list = np.zeros(number_of_game)
         V2V_Rate_list = np.zeros(number_of_game)
@@ -557,7 +559,11 @@ class Agent(BaseModel):
         stdpower_list = np.zeros(number_of_game)
         V2V_AvGRate_list = np.zeros(number_of_game)
         Fail_percent_list = np.zeros(number_of_game)
-        
+
+        selcted_prob_23dBm = []
+        selcted_prob_10dBm = []
+        selcted_prob_5dBm = []
+
         model = self.load_keras_model()
         
         for game_idx in range(number_of_game):
@@ -600,14 +606,21 @@ class Agent(BaseModel):
                         self.merge_action([i, j], action)
                     
                     #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
-                    if i % (len(self.env.vehicles) / 10) == 1:
+                    if (i % (len(self.env.vehicles) / 10) == 1) & (use_async is True):
                         action_temp = self.action_all_with_power.copy()
                         rewardOfV2I, rewardOfV2V, percent = self.env.act_asyn(action_temp)  # self.action_all)
                         #print('percent : ', percent)
                         Rate_list.append(np.sum(rewardOfV2I))
                         Rate_list_V2V.append(np.sum(rewardOfV2V))
                         Rate_list_V2VAvg.append(np.mean(rewardOfV2V))
-                        
+
+                if use_async is False:
+                    action_temp = self.action_all_with_power.copy()
+                    rewardOfV2I, rewardOfV2V, percent = self.env.act(action_temp) 
+                    Rate_list.append(np.sum(rewardOfV2I))
+                    Rate_list_V2V.append(np.sum(rewardOfV2V))
+                    Rate_list_V2VAvg.append(np.mean(rewardOfV2V))  
+
                 # print("actions", self.action_all_with_power)
             
             selected_power = [23 for _ in range(len(power_select_list_0))] + [10 for _ in range(len(power_select_list_1))] + [5 for _ in range(len(power_select_list_2))]
@@ -633,6 +646,7 @@ class Agent(BaseModel):
             plt.legend()
             plt.grid()
             plt.show()
+
             
             V2I_Rate_list[game_idx] = np.mean(np.asarray(Rate_list))
             V2V_Rate_list[game_idx] = np.mean(np.asarray(Rate_list_V2V))
@@ -643,6 +657,10 @@ class Agent(BaseModel):
             power_list[game_idx] = np.mean(selected_power)
             varpower_list[game_idx] = np.var(selected_power)
             stdpower_list[game_idx] = np.std(selected_power)
+            selcted_prob_23dBm.append([bin_edges[:-1]*0.1 + 0.01, p_0])
+            selcted_prob_10dBm.append([bin_edges[:-1]*0.1 + 0.01, p_1])
+            selcted_prob_5dBm.append([bin_edges[:-1]*0.1 + 0.01, p_2])
+
 
             print('Mean of the V2I rate is that ', np.mean(V2I_Rate_list[0:game_idx] ))
             print('Mean of the V2V rate is that ', np.mean(V2V_Rate_list[0:game_idx] ))
@@ -651,6 +669,8 @@ class Agent(BaseModel):
             print('Mean of Selected Power ',np.mean(power_list[0:game_idx]))
             print('Mean of Selected var Power ',np.mean(varpower_list[0:game_idx]))
             print('Mean of Selected std Power ',np.mean(stdpower_list[0:game_idx]))
+ 
+
             # print('action is that', action_temp[0,:])
 
         print('The number of vehicle is ', len(self.env.vehicles))
@@ -662,8 +682,8 @@ class Agent(BaseModel):
         print('Mean of Selected Power ',np.mean(power_list))
         print('Mean of Selected var Power ',np.mean(varpower_list))
         print('Mean of Selected std Power ',np.mean(stdpower_list))
-
         # print('Test Reward is ', np.mean(test_result))
         
-        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list), np.mean(power_list),  np.mean(varpower_list),  np.mean(stdpower_list)
+        return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list), np.mean(power_list),  np.mean(varpower_list),  np.mean(stdpower_list), \
+            selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm
 

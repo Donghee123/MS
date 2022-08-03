@@ -7,7 +7,7 @@ from Environment import *
 import pandas as pd
 import csv
 import os
-
+import pdb
 
 
 
@@ -20,16 +20,11 @@ flags.DEFINE_string('model', 'm1', 'Type of model')
 flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
 flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 
-# Environment
-flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
-flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
-
 # Etc
 flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
 flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
-flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
-flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
+
 
 FLAGS = flags.FLAGS
 
@@ -56,7 +51,22 @@ def MakeCSVFile(strFolderPath, strFilePath, aryOfDatas):
         wr.writerow(aryOfDatas[i])
     
     f.close()
+
+def MakeTime_PowerCSVFile(strFolderPath, strFilePath, selcted_prob_23dBmnpList, selcted_prob_10dBmnpList, selcted_prob_5dBmnpList):
+    strTotalPath = "%s\%s" % (strFolderPath,strFilePath)
     
+    for i in range(len(selcted_prob_23dBmnpList)): #차량의 수 : 20, 40, 60, 80, 100 에 대한 인덱스
+      for ii in range(len(selcted_prob_23dBmnpList[i])): #에피소드 수 : 보통 20개로 함.
+
+        f = open(f'{strTotalPath}_{arrayOfVeh[i]}_{ii}','w', newline='')
+        wr = csv.writer(f)
+        wr.writerow(["remain time, selcted prob 23dBm", "selcted prob 10dBm", "selcted prob 5dBm"])
+
+        for iii in range(len(selcted_prob_23dBmnpList[i][ii][0])):
+          wr.writerow([selcted_prob_23dBmnpList[i][ii][0][iii], selcted_prob_23dBmnpList[i][ii][1][iii], selcted_prob_10dBmnpList[i][ii][1][iii], selcted_prob_5dBmnpList[i][ii][1][iii]])
+      
+        f.close()
+
 if FLAGS.gpu_fraction == '':
   raise ValueError("--gpu_fraction should be defined")
 
@@ -68,8 +78,11 @@ def calc_gpu_fraction(fraction_string):
   print(" [*] GPU : %.4f" % fraction)
   return fraction
 
-def main(_):
+arrayOfVeh = [20]#, 40, 60, 80, 100] # for play
+  #arrayOfVeh = [20] # for train
 
+def main(_):
+  use_async = False
   up_lanes = [3.5/2,3.5/2 + 3.5,250+3.5/2, 250+3.5+3.5/2, 500+3.5/2, 500+3.5+3.5/2]
   down_lanes = [250-3.5-3.5/2,250-3.5/2,500-3.5-3.5/2,500-3.5/2,750-3.5-3.5/2,750-3.5/2]
   left_lanes = [3.5/2,3.5/2 + 3.5,433+3.5/2, 433+3.5+3.5/2, 866+3.5/2, 866+3.5+3.5/2]
@@ -78,8 +91,6 @@ def main(_):
   width = 750
   height = 1299
   
-  arrayOfVeh = [40, 40, 60, 80, 100] # for play
-  #arrayOfVeh = [20] # for train
 
   sumrateV2IList = []
   sumrateV2VList = []
@@ -88,6 +99,10 @@ def main(_):
   energyeffcientList = []
   varpowerList = []
   stdpowerList = []
+
+  selcted_prob_23dBmList = []
+  selcted_prob_10dBmList = []
+  selcted_prob_5dBmList = []
 
   for nVeh in arrayOfVeh:      
       Env = Environ(down_lanes,up_lanes,left_lanes,right_lanes, width, height,nVeh)
@@ -101,8 +116,14 @@ def main(_):
         config = []
         agent = Agent(config, Env, sess)
         agent.training = False
+
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower = agent.playwithKeras(n_step = 100, n_episode = 20, random_choice = False)
+        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower, selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm = agent.playwithKeras(n_step = 200, n_episode = 100, random_choice = False, use_async = use_async)
+        
+        selcted_prob_23dBmList.append(selcted_prob_23dBm)
+        selcted_prob_10dBmList.append(selcted_prob_10dBm)
+        selcted_prob_5dBmList.append(selcted_prob_5dBm)
+
         sumrateV2IList.append(v2i_Sumrate)
         sumrateV2VList.append(v2v_Sumrate)
         probabilityOfSatisfiedV2VList.append(probability)
@@ -117,6 +138,9 @@ def main(_):
   meanpowernpList = np.array(energyeffcientList)
   varpowernpList = np.array(varpowerList)
   stdpowernpList = np.array(stdpowerList)
+  selcted_prob_23dBmnpList = np.array(selcted_prob_23dBmList)
+  selcted_prob_10dBmnpList = np.array(selcted_prob_10dBmList)
+  selcted_prob_5dBmnpList = np.array(selcted_prob_5dBmList)
 
   print('V2I sumrate')
   print(sumrateV2IListnpList)
@@ -142,14 +166,17 @@ def main(_):
   allData.append(meanpowernpList)
   allData.append(varpowernpList)
   allData.append(stdpowernpList)
+
   allData = np.transpose(allData)
   
   folderPath = './ResultData'
   csvFileName = 'ResultData.csv'
-  
+  csvtime_powerName = 'Result_time_power_Data.csv'
+
   createFolder(folderPath)
   MakeCSVFile(folderPath, csvFileName, allData)
-  
+
+  MakeTime_PowerCSVFile(folderPath, csvtime_powerName, selcted_prob_23dBmnpList, selcted_prob_10dBmnpList, selcted_prob_5dBmnpList)
   
 if __name__ == '__main__':
     tf.app.run()
