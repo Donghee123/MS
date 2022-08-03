@@ -118,7 +118,7 @@ def main(_):
         agent.training = False
 
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower, selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm = agent.playwithKeras(n_step = 200, n_episode = 100, random_choice = False, use_async = use_async)
+        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower, selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm = agent.playwithKeras(n_step = 200, n_episode = 1000, random_choice = False, use_async = use_async)
         
         selcted_prob_23dBmList.append(selcted_prob_23dBm)
         selcted_prob_10dBmList.append(selcted_prob_10dBm)

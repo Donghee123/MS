@@ -121,7 +121,7 @@ def play_multi_agent(agents, env, n_step, n_episode, use_async):
             for j in sorted_idx:
               state_old = agent.get_state_external_env(agentindex, env, [i, j])
               time_left_list[agentindex].append(state_old[-1])
-              action = agent.predictwidthModel(agent, state_old)
+              action = agent.predictwidthModel(state_old)
                           
               if state_old[-1] <=0:
                 continue
@@ -140,7 +140,7 @@ def play_multi_agent(agents, env, n_step, n_episode, use_async):
               #시뮬레이션 차량의 갯수 / 10 만큼 action이 정해지면 act를 수행함.
               if (i % (len(env.vehicles) / 10) == 1) & (use_async is True):
                 action_temp = agent.action_all_with_power.copy()
-                rewardOfV2I, rewardOfV2V, percent = env.act_asyn(action_temp) 
+                rewardOfV2I, rewardOfV2V, percent = env.act_asyn(agentindex, action_temp) 
                 
                 Rate_list[agentindex].append(np.sum(rewardOfV2I))
                 Rate_list_V2V[agentindex].append(np.sum(rewardOfV2V))
@@ -148,7 +148,7 @@ def play_multi_agent(agents, env, n_step, n_episode, use_async):
 
           if use_async is False:
             action_temp = agent.action_all_with_power.copy()
-            rewardOfV2I, rewardOfV2V, percent = env.act(action_temp) 
+            rewardOfV2I, rewardOfV2V, percent = env.act(agentindex, action_temp) 
             Rate_list[agentindex].append(np.sum(rewardOfV2I))
             Rate_list_V2V[agentindex].append(np.sum(rewardOfV2V))
             Rate_list_V2VAvg[agentindex].append(np.mean(rewardOfV2V))  
@@ -215,7 +215,10 @@ def main(_):
   
   width = 750
   height = 1299
-  
+  modelPaths = [
+    '/home/cnlab1/workspace/MS/5G_V2X_prepare_paper/Codes/3000.3_semester/4.DQN구현체(tensorflow버전)_single_environement_multi_agent/weight/v2i,v2v,qos',
+    '/home/cnlab1/workspace/MS/5G_V2X_prepare_paper/Codes/3000.3_semester/4.DQN구현체(tensorflow버전)_single_environement_multi_agent/weight/v2i,v2v,qos,power'
+  ]
 
   sumrateV2IList = []
   sumrateV2VList = []
@@ -239,11 +242,16 @@ def main(_):
     
       with tf.Session(config=config) as sess:
         config = []
-        agent = Agent(config, Env, sess)
-        agent.training = False
+
+        agents = []
+        for path in modelPaths:   
+          agent = Agent(config, Env, sess)
+          agent.load_keras_model(path)
+          agent.training = False
+          agents.append(agent)
 
         #학습 전
-        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower, selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm = agent.playwithKeras(n_step = 200, n_episode = 20, random_choice = False, use_async = use_async)
+        v2i_Sumrate, v2v_Sumrate, probability, powersum, varpower, stdpower, selcted_prob_23dBm, selcted_prob_10dBm, selcted_prob_5dBm = play_multi_agent(agents = agents, n_step = 200, n_episode = 1000, random_choice = False, use_async = use_async)
         
         selcted_prob_23dBmList.append(selcted_prob_23dBm)
         selcted_prob_10dBmList.append(selcted_prob_10dBm)

@@ -456,14 +456,14 @@ class Environ:
         self.V2I_channels_with_fastfading = V2I_channels_with_fastfading - self.V2Ichannels.FastFading
         #print("V2I channels", self.V2I_channels_with_fastfading)
         
-    def Compute_Performance_Reward_fast_fading_with_power(self, actions_power):   # revising based on the fast fading part
+    def Compute_Performance_Reward_fast_fading_with_power(self, agentindex, actions_power):   # revising based on the fast fading part
         actions = actions_power.copy()[:,:,0]  # the channel_selection_part
         power_selection = actions_power.copy()[:,:,1]
         Rate = np.zeros(len(self.vehicles))
         Interference = np.zeros(self.n_RB)  # V2V signal interference to V2I links
         for i in range(len(self.vehicles)):
             for j in range(len(actions[i,:])):
-                if not self.activate_links[i,j]:
+                if not self.activate_links[agentindex][i,j]:
                     continue
                 #print('power selection,', power_selection[i,j])  
                 Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]]  - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)  # fast fading
@@ -475,7 +475,7 @@ class Environ:
         # remove the effects of none active links
         #print('shapes', actions.shape, self.activate_links.shape)
         #print(not self.activate_links)
-        actions[(np.logical_not(self.activate_links))] = -1
+        actions[(np.logical_not(self.activate_links[agentindex]))] = -1
         #print('action are', actions)
         for i in range(self.n_RB):
             indexes = np.argwhere(actions == i)
@@ -494,8 +494,8 @@ class Environ:
                     V2V_Interference[indexes[k,0],indexes[k,1]] += 10**((self.V2V_power_dB_List[power_selection[indexes[j,0],indexes[j,1]]] - self.V2V_channels_with_fastfading[indexes[j][0]][receiver_k][i]+ 2*self.vehAntGain - self.vehNoiseFigure)/10)               
        
         self.V2V_Interference = V2V_Interference + self.sig2
-        V2V_Rate = np.zeros(self.activate_links.shape)
-        V2V_Rate[self.activate_links] = np.log2(1 + np.divide(V2V_Signal[self.activate_links], self.V2V_Interference[self.activate_links]))
+        V2V_Rate = np.zeros(self.activate_links[agentindex].shape)
+        V2V_Rate[self.activate_links[agentindex]] = np.log2(1 + np.divide(V2V_Signal[self.activate_links], self.V2V_Interference[self.activate_links[agentindex]]))
 
         #print("V2V Rate", V2V_Rate * self.update_time_test * 1500)
         #print ('V2V_Signal is ', np.log(np.mean(V2V_Signal[self.activate_links])))
@@ -507,10 +507,10 @@ class Environ:
         #if self.n_step % 5 == 0:
             #pdb.set_trace()
 
-        self.demand -= V2V_Rate * self.update_time_test * self.sub_fc    # decrease the demand, V2V Link에서 요구하는 데이터 량
-        self.test_time_count -= self.update_time_test               # compute the time left for estimation
-        self.individual_time_limit -= self.update_time_test         # compute the time left for individual V2V transmission
-        self.individual_time_interval -= self.update_time_test      # compute the time interval left for next transmission
+        self.demand[agentindex] -= V2V_Rate * self.update_time_test * self.sub_fc    # decrease the demand, V2V Link에서 요구하는 데이터 량
+        self.test_time_count[agentindex] -= self.update_time_test               # compute the time left for estimation
+        self.individual_time_limit[agentindex] -= self.update_time_test         # compute the time left for individual V2V transmission
+        self.individual_time_interval[agentindex] -= self.update_time_test      # compute the time interval left for next transmission
 
         # --- update the demand ---
         
@@ -525,19 +525,19 @@ class Environ:
         # -- update the statistics---
         early_finish = np.multiply(self.demand <= 0, self.activate_links)        
         unqulified = np.multiply(self.individual_time_limit <=0, self.activate_links)
-        self.activate_links[np.add(early_finish, unqulified)] = False 
+        self.activate_links[agentindex][np.add(early_finish, unqulified)] = False 
         #print('number of activate links is', np.sum(self.activate_links)) 
-        self.success_transmission += np.sum(early_finish)
-        self.failed_transmission += np.sum(unqulified)
+        self.success_transmission[agentindex] += np.sum(early_finish)
+        self.failed_transmission[agentindex] += np.sum(unqulified)
         #if self.n_step % 1000 == 0 :
         #    self.success_transmission = 0
         #    self.failed_transmission = 0
-        failed_percentage = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001)
+        failed_percentage = self.failed_transmission[agentindex]/(self.failed_transmission[agentindex] + self.success_transmission[agentindex] + 0.0001)
         # print('Percentage of failed', np.sum(new_active), self.failed_transmission, self.failed_transmission + self.success_transmission , failed_percentage)    
         return V2I_Rate, V2V_Rate, failed_percentage #failed_percentage
 
         
-    def Compute_Performance_Reward_fast_fading_with_power_asyn(self, actions_power):   # revising based on the fast fading part
+    def Compute_Performance_Reward_fast_fading_with_power_asyn(self, agentindex, actions_power):   # revising based on the fast fading part
         # ===================================================
         #  --------- Used for Testing -------
         # ===================================================
@@ -546,7 +546,7 @@ class Environ:
         Interference = np.zeros(self.n_RB)   # Calculate the interference from V2V to V2I     V2I의 간섭신호를 계산함. V2I Interference = V2V 간섭 신호 + V2I 간섭 신호
         for i in range(len(self.vehicles)):
             for j in range(len(actions[i,:])):
-                if not self.activate_links[i,j]:
+                if not self.activate_links[agentindex][i,j]:
                     continue
                 Interference[actions[i][j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] - self.V2I_channels_with_fastfading[i, actions[i,j]] + self.vehAntGain + self.bsAntGain - self.bsNoiseFigure)/10)
 
@@ -555,7 +555,7 @@ class Environ:
         V2V_Interference = np.zeros((len(self.vehicles), 3))
         V2V_Signal = np.zeros((len(self.vehicles), 3))
         Interfence_times = np.zeros((len(self.vehicles), 3))
-        actions[(np.logical_not(self.activate_links))] = -1   #들어온 action에서 동일한 리소스블럭을 사용하는 V2V의 간섭 신호들을 더함.
+        actions[(np.logical_not(self.activate_links[agentindex]))] = -1   #들어온 action에서 동일한 리소스블럭을 사용하는 V2V의 간섭 신호들을 더함.
         for i in range(self.n_RB):
             indexes = np.argwhere(actions == i) #indexes [17, 1] -> 17번번째 차량이 1번번째 차량에게 데이터를 전송하는 것임. -> 현재 action과 동일한 리소스 블럭을 사용하는 V2V Link
             for j in range(len(indexes)):
@@ -583,25 +583,25 @@ class Environ:
         #print("V2I information", V2I_Signals, self.V2I_Interference, V2I_Rate)
         
         # -- compute the latency constraits --
-        self.demand -= V2V_Rate * self.update_time_asyn * self.sub_fc    # decrease the demand, 계산된 V2V_Rate를 보고 차량들의 요구하는 비트수를 감소 시킴. 즉 일정 SINR을 가지고 데이터 전송을 의미함.
-        self.test_time_count -= self.update_time_asyn               # compute the time left for estimation 
-        self.individual_time_limit -= self.update_time_asyn         # compute the time left for individual V2V transmission
-        self.individual_time_interval -= self.update_time_asyn     # compute the time interval left for next transmission
+        self.demand[agentindex] -= V2V_Rate * self.update_time_asyn * self.sub_fc    # decrease the demand, 계산된 V2V_Rate를 보고 차량들의 요구하는 비트수를 감소 시킴. 즉 일정 SINR을 가지고 데이터 전송을 의미함.
+        self.test_time_count[agentindex] -= self.update_time_asyn               # compute the time left for estimation 
+        self.individual_time_limit[agentindex] -= self.update_time_asyn         # compute the time left for individual V2V transmission
+        self.individual_time_interval[agentindex] -= self.update_time_asyn     # compute the time interval left for next transmission
 
         # --- update the demand ---
         new_active = self.individual_time_interval <= 0
-        self.activate_links[new_active] = True
-        self.individual_time_interval[new_active] = np.random.exponential(0.02, self.individual_time_interval[new_active].shape) + self.V2V_limit
-        self.individual_time_limit[new_active] = self.V2V_limit
-        self.demand[new_active] = self.demand_amount
+        self.activate_links[agentindex][new_active] = True
+        self.individual_time_interval[agentindex][new_active] = np.random.exponential(0.02, self.individual_time_interval[new_active].shape) + self.V2V_limit
+        self.individual_time_limit[agentindex][new_active] = self.V2V_limit
+        self.demand[agentindex][new_active] = self.demand_amount
         
         # -- update the statistics--- 
         early_finish = np.multiply(self.demand <= 0, self.activate_links) #데이터 전송을 제한시간안에  모두 마친 링크
         unqulified = np.multiply(self.individual_time_limit <=0, self.activate_links)#데이터 전송을 제한시간 안에  마친 링크
-        self.activate_links[np.add(early_finish, unqulified)] = False #데이터 전송을 제한 시간안에 모두 마치거나, 제한 시간안에 못보낸 링크들을 activate link에서 False로 link를 재활성화 시킴.
-        self.success_transmission += np.sum(early_finish) #데이터 전송을 마친 경우에 한해 success_transmission에 더함
-        self.failed_transmission += np.sum(unqulified)  #데이터 전송을 못 마친 경우에 한해 failed_transmission에 더함
-        fail_percent = self.failed_transmission/(self.failed_transmission + self.success_transmission + 0.0001) #두 확률을 계산하여 실패확률을 계산함. fail_percent는 제한시간안에 요구한 데이터 량만큼 처리 했는지를 의미함.    
+        self.activate_links[agentindex][np.add(early_finish, unqulified)] = False #데이터 전송을 제한 시간안에 모두 마치거나, 제한 시간안에 못보낸 링크들을 activate link에서 False로 link를 재활성화 시킴.
+        self.success_transmission[agentindex] += np.sum(early_finish) #데이터 전송을 마친 경우에 한해 success_transmission에 더함
+        self.failed_transmission[agentindex] += np.sum(unqulified)  #데이터 전송을 못 마친 경우에 한해 failed_transmission에 더함
+        fail_percent = self.failed_transmission[agentindex]/(self.failed_transmission[agentindex] + self.success_transmission[agentindex] + 0.0001) #두 확률을 계산하여 실패확률을 계산함. fail_percent는 제한시간안에 요구한 데이터 량만큼 처리 했는지를 의미함.    
         
         returnV2IReward = V2I_Rate
         returnV2VReward = V2V_Rate
@@ -820,7 +820,7 @@ class Environ:
             self.test_time_count = 10
         return V2I_Rate_list, Deficit_list, self.individual_time_limit[idx[0], idx[1]]
 
-    def Compute_Interference(self, actions):
+    def Compute_Interference(self, agentindex, actions):
         # ====================================================
         # Compute the Interference to each channel_selection
         # ====================================================
@@ -828,7 +828,7 @@ class Environ:
         if len(actions.shape) == 3:
             channel_selection = actions.copy()[:,:,0]
             power_selection = actions[:,:,1]
-            channel_selection[np.logical_not(self.activate_links)] = -1
+            channel_selection[np.logical_not(self.activate_links[agentindex])] = -1
             for i in range(self.n_RB):
                 for k in range(len(self.vehicles)):
                     for m in range(len(channel_selection[k,:])):
@@ -842,7 +842,7 @@ class Environ:
                             V2V_Interference[k, m, channel_selection[i,j]] += 10**((self.V2V_power_dB_List[power_selection[i,j]] -\
                             self.V2V_channels_with_fastfading[i][self.vehicles[k].destinations[m]][channel_selection[i,j]] + 2*self.vehAntGain - self.vehNoiseFigure)/10)
 
-        self.V2V_Interference_all = 10 * np.log10(V2V_Interference)
+        self.V2V_Interference_all[agentindex] = 10 * np.log10(V2V_Interference)
                 
         
     def renew_demand(self):
@@ -935,40 +935,24 @@ class Environ:
         return t - (self.V2V_limit - time_left)/self.V2V_limit
         
     #모든 차량이 선택을 하면 renew_position, renew_channels_fastfading()를 함 -> 채널 재갱신
-    def act_asyn(self, actions):
+    def act_asyn(self, agentindex, actions):
         self.n_step += 1
         if self.n_step % 10 == 0:
             self.renew_positions()            
             self.renew_channels_fastfading()
-        reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
-        self.Compute_Interference(actions)
-        return reward
-    def act(self, actions):
-        # simulate the next state after the action is given
-        self.n_step += 1        
-        reward = self.Compute_Performance_Reward_fast_fading_with_power(actions)
-        self.renew_positions()            
-        self.renew_channels_fastfading()
-        self.Compute_Interference(actions)
-        return reward
-    
-    def act_asyn_individual_agent(self, agentindex, actions):
-        self.n_step += 1
-        if self.n_step % 10 == 0:
-            self.renew_positions()            
-            self.renew_channels_fastfading()
-        reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(actions)
-        self.Compute_Interference(actions)
+        reward = self.Compute_Performance_Reward_fast_fading_with_power_asyn(agentindex, actions)
+        self.Compute_Interference(agentindex, actions)
         return reward
 
-    def act_individual_agent(self, agentindex, actions):
+    def act(self, agentindex, actions):
         # simulate the next state after the action is given
         self.n_step += 1        
-        reward = self.Compute_Performance_Reward_fast_fading_with_power(actions)
+        reward = self.Compute_Performance_Reward_fast_fading_with_power(agentindex, actions)
         self.renew_positions()            
         self.renew_channels_fastfading()
-        self.Compute_Interference(actions)
+        self.Compute_Interference(agentindex, actions)
         return reward
+d
 
     def new_random_game(self, n_Veh = 0):
         # make a new game

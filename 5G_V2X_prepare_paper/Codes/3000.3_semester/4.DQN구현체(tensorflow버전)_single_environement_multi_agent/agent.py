@@ -113,7 +113,7 @@ class Agent(BaseModel):
         
         #idx번째 차량이 전송하고자하는 v2i link의 resource block의 채널 상태를 보여줌
         V2I_channel = (env.V2I_channels_with_fastfading[idx[0], :] - 80)/60
-        
+    
         #이전 스탭에서 idx번째 차량이 전송하고자하는 v2v link의 resource block에서 살펴 볼 수 있는 Interference
         V2V_interference = (-env.V2V_Interference_all[agentindex][idx[0],idx[1],:] - 60)/60
         #선택한 resource block
@@ -152,12 +152,12 @@ class Agent(BaseModel):
         return np.concatenate((V2I_channel, V2V_interference, V2V_channel, NeiSelection, time_remaining, load_remaining))#,time_remaining))
         #return np.concatenate((V2I_channel, V2V_interference, V2V_channel, time_remaining, load_remaining))#,time_remaining))
 
-    def predictwidthModel(self, model, s_t):
+    def predictwidthModel(self, s_t):
         # ==========================
         #  Select actions
         # ======================
         s_t = np.expand_dims(s_t, 0)
-        action =  model.predict(s_t)
+        action =  self.model.predict(s_t)
         actionIndex = np.argmax(action)
         return actionIndex
 
@@ -567,7 +567,7 @@ class Agent(BaseModel):
         
         return np.mean(V2I_Rate_list), np.mean(V2V_Rate_list),np.mean(Fail_percent_list)
 
-    def load_keras_model(self):
+    def load_keras_model(self, rootpath):
         n_hidden_1 = 500
         n_hidden_2 = 250
         n_hidden_3 = 120
@@ -575,14 +575,14 @@ class Agent(BaseModel):
         n_output = 60
 
 
-        model= tf.keras.models.Sequential()
+        self.model = tf.keras.models.Sequential()
 
-        model.add(tf.keras.Input(shape=(n_input,)))
-        model.add(tf.keras.layers.Dense(n_hidden_1, activation='relu'))
-        model.add(tf.keras.layers.Dense(n_hidden_2, activation='relu'))
-        model.add(tf.keras.layers.Dense(n_hidden_3, activation='relu'))
-        model.add(tf.keras.layers.Dense(n_output, activation='relu'))
-        rootpath = '/home/cnlab1/workspace/MS/5G_V2X_prepare_paper/Codes/3000.3_semester/1.DQN구현체(tensorflow버전)/weight/v2i,v2v,qos'
+        self.model.add(tf.keras.Input(shape=(n_input,)))
+        self.model.add(tf.keras.layers.Dense(n_hidden_1, activation='relu'))
+        self.model.add(tf.keras.layers.Dense(n_hidden_2, activation='relu'))
+        self.model.add(tf.keras.layers.Dense(n_hidden_3, activation='relu'))
+        self.model.add(tf.keras.layers.Dense(n_output, activation='relu'))
+        rootpath = rootpath 
         weight1 = self.loadparameter( os.path.join(rootpath, 'encoder_h1.pkl') ) 
         weight2 = self.loadparameter( os.path.join(rootpath, 'encoder_h2.pkl') ) 
         weight3 = self.loadparameter( os.path.join(rootpath, 'encoder_h3.pkl') ) 
@@ -592,12 +592,12 @@ class Agent(BaseModel):
         bias3 = self.loadparameter( os.path.join(rootpath, 'encoder_b3.pkl') ) 
         bias4 = self.loadparameter( os.path.join(rootpath, 'encoder_b4.pkl') ) 
 
-        model.layers[0].set_weights([weight1,bias1])
-        model.layers[1].set_weights([weight2,bias2])
-        model.layers[2].set_weights([weight3,bias3])
-        model.layers[3].set_weights([weight4,bias4])
+        self.model.layers[0].set_weights([weight1,bias1])
+        self.model.layers[1].set_weights([weight2,bias2])
+        self.model.layers[2].set_weights([weight3,bias3])
+        self.model.layers[3].set_weights([weight4,bias4])
 
-        return model
+        print(f'load model success! {rootpath}')
 
     def playwithKeras(self, n_step = 100, n_episode = 100, test_ep = None, render = False, random_choice = False, use_async = True):
         use_async = use_async
